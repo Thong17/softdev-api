@@ -1,16 +1,9 @@
-exports.success = (data, res) => {
-    const result = {
-        code: 'SUCCESS',
-        data
-    }
-    res.status(200)
-    res.json(result)
-}
+const { successCode, failureCode } = require('../constants/statusCodes')
 
-exports.failure = (code, message, res) => {
+exports.send = (code, data, res) => {
     const result = {
-        code: 'FAILD',
-        message
+        code: successCode[code] ? successCode[code] : 'UNKNOWN_CODE',
+        data
     }
     res.status(code)
     res.json(result)

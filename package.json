@@ -4,7 +4,6 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node start app.js",
     "dev": "nodemon app.js"
   },
@@ -24,6 +23,7 @@
     "express": "^4.17.3",
     "joi": "^17.6.0",
     "jsonwebtoken": "^8.5.1",
+    "mongoose": "^6.2.8",
     "nodemon": "^2.0.15"
   }
 }
