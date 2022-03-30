@@ -1,12 +1,18 @@
 const router = require('express').Router()
-const { login, signup } = require('../../controllers/authController')
+const security = require('../../middleware/security')
+const { login, signup, createHash } = require('../../controllers/authController')
 
-router.post('/login', (req, res) => {
+
+router.post('/login', security.hash, (req, res) => {
     login(req, res)
 })
 
-router.post('/signup', (req, res) => {
+router.post('/signup', security.hash, (req, res) => {
     signup(req, res)
+})
+
+router.post('/generateHash', (req, res) => {
+    createHash(req, res)
 })
 
 module.exports = router
