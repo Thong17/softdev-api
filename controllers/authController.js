@@ -1,49 +1,77 @@
-const { encryptPassword, comparePassword, extractJoiErrors, issueToken } = require('../helpers/utils')
+const { encryptPassword, comparePassword, extractJoiErrors, issueToken, createHash } = require('../helpers/utils')
+const Users = require('../models/Users')
 const response = require('../helpers/response')
-const { loginValidation, signUpValidation } = require('../middleware/validations/authValidation')
+const { loginValidation, registerValidation } = require('../middleware/validations/authValidation')
 
 
 exports.login = async (req, res) => {
     const body = req.body
     const { error } = loginValidation.validate(body, { abortEarly: false })
-    if (error) { return res.json(extractJoiErrors(error)) }
+    if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
         // Sign In 
-        // const user = await prisma.user.findFirst({ where: { username: body.username } })
-        // if (!user) return response.failure(404, 'Invalid username or password!', res)
-        // comparePassword(body.password, user.password)
-        //     .then(isMatch => {
-        //         if (!isMatch) return response.failure(404, 'Invalid username or password!', res)
-        //         return response.success({ accessToken: issueToken({ username: user.username }, 60) }, res)
-        //     })
-        //     .catch(error => {
-        //         console.log(error)
-        //         return response.failure(404, 'Invalid username or password!', res)
-        //     }) 
-    } catch (error) {
-        console.log(error)
-        return response.send(422, 'Trouble while collecting data!', res)
+        Users.findOne({ email: body.email }, (err, User) => {
+            if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+            if (!User) return response.failure(404, { msg: 'Email or Password is incorrect!' }, res)
+
+            comparePassword(body.password, User.password)
+                .then(isMatch => {
+                    if (!isMatch) return response.failure(404, { msg: 'Email or Password is incorrect!' }, res)
+                    issueToken({ id: User.id, username: User.username }, process.env.TOKEN_SECRET, 60)
+                        .then(token => {
+                            return response.success(200, { accessToken: token }, res)
+                        })
+                        .catch(err => {
+                            return response.failure(422, { msg: 'Problem while generating token!' }, res, err)
+                        })
+                })
+        })
+    } catch (err) {
+        return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
     }
 }
 
 exports.signup = async (req, res) => {
     const body = req.body
-    const { error } = signUpValidation.validate(body, { abortEarly: false })
-    if (error) { return response.send(422, extractJoiErrors(error), res) }
+    const { error } = registerValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
         // Sign Up
-        // delete body.confirm_password
-        // body.password = await encryptPassword(body.password)
+        delete body.confirm_password
+        body.password = await encryptPassword(body.password)
 
-        // const user = await prisma.user.create({ data: body })
-        // await prisma.profile.create({ data: { userId: user.id }})
+        Users.create(body, (err, User) => {
+            if (err) {
+                switch (err.code) {
+                    case 11000:
+                        return response.failure(422, { msg: 'Email already exists!' }, res, err)
+                    default:
+                        return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+                }
+                
+            }
 
-        // response.success(user, res)
-    } catch (error) {
-        console.log(error)
-        if (error.code === 'P2002') return response.failure(422, 'Input data already exist!', res)
-        return response.send(422, 'Trouble while collecting data!', res)
+            if (User) return response.success(422, { msg: 'User has created successfully', user: User }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+    }
+}
+
+exports.createHash = (req, res) => {
+    const timestamp = req.body.ts
+    const body = req.body.data
+
+    if (!body && !timestamp) return response.failure(400, { msg: 'Missing hash requirement!' }, res)
+
+    try {
+        const str = JSON.stringify(body) + process.env.HASH_SECRET + timestamp
+
+        const hashed_str = createHash(str)
+        return response.success(200, { hashed: hashed_str, ts: timestamp }, res)
+    } catch (err) {
+        return response.failure(400, { msg: 'Something went wrong while creating hash!' }, res, err)
     }
 }

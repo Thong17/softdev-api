@@ -1,10 +1,8 @@
 const Joi = require('joi')
 
 const loginValidation = Joi.object({
-    username: Joi.string()
-        .alphanum()
-        .min(3)
-        .max(30)
+    email: Joi.string()
+        .email({ tlds: { allow: false } })
         .required(),
 
     password: Joi.string()
@@ -27,6 +25,7 @@ const registerValidation = Joi.object({
         .pattern(new RegExp('^[a-zA-Z0-9]{3,30}$')),
 
     confirm_password: Joi.valid(Joi.ref('password'))
+        .required()
 })
 
 module.exports = { loginValidation, registerValidation }
