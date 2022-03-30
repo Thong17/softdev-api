@@ -1,7 +1,4 @@
 const mongoose = require('mongoose')
-const MakerChecker = require('./MakerChecker')
-
-require('../helpers/mongoose-paginate')
 
 const schema = mongoose.Schema(
     {
