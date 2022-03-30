@@ -61,13 +61,14 @@ exports.signup = async (req, res) => {
 }
 
 exports.createHash = (req, res) => {
+    const token = req.body.token || ''
     const timestamp = req.body.ts
     const body = req.body.data
 
     if (!body && !timestamp) return response.failure(400, { msg: 'Missing hash requirement!' }, res)
 
     try {
-        const str = JSON.stringify(body) + process.env.HASH_SECRET + timestamp
+        const str = JSON.stringify(body) + process.env.HASH_SECRET + timestamp + token
 
         const hashed_str = createHash(str)
         return response.success(200, { hashed: hashed_str, ts: timestamp }, res)
