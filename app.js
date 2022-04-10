@@ -1,8 +1,10 @@
 require('dotenv').config()
 require('./configs/db')
 const express = require('express')
+const logger = require('morgan')
 const app = express()
 
+app.use(logger('tiny'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
