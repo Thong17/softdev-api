@@ -4,6 +4,9 @@ const schema = mongoose.Schema(
     {
         role: {
             type: String,
+            index: {
+                unique: true
+            },
             required: [true, 'Name is required!']
         },
         description: {
