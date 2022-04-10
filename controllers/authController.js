@@ -1,4 +1,4 @@
-const { encryptPassword, comparePassword, extractJoiErrors, issueToken, createHash } = require('../helpers/utils')
+const { extractJoiErrors, createHash } = require('../helpers/utils')
 const Users = require('../models/Users')
 const response = require('../helpers/response')
 const { loginValidation, registerValidation } = require('../middleware/validations/authValidation')
@@ -10,22 +10,9 @@ exports.login = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        // Sign In 
-        Users.findOne({ email: body.email }, (err, User) => {
-            if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
-            if (!User) return response.failure(404, { msg: 'Email or Password is incorrect!' }, res)
-
-            comparePassword(body.password, User.password)
-                .then(isMatch => {
-                    if (!isMatch) return response.failure(404, { msg: 'Email or Password is incorrect!' }, res)
-                    issueToken({ id: User.id, username: User.username }, process.env.TOKEN_SECRET, 60)
-                        .then(token => {
-                            return response.success(200, { accessToken: token }, res)
-                        })
-                        .catch(err => {
-                            return response.failure(422, { msg: 'Problem while generating token!' }, res, err)
-                        })
-                })
+        Users.authenticate(body.email, body.password, (err, token) => {
+            if (err) return response.failure(err.code, { msg: err.msg }, res, err)
+            response.success(200, { accessToken: token }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
@@ -38,22 +25,19 @@ exports.signup = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        // Sign Up
         delete body.confirm_password
-        body.password = await encryptPassword(body.password)
-
-        Users.create(body, (err, User) => {
+        Users.create(body, (err, user) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
                         return response.failure(422, { msg: 'Email already exists!' }, res, err)
                     default:
-                        return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+                        return response.failure(422, { msg: err.message }, res, err)
                 }
-                
             }
 
-            if (User) return response.success(422, { msg: 'User has created successfully', user: User }, res)
+            if (!user) return response.failure(422, { msg: 'No user created!' }, res, err)
+            response.success(200, { msg: 'User has created successfully', user: user }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)

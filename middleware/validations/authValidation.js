@@ -20,6 +20,9 @@ const registerValidation = Joi.object({
     email: Joi.string()
         .email({ tlds: { allow: false } })
         .required(),
+        
+    role: Joi.string()
+        .required(),
 
     password: Joi.string()
         .pattern(new RegExp('^[a-zA-Z0-9]{3,30}$')),
