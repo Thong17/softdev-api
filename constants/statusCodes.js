@@ -1,5 +1,5 @@
 exports.successCode = {
-    200: 'OK',
+    200: 'SUCCESS',
     201: 'CREATED',
     202: 'ACCEPTED',
     203: 'NON_AUTHORIZE'

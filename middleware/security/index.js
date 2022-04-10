@@ -7,7 +7,7 @@ exports.hash = (req, res, next) => {
     const timestamp = req.headers['x-access-ts']
     const body = req.body
 
-    if (!hash || !timestamp) return response.failure(400, { msg: 'Missing hash requirement!' }, res)
+    if (!hash || !timestamp) return response.failure(411, { msg: 'Missing hash requirement!' }, res)
 
     try {
         const str = JSON.stringify(body) + process.env.HASH_SECRET + timestamp + token
@@ -41,4 +41,14 @@ exports.auth = (req, res, next) => {
                     return response.failure(401, { msg: 'Something went wrong while generating refresh token!' }, res, err)
                 })
         })
+}
+
+exports.role = (role) => {
+    return (req, res, next) => {
+        const { data } = req.user
+        if (!data) return response.failure(401, { msg: 'You don not have permission!' }, res)
+        const { route, action } = role
+        if (!data.role?.admin?.[action] && !data.role?.[route]?.[action]) return response.failure(401, { msg: 'You don not have permission!' }, res)
+        next()
+    }
 }
