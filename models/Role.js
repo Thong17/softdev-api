@@ -22,4 +22,4 @@ const schema = mongoose.Schema(
     }
 )
 
-module.exports = mongoose.model('Roles', schema)
+module.exports = mongoose.model('Role', schema)

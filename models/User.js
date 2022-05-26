@@ -1,12 +1,17 @@
 const mongoose = require('mongoose')
-const Roles = require('./Roles')
+const Role = require('./Role')
 const { encryptPassword, comparePassword, issueToken } = require('../helpers/utils')
+const Profile = require('./Profile')
+const Config = require('./Config')
 
 const schema = mongoose.Schema(
     {
         username: {
             type: String,
-            required: [true, 'Username is required!']
+            required: [true, 'Username is required!'],
+            index: {
+                unique: true
+            }
         },
         email: {
             type: String,
@@ -35,12 +40,12 @@ const schema = mongoose.Schema(
         },
         role: {
             type: mongoose.Schema.ObjectId,
-            ref: 'Roles',
+            ref: 'Role',
             required: [true, 'Role is required!'],
             validate: {
                 validator: (id) => {
                     return new Promise((resolve, reject) => {
-                        Roles.findById(id, function (err, doc) {
+                        Role.findById(id, function (err, doc) {
                             if (err) return reject(err)
                             resolve(!!doc)
                         })
@@ -48,6 +53,14 @@ const schema = mongoose.Schema(
                 },
                 message: 'Role is not existed in our system'
             },
+        },
+        profile: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Profile'
+        },
+        config: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Config'
         },
         isDisabled: {
             type: Boolean,
@@ -59,22 +72,40 @@ const schema = mongoose.Schema(
     }
 )
 
-schema.pre('save', async function () {
-    this.password = await encryptPassword(this.password)
-    return this
+schema.pre('save', async function (next) {
+    try {
+        this.password = await encryptPassword(this.password)
+        next()
+    } catch (err) {
+        next(err)
+    }
 })
 
-schema.statics.authenticate = function (email, password, cb) {
-    this.findOne({ email, isDisabled: { $ne: true } })
+schema.post('save', async function () {
+    if (!this.profile) {
+        const profile = await Profile.create({})
+        await this.model('User').findOneAndUpdate({ _id: this.id }, { profile: profile.id })
+    }
+    if (!this.config) {
+        const config = await Config.create({})
+        await this.model('User').findOneAndUpdate({ _id: this.id }, { config: config.id })
+
+    }
+})
+
+schema.statics.authenticate = function (username, password, cb) {
+    this.findOne({ username, isDisabled: { $ne: true } })
         .populate('role')
+        .populate('profile')
+        .populate('config')
         .then(user => {
-            if (!user) return cb({ code: 404, msg: 'Email or password is incorrect' }, null)
+            if (!user) return cb({ code: 404, msg: 'Username is incorrect' }, null)
             comparePassword(password, user.password)
                 .then(isMatch => {
-                    if (!isMatch) return cb({ code: 404, msg: 'Email or password is incorrect' }, null)
-                    issueToken({ id: user.id, username: user.username, role: user.role?.privilege }, process.env.TOKEN_SECRET, '1d')
+                    if (!isMatch) return cb({ code: 404, msg: 'Password is incorrect' }, null)
+                    issueToken({ id: user.id }, process.env.TOKEN_SECRET, '1d')
                         .then(token => {
-                            cb(null, token)
+                            cb(null, { token, user })
                         })
                         .catch(err => {
                             cb({ code: 422, msg: err.message }, null)
@@ -89,4 +120,4 @@ schema.statics.authenticate = function (email, password, cb) {
         })
 }
 
-module.exports = mongoose.model('Users', schema)
+module.exports = mongoose.model('User', schema)

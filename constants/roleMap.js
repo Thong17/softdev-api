@@ -64,23 +64,45 @@ exports.privilege = {
             route: 'role',
             action: 'delete'
         }
+    },
+    category: {
+        list: {
+            route: 'category',
+            action: 'list'
+        },
+        detail: {
+            route: 'category',
+            action: 'detail'
+        },
+        create: {
+            route: 'category',
+            action: 'create'
+        },
+        update: {
+            route: 'category',
+            action: 'update'
+        },
+        delete: {
+            route: 'category',
+            action: 'delete'
+        },
+        approve: {
+            route: 'category',
+            action: 'approve'
+        }
     }
 }
 
-const roles = Object.keys(this.privilege)
-
 let role
+const roles = Object.keys(this.privilege)
 roles.forEach(p => {
     role = {
         ...role,
-        [p]: {
-            list: false,
-            detail: false,
-            create: false,
-            update: false,
-            delete: false
-        }
+        [p]: {}
     }
+    Object.keys(this.privilege[p]).forEach(k => {
+        role[p][k] = false
+    })
 })
 
 exports.preRole = role

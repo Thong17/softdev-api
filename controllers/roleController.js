@@ -1,9 +1,11 @@
-const Roles = require('../models/Roles')
+const Role = require('../models/Role')
 const response = require('../helpers/response')
+const { failureMsg } = require('../constants/responseMsg')
+const { extractJoiErrors } = require('../helpers/utils')
 const { createRoleValidation } = require('../middleware/validations/roleValidation')
 
 exports.index = async (req, res) => {
-    Roles.find({}, (err, roles) => {
+    Role.find({}, (err, roles) => {
         if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
         return response.success(200, { data: roles }, res)
     })
@@ -15,7 +17,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Roles.create(body, (err, role) => {
+        Role.create(body, (err, role) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -29,7 +31,7 @@ exports.create = async (req, res) => {
             response.success(200, { msg: 'Role has created successfully', role: role }, res)
         })
     } catch (err) {
-        return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
 

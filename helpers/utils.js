@@ -1,6 +1,5 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const crypto = require('crypto')
 
 module.exports = utils = {
     encryptPassword: (plainPassword) => {
@@ -23,7 +22,7 @@ module.exports = utils = {
     issueToken: (data, secret, expire) => {
         return new Promise((resolve, reject) => {
             try {
-                const token = jwt.sign({ data: data }, secret, { expiresIn: expire })
+                const token = jwt.sign(data, secret, { expiresIn: expire })
                 resolve(token)
             } catch (err) {
                 reject(err)
@@ -43,6 +42,7 @@ module.exports = utils = {
         })
     },
     createHash: (str) => {
-        return Buffer.from(crypto.createHash('sha256').update(str).digest('hex')).toString('base64')
+        const sha256 = require('js-sha256')
+        return sha256.hex(str).toString()
     }
 }

@@ -1,6 +1,7 @@
-const { extractJoiErrors, createHash } = require('../helpers/utils')
-const Users = require('../models/Users')
+const { extractJoiErrors } = require('../helpers/utils')
+const User = require('../models/User')
 const response = require('../helpers/response')
+const { failureMsg } = require('../constants/responseMsg')
 const { loginValidation, registerValidation } = require('../middleware/validations/authValidation')
 
 
@@ -10,27 +11,36 @@ exports.login = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Users.authenticate(body.email, body.password, (err, token) => {
+        User.authenticate(body.username, body.password, (err, data) => {
             if (err) return response.failure(err.code, { msg: err.msg }, res, err)
-            response.success(200, { accessToken: token }, res)
+
+            const user = {
+                id: data.user.id,
+                username: data.user.username,
+                privilege: data.user.role.privilege,
+                photo: data.user.profile?.photo,
+                theme: data.user.config?.theme,
+                language: data.user.config?.language,
+            }
+            response.success(200, { accessToken: data.token, user }, res)
         })
     } catch (err) {
-        return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
 
-exports.signup = async (req, res) => {
+exports.register = async (req, res) => {
     const body = req.body
     const { error } = registerValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
         delete body.confirm_password
-        Users.create(body, (err, user) => {
+        User.create(body, (err, user) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
-                        return response.failure(422, { msg: 'Email already exists!' }, res, err)
+                        return response.failure(422, { msg: 'Username already exists!' }, res, err)
                     default:
                         return response.failure(422, { msg: err.message }, res, err)
                 }
@@ -40,23 +50,7 @@ exports.signup = async (req, res) => {
             response.success(200, { msg: 'User has created successfully', user: user }, res)
         })
     } catch (err) {
-        return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
 
-exports.createHash = (req, res) => {
-    const token = req.body.token || ''
-    const timestamp = req.body.ts
-    const body = req.body.data
-
-    if (!body && !timestamp) return response.failure(400, { msg: 'Missing hash requirement!' }, res)
-
-    try {
-        const str = JSON.stringify(body) + process.env.HASH_SECRET + timestamp + token
-
-        const hashed_str = createHash(str)
-        return response.success(200, { hashed: hashed_str, ts: timestamp }, res)
-    } catch (err) {
-        return response.failure(400, { msg: 'Something went wrong while creating hash!' }, res, err)
-    }
-}

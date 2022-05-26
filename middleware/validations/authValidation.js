@@ -1,8 +1,7 @@
 const Joi = require('joi')
 
 const loginValidation = Joi.object({
-    email: Joi.string()
-        .email({ tlds: { allow: false } })
+    username: Joi.string()
         .required(),
 
     password: Joi.string()

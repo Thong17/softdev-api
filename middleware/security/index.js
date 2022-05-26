@@ -25,8 +25,11 @@ exports.auth = (req, res, next) => {
     const token = req.headers['x-access-token']
     if (!token) return response.failure(411, { msg: 'Token is required!' }, res)
     verifyToken(token, process.env.TOKEN_SECRET)
-        .then(decoded => {
-            req.user = decoded
+        .then(async decoded => {
+            const User = require('../../models/User')
+            const { id } = decoded
+            const user = await User.findById(id).populate('role').populate('profile').populate('config')
+            req.user = user
             next()
         })
         .catch(err => {
@@ -45,10 +48,10 @@ exports.auth = (req, res, next) => {
 
 exports.role = (role) => {
     return (req, res, next) => {
-        const { data } = req.user
-        if (!data) return response.failure(401, { msg: 'You don not have permission!' }, res)
+        const user = req.user
+        if (!user) return response.failure(401, { msg: 'You don not have permission!' }, res)
         const { route, action } = role
-        if (!data.role?.admin?.[action] && !data.role?.[route]?.[action]) return response.failure(401, { msg: 'You don not have permission!' }, res)
+        if (!user.role?.privilege?.admin?.[action] && !user.role?.privilege?.[route]?.[action]) return response.failure(401, { msg: 'You don not have permission!' }, res)
         next()
     }
 }
