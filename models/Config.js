@@ -4,11 +4,11 @@ const schema = mongoose.Schema(
     {
         theme: {
             type: String,
-            default: 'light'
+            default: 'Light'
         },
         language: {
             type: String,
-            default: 'en'
+            default: 'English'
         }
     },
     {

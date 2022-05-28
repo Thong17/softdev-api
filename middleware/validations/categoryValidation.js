@@ -1,7 +1,7 @@
 const Joi = require('joi')
 
 const createCategoryValidation = Joi.object({
-    category: Joi.object({
+    name: Joi.object({
         English: Joi.string().required()
     }),
     status: Joi.boolean().optional(),

@@ -2,10 +2,10 @@ const mongoose = require('mongoose')
 
 const schema = mongoose.Schema(
     {
-        role: {
-            type: String,
+        name: {
+            type: Object,
             index: {
-                unique: true
+                unique: true,
             },
             required: [true, 'Name is required!']
         },
@@ -14,8 +14,12 @@ const schema = mongoose.Schema(
         },
         privilege: {
             type: Object,
-            required: [true, 'Privileges is required!']
+            required: [true, 'Privilege is required!']
         },
+        isDisabled: {
+            type: Boolean,
+            default: false
+        }
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }

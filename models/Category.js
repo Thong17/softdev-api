@@ -2,7 +2,7 @@ const mongoose = require('mongoose')
 
 const schema = mongoose.Schema(
     {
-        category: {
+        name: {
             type: Object,
             require: true
         },

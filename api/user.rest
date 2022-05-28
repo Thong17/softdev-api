@@ -1,0 +1,10 @@
+POST http//localhost:3030/auth/register
+Content-Type: application/json
+
+{
+    "username": "thong",
+    "email": "thong@mail.com",
+    "role": "admin: { list: true, create: true }",
+    "password": "thong123",
+    "confirm_password": "thong123"
+}

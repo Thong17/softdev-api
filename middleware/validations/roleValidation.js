@@ -1,12 +1,14 @@
 const Joi = require('joi')
 
 const createRoleValidation = Joi.object({
-    role: Joi.string()
+    name: Joi.object()
         .required(),
 
-    description: Joi.string(),
+    description: Joi.string()
+        .allow(''),
 
     privilege: Joi.object()
+        .required()
 })
 
 module.exports = { createRoleValidation }

@@ -11,6 +11,20 @@ exports.index = async (req, res) => {
     })
 }
 
+exports.detail = async (req, res) => {
+    Role.findById(req.params.id, (err, role) => {
+        if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        return response.success(200, { data: role }, res)
+    })
+}
+
+exports.list = async (req, res) => {
+    Role.find({}, (err, roles) => {
+        if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        return response.success(200, { data: roles }, res)
+    })
+}
+
 exports.create = async (req, res) => {
     const body = req.body
     const { error } = createRoleValidation.validate(body, { abortEarly: false })
@@ -28,10 +42,20 @@ exports.create = async (req, res) => {
             }
 
             if (!role) return response.failure(422, { msg: 'No role created!' }, res, err)
-            response.success(200, { msg: 'Role has created successfully', role: role }, res)
+            response.success(200, { msg: 'Role has created successfully', data: role }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
+}
+
+exports.getPrivilege = (req, res) => {
+    const { privilege } = require('../constants/roleMap')
+    response.success(200, { data: privilege }, res)
+}
+
+exports.getPreRole = (req, res) => {
+    const { preRole } = require('../constants/roleMap')
+    response.success(200, { data: preRole }, res)
 }
 
