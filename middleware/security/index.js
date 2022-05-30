@@ -51,7 +51,7 @@ exports.role = (role) => {
         const user = req.user
         if (!user) return response.failure(401, { msg: 'You don not have permission!' }, res)
         const { route, action } = role
-        if (!user.role?.privilege?.admin?.[action] && !user.role?.privilege?.[route]?.[action]) return response.failure(401, { msg: 'You don not have permission!' }, res)
+        if (!user.role?.privilege?.[route]?.[action]) return response.failure(401, { msg: 'You don not have permission!' }, res)
         next()
     }
 }
