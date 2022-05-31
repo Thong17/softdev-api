@@ -13,9 +13,9 @@ exports.index = async (req, res) => {
 }
 
 exports.detail = async (req, res) => {
-    User.findById(req.params.id, (err, role) => {
+    User.findById(req.params.id, (err, user) => {
         if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
-        return response.success(200, { data: role }, res)
+        return response.success(200, { data: user }, res)
     })
 }
 
