@@ -90,6 +90,32 @@ exports.privilege = {
             route: 'category',
             action: 'approve'
         }
+    },
+    brand: {
+        list: {
+            route: 'brand',
+            action: 'list'
+        },
+        detail: {
+            route: 'brand',
+            action: 'detail'
+        },
+        create: {
+            route: 'brand',
+            action: 'create'
+        },
+        update: {
+            route: 'brand',
+            action: 'update'
+        },
+        delete: {
+            route: 'brand',
+            action: 'delete'
+        },
+        approve: {
+            route: 'brand',
+            action: 'approve'
+        }
     }
 }
 
