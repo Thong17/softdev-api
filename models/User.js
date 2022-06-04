@@ -62,6 +62,10 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Config'
         },
+        createdBy: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'User'
+        },
         isDisabled: {
             type: Boolean,
             default: false
@@ -89,8 +93,20 @@ schema.post('save', async function () {
     if (!this.config) {
         const config = await Config.create({})
         await this.model('User').findOneAndUpdate({ _id: this.id }, { config: config.id })
-
     }
+})
+
+schema.post('insertMany', async function(users) {
+    users.forEach(async user => {
+        if (!user.profile) {
+            const profile = await Profile.create({})
+            await this.model('User').findOneAndUpdate({ _id: user.id }, { profile: profile.id })
+        }
+        if (!user.config) {
+            const config = await Config.create({})
+            await this.model('User').findOneAndUpdate({ _id: user.id }, { config: config.id })
+        }
+    })
 })
 
 schema.statics.authenticate = function (username, password, cb) {

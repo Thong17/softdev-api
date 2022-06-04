@@ -2,7 +2,7 @@ const response = require('../helpers/response')
 const Config = require('../models/Config')
 const User = require('../models/User')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, encryptPassword } = require('../helpers/utils')
 const { createUserValidation } = require('../middleware/validations/userValidation')
 
 exports.index = (req, res) => {
@@ -25,7 +25,7 @@ exports.create = (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        User.create(body, (err, user) => {
+        User.create({...body, createdBy: req.user.id}, (err, user) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -95,6 +95,27 @@ exports._import = async (req, res) => {
 exports._export = async (req, res) => {
     try {
         console.log(req);
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res)
+    }
+}
+
+exports.batch = async (req, res) => {
+    try {
+        const users = req.body
+        const password = await encryptPassword('default')
+
+        users.forEach(user => {
+            user.password = password
+        })
+
+        User.insertMany(users)
+            .then(data => {
+                response.success(200, { msg: `${data.length} ${data.length > 1 ? 'users' : 'user'} has been inserted` }, res)
+            })
+            .catch(err => {
+                return response.failure(422, { msg: err.message }, res)
+            })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res)
     }

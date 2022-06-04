@@ -3,7 +3,7 @@ const multer = require('multer')
 const upload = multer()
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
-const { index, detail, create, disable, update, _import, _export } = require('../../controllers/userController')
+const { index, detail, create, disable, update, batch, _import, _export } = require('../../controllers/userController')
 
 
 router.get('/', security.role(privilege.user.list), (req, res) => {
@@ -28,6 +28,10 @@ router.delete('/disable/:id', security.role(privilege.user.delete), (req, res) =
 
 router.post('/excel/import', upload.single('excel'), (req, res) => {
     _import(req, res)
+})
+
+router.post('/batch', (req, res) => {
+    batch(req, res)
 })
 
 router.post('/excel/export', (req, res) => {
