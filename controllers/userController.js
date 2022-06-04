@@ -2,24 +2,24 @@ const response = require('../helpers/response')
 const Config = require('../models/Config')
 const User = require('../models/User')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors } = require('../helpers/utils')
+const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createUserValidation } = require('../middleware/validations/userValidation')
 
-exports.index = async (req, res) => {
+exports.index = (req, res) => {
     User.find({ isDisabled: false }, (err, users) => {
         if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
         return response.success(200, { data: users }, res)
     }).populate('role')
 }
 
-exports.detail = async (req, res) => {
+exports.detail = (req, res) => {
     User.findById(req.params.id, (err, user) => {
         if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
         return response.success(200, { data: user }, res)
     })
 }
 
-exports.create = async (req, res) => {
+exports.create = (req, res) => {
     const body = req.body
     const { error } = createUserValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
@@ -43,7 +43,7 @@ exports.create = async (req, res) => {
     }
 }
 
-exports.update = async (req, res) => {
+exports.update = (req, res) => {
     const body = req.body
     const { error } = createUserValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
@@ -65,7 +65,7 @@ exports.update = async (req, res) => {
     }
 }
 
-exports.disable = async (req, res) => {
+exports.disable = (req, res) => {
     try {
         User.findByIdAndUpdate(req.params.id, { isDisabled: true }, (err, user) => {
             if (err) {
@@ -80,6 +80,23 @@ exports.disable = async (req, res) => {
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports._import = async (req, res) => {
+    try {
+        const users = await readExcel(req.file.buffer, req.body.fields)
+        response.success(200, { msg: 'List has been previewed', data: users }, res)
+    } catch (err) {
+        return response.failure(err.code, { msg: err.msg }, res)
+    }
+}
+
+exports._export = async (req, res) => {
+    try {
+        console.log(req);
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res)
     }
 }
 

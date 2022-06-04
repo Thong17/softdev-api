@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const responseMsg = require('../constants/responseMsg')
 
 module.exports = utils = {
     encryptPassword: (plainPassword) => {
@@ -44,5 +45,35 @@ module.exports = utils = {
     createHash: (str) => {
         const sha256 = require('js-sha256')
         return sha256.hex(str).toString()
+    },
+    readExcel: (buffer, field) => {
+        const xlsx = require('xlsx')
+        return new Promise((resolve, reject) => {
+            try {
+                const fields = field.split(',')
+                const workbook = xlsx.read(buffer, { type: 'buffer' })
+                const json = xlsx.utils.sheet_to_json(workbook.Sheets?.['listing'] || {})
+                const data = []
+                let no = 0
+                json.forEach(row => {
+                    let obj = {}
+                    no++
+                    fields.forEach(column => {
+                        if (!row?.[column]) return
+
+                        obj = {
+                            ...obj,
+                            no: no,
+                            [column]: row[column]
+                        }
+                    })
+                    Object.keys(obj).length > 0 && data.push(obj) 
+                })
+                if (data.length === 0) reject({ msg: 'Invalid excel format!', code: 422 })
+                resolve(data)
+            } catch (err) {
+                reject({ msg: responseMsg.failureMsg.trouble, code: 422 })
+            }
+        })
     }
 }

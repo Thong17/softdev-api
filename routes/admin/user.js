@@ -1,7 +1,10 @@
 const router = require('express').Router()
-const { index, detail, create, disable, update } = require('../../controllers/userController')
+const multer = require('multer')
+const upload = multer()
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
+const { index, detail, create, disable, update, _import, _export } = require('../../controllers/userController')
+
 
 router.get('/', security.role(privilege.user.list), (req, res) => {
     index(req, res)
@@ -22,4 +25,13 @@ router.put('/update/:id', security.role(privilege.user.update), (req, res) => {
 router.delete('/disable/:id', security.role(privilege.user.delete), (req, res) => {
     disable(req, res)
 })
+
+router.post('/excel/import', upload.single('excel'), (req, res) => {
+    _import(req, res)
+})
+
+router.post('/excel/export', (req, res) => {
+    _export(req, res)
+})
+
 module.exports = router

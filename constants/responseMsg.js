@@ -3,5 +3,5 @@ exports.successMsg = {
 }
 
 exports.failureMsg = {
-    trouble: 'Trouble while collecting data!'
+    trouble: 'Trouble while collecting data!',
 }
