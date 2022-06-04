@@ -92,14 +92,6 @@ exports._import = async (req, res) => {
     }
 }
 
-exports._export = async (req, res) => {
-    try {
-        console.log(req);
-    } catch (err) {
-        return response.failure(422, { msg: failureMsg.trouble }, res)
-    }
-}
-
 exports.batch = async (req, res) => {
     try {
         const users = req.body

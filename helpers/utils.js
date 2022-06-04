@@ -52,7 +52,7 @@ module.exports = utils = {
             try {
                 const fields = field.split(',')
                 const workbook = xlsx.read(buffer, { type: 'buffer' })
-                const json = xlsx.utils.sheet_to_json(workbook.Sheets?.['listing'] || {})
+                const json = xlsx.utils.sheet_to_json(workbook.Sheets?.['Sheet1'] || {})
                 const data = []
                 let no = 0
                 json.forEach(row => {

@@ -1,7 +1,7 @@
 const Role = require('../models/Role')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors } = require('../helpers/utils')
+const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createRoleValidation } = require('../middleware/validations/roleValidation')
 
 exports.index = async (req, res) => {
@@ -97,5 +97,35 @@ exports.getPrivilege = (req, res) => {
 exports.getPreRole = (req, res) => {
     const { preRole } = require('../constants/roleMap')
     response.success(200, { data: preRole }, res)
+}
+
+exports._import = async (req, res) => {
+    try {
+        const roles = await readExcel(req.file.buffer, req.body.fields)
+        response.success(200, { msg: 'List has been previewed', data: roles }, res)
+    } catch (err) {
+        return response.failure(err.code, { msg: err.msg }, res)
+    }
+}
+
+exports.batch = async (req, res) => {
+    try {
+        const roles = req.body
+
+        roles.forEach(role => {
+            role.privilege = JSON.parse(role.privilege)
+            role.name = JSON.parse(role.name)
+        })
+
+        Role.insertMany(roles)
+            .then(data => {
+                response.success(200, { msg: `${data.length} ${data.length > 1 ? 'roles' : 'role'} has been inserted` }, res)
+            })
+            .catch(err => {
+                return response.failure(422, { msg: err.message }, res)
+            })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res)
+    }
 }
 
