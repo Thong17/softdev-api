@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const { default: mongoose } = require('mongoose')
 const responseMsg = require('../constants/responseMsg')
 
 module.exports = utils = {
@@ -48,6 +49,7 @@ module.exports = utils = {
     },
     readExcel: (buffer, field) => {
         const xlsx = require('xlsx')
+        const ObjectId = mongoose.Types.ObjectId
         return new Promise((resolve, reject) => {
             try {
                 const fields = field.split(',')
@@ -59,12 +61,14 @@ module.exports = utils = {
                     let obj = {}
                     no++
                     fields.forEach(column => {
-                        if (!row?.[column]) return
+                        let value = row?.[column]
+                        if (!value) return
+                        if (column === '_id') value = new ObjectId(value)
 
                         obj = {
                             ...obj,
                             no: no,
-                            [column]: row[column]
+                            [column]: value
                         }
                     })
                     Object.keys(obj).length > 0 && data.push(obj) 
