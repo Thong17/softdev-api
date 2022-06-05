@@ -9,6 +9,7 @@ app.use(cors({ origin: '*' }))
 app.use(logger('tiny'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use('/uploads', express.static('uploads'))
 
 // Routing
 app.use('/', require('./routes/router'))

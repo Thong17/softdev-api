@@ -21,7 +21,11 @@ const schema = mongoose.Schema(
         isDeleted: {
             type: Boolean,
             default: false
-        }
+        },
+        createdBy: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'User'
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }

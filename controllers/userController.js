@@ -7,14 +7,14 @@ const { createUserValidation } = require('../middleware/validations/userValidati
 
 exports.index = (req, res) => {
     User.find({ isDisabled: false }, (err, users) => {
-        if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: users }, res)
     }).populate('role')
 }
 
 exports.detail = (req, res) => {
     User.findById(req.params.id, (err, user) => {
-        if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: user }, res)
     })
 }

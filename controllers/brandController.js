@@ -8,12 +8,12 @@ exports.index = async (req, res) => {
     Brand.find({ isDeleted: false }, (err, categories) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: categories }, res)
-    })
+    }).populate('icon')
 }
 
 exports.detail = async (req, res) => {
     Brand.findById(req.params.id, (err, brand) => {
-        if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: brand }, res)
     })
 }

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+const Image = require('./Image')
 
 const schema = mongoose.Schema(
     {
@@ -11,8 +12,8 @@ const schema = mongoose.Schema(
             default: false
         },
         icon: {
-            type: Object,
-            require: false
+            type: mongoose.Schema.ObjectId,
+            ref: 'Image'
         },
         description: {
             type: String,
@@ -21,11 +22,19 @@ const schema = mongoose.Schema(
         isDeleted: {
             type: Boolean,
             default: false
-        }
+        },
+        createdBy: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'User'
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
     }
 )
+
+schema.post('save', async function () {
+    await Image.findOneAndUpdate({ _id: this.icon }, { isActive: true })
+})
 
 module.exports = mongoose.model('Brand', schema)

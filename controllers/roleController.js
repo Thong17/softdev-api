@@ -6,21 +6,21 @@ const { createRoleValidation } = require('../middleware/validations/roleValidati
 
 exports.index = async (req, res) => {
     Role.find({ isDisabled: false }, (err, roles) => {
-        if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: roles }, res)
     }).populate('createdBy')
 }
 
 exports.detail = async (req, res) => {
     Role.findById(req.params.id, (err, role) => {
-        if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: role }, res)
     })
 }
 
 exports.list = async (req, res) => {
     Role.find({ isDisabled: false }, (err, roles) => {
-        if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: roles }, res)
     })
 }
