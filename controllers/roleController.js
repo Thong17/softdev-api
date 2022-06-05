@@ -8,7 +8,7 @@ exports.index = async (req, res) => {
     Role.find({ isDisabled: false }, (err, roles) => {
         if (err) return response.failure(422, { msg: 'Trouble while collecting data!' }, res, err)
         return response.success(200, { data: roles }, res)
-    })
+    }).populate('createdBy')
 }
 
 exports.detail = async (req, res) => {
@@ -31,7 +31,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Role.create(body, (err, role) => {
+        Role.create({...body, createdBy: req.user.id}, (err, role) => {
             if (err) {
                 switch (err.code) {
                     case 11000:

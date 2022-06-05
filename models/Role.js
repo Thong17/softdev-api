@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+const User = require('./User')
 
 const schema = mongoose.Schema(
     {
@@ -15,6 +16,10 @@ const schema = mongoose.Schema(
         privilege: {
             type: Object,
             required: [true, 'Privilege is required!']
+        },
+        createdBy: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'User'
         },
         isDisabled: {
             type: Boolean,

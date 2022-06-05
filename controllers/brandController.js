@@ -1,7 +1,7 @@
 const Brand = require('../models/Brand')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors } = require('../helpers/utils')
+const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createBrandValidation } = require('../middleware/validations/brandValidation')
 
 exports.index = async (req, res) => {
@@ -79,6 +79,35 @@ exports.disable = async (req, res) => {
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports._import = async (req, res) => {
+    try {
+        const brands = await readExcel(req.file.buffer, req.body.fields)
+        response.success(200, { msg: 'List has been previewed', data: brands }, res)
+    } catch (err) {
+        return response.failure(err.code, { msg: err.msg }, res)
+    }
+}
+
+exports.batch = async (req, res) => {
+    try {
+        const brands = req.body
+
+        brands.forEach(brand => {
+            brand.name = JSON.parse(brand.name)
+        })
+
+        Brand.insertMany(brands)
+            .then(data => {
+                response.success(200, { msg: `${data.length} ${data.length > 1 ? 'branches' : 'branch'} has been inserted` }, res)
+            })
+            .catch(err => {
+                return response.failure(422, { msg: err.message }, res)
+            })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res)
     }
 }
 

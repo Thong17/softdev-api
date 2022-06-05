@@ -1,7 +1,7 @@
 const Category = require('../models/Category')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors } = require('../helpers/utils')
+const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createCategoryValidation } = require('../middleware/validations/categoryValidation')
 
 exports.index = async (req, res) => {
@@ -79,6 +79,35 @@ exports.disable = async (req, res) => {
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports._import = async (req, res) => {
+    try {
+        const categories = await readExcel(req.file.buffer, req.body.fields)
+        response.success(200, { msg: 'List has been previewed', data: categories }, res)
+    } catch (err) {
+        return response.failure(err.code, { msg: err.msg }, res)
+    }
+}
+
+exports.batch = async (req, res) => {
+    try {
+        const categories = req.body
+
+        categories.forEach(category => {
+            category.name = JSON.parse(category.name)
+        })
+
+        Category.insertMany(categories)
+            .then(data => {
+                response.success(200, { msg: `${data.length} ${data.length > 1 ? 'categories' : 'category'} has been inserted` }, res)
+            })
+            .catch(err => {
+                return response.failure(422, { msg: err.message }, res)
+            })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res)
     }
 }
 
