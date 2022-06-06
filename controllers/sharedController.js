@@ -1,10 +1,10 @@
 const response = require('../helpers/response')
-const Image = require('../models/Image')
+const Icon = require('../models/Icon')
 const { failureMsg } = require('../constants/responseMsg')
 
 exports.uploadImage = (req, res) => {
     try {
-        Image.create({ filename: req.file.filename }, (err, image) => {
+        Icon.create({ filename: req.file.filename }, (err, image) => {
             if (err) {
                 return response.failure(422, { msg: err.message }, res, err)
             }

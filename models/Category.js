@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+const Icon = require('./Icon')
 
 const schema = mongoose.Schema(
     {
@@ -11,8 +12,8 @@ const schema = mongoose.Schema(
             default: false
         },
         icon: {
-            type: Object,
-            require: false
+            type: mongoose.Schema.ObjectId,
+            ref: 'Icon'
         },
         description: {
             type: String,
@@ -31,5 +32,9 @@ const schema = mongoose.Schema(
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
     }
 )
+
+schema.post('save', async function () {
+    await Icon.findOneAndUpdate({ _id: this.icon }, { isActive: true })
+})
 
 module.exports = mongoose.model('Category', schema)

@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-const Image = require('./Image')
+const Icon = require('./Icon')
 
 const schema = mongoose.Schema(
     {
@@ -13,7 +13,7 @@ const schema = mongoose.Schema(
         },
         icon: {
             type: mongoose.Schema.ObjectId,
-            ref: 'Image'
+            ref: 'Icon'
         },
         description: {
             type: String,
@@ -34,7 +34,7 @@ const schema = mongoose.Schema(
 )
 
 schema.post('save', async function () {
-    await Image.findOneAndUpdate({ _id: this.icon }, { isActive: true })
+    await Icon.findOneAndUpdate({ _id: this.icon }, { isActive: true })
 })
 
 module.exports = mongoose.model('Brand', schema)
