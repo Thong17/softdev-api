@@ -8,7 +8,7 @@ const schema = mongoose.Schema(
         isActive: {
             type: Boolean,
             default: false
-        }
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }

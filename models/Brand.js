@@ -27,6 +27,10 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'User'
         },
+        products: [{
+            type: mongoose.Schema.ObjectId,
+            ref: 'Product'
+        }],
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
