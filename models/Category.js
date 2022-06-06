@@ -33,6 +33,17 @@ const schema = mongoose.Schema(
     }
 )
 
+schema.pre('save', async function (next) {
+    try {
+        if (this.icon) {
+            await Icon.findOneAndUpdate({ _id: this.icon }, { isActive: false })
+        }
+        next()
+    } catch (err) {
+        next(err)
+    }
+})
+
 schema.post('save', async function () {
     await Icon.findOneAndUpdate({ _id: this.icon }, { isActive: true })
 })
