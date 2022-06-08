@@ -7,7 +7,11 @@ const schema = mongoose.Schema(
             require: true
         },
         price: {
-            type: Object,
+            type: String,
+            require: true
+        },
+        currency: {
+            type: String,
             require: true
         },
         code: {

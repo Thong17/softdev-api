@@ -10,12 +10,16 @@ const createProductValidation = Joi.object({
     isStock: Joi.boolean().optional(),
     profile: Joi.any().optional(),
     brand: Joi.string().required(),
-    category: Joi.string().required(),
+    category: Joi.string().required()
+})
+
+const updateValueValidation = Joi.object({
     colors: Joi.array().optional(),
     options: Joi.array().optional(),
     images: Joi.array().optional()
 })
 
 module.exports = {
-    createProductValidation
+    createProductValidation,
+    updateValueValidation
 }

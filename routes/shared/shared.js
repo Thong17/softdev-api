@@ -1,6 +1,7 @@
 const router = require('express').Router()
 const { list } = require('../../controllers/roleController')
-const { uploadImage } = require('../../controllers/sharedController')
+const response = require('../../helpers/response')
+const { uploadImageController, uploadIconController } = require('../../controllers/sharedController')
 const multer = require('multer')
 const security = require('../../middleware/security/index')
 
@@ -13,17 +14,32 @@ const storage = multer.diskStorage({
   },
 })
 
-const upload = multer({
+const uploadImage = multer({
   storage,
   limits: { fileSize: 1 * 1000 * 1000 },
-})
+}).single('image') 
+
+const uploadIcon = multer({
+  storage,
+  limits: { fileSize: 0.5 * 1000 * 1000 },
+}).single('icon') 
 
 router.get('/role/list', (req, res) => {
   list(req, res)
 })
 
-router.post('/upload/image', upload.single('image'), (req, res) => {
-  uploadImage(req, res)
+router.post('/upload/image', (req, res) => {
+  uploadImage(req, res, (err) => {
+    if (err) return response.failure(422, { msg: err.message }, res, err)
+    uploadImageController(req, res)
+  })
+})
+
+router.post('/upload/icon', (req, res) => {
+  uploadIcon(req, res, (err) => {
+    if (err) return response.failure(422, { msg: err.message }, res, err)
+    uploadIconController(req, res)
+  })
 })
 
 module.exports = router
