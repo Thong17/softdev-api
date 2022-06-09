@@ -16,7 +16,7 @@ exports.detail = async (req, res) => {
     Product.findById(req.params.id, (err, product) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: product }, res)
-    })
+    }).populate('images')
 }
 
 exports.create = async (req, res) => {

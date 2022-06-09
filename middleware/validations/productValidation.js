@@ -10,7 +10,8 @@ const createProductValidation = Joi.object({
     isStock: Joi.boolean().optional(),
     profile: Joi.any().optional(),
     brand: Joi.string().required(),
-    category: Joi.string().required()
+    category: Joi.string().required(),
+    images: Joi.array().optional()
 })
 
 const updateValueValidation = Joi.object({

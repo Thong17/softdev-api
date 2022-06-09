@@ -16,8 +16,8 @@ const storage = multer.diskStorage({
 
 const uploadImage = multer({
   storage,
-  limits: { fileSize: 1 * 1000 * 1000 },
-}).single('image') 
+  limits: { fileSize: 10 * 1000 * 1000 },
+}).array('images', 10) 
 
 const uploadIcon = multer({
   storage,

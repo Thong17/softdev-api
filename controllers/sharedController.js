@@ -4,14 +4,21 @@ const Image = require('../models/Image')
 const { failureMsg } = require('../constants/responseMsg')
 
 exports.uploadImageController = (req, res) => {
+    const files = []
+    req.files.forEach(file => {
+        const fileObj = {
+            filename: file.filename
+        }
+        files.push(fileObj)
+    })
     try {
-        Image.create({ filename: req.file.filename }, (err, image) => {
+        Image.insertMany(files, (err, image) => {
             if (err) {
                 return response.failure(422, { msg: err.message }, res, err)
             }
 
             if (!image) return response.failure(422, { msg: 'No image uploaded!' }, res, err)
-            response.success(200, { msg: 'Image has uploaded successfully', data: image }, res)
+            response.success(200, { msg: 'Images has uploaded successfully', data: image }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
