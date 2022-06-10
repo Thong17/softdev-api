@@ -16,7 +16,7 @@ exports.detail = async (req, res) => {
     Category.findById(req.params.id, (err, category) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: category }, res)
-    })
+    }).populate('icon')
 }
 
 exports.create = async (req, res) => {
