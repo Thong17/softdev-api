@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+const Image = require('./Image')
 
 const schema = mongoose.Schema(
     {
@@ -79,5 +80,33 @@ const schema = mongoose.Schema(
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
     }
 )
+
+schema.pre('findOneAndUpdate', async function (next) {
+    try {
+        const Product = await this.model.findById(this._conditions._id).populate('images')
+        const updatedImageIds = this._update.images.map((image) => image._id)
+        const removedImageIds = []
+        Product.images.forEach(image => {
+            const id = image._id.toString()
+            if (!updatedImageIds.includes(id)) {
+                removedImageIds.push(id)
+            }
+        })
+        await Image.updateMany({ _id: { $in: removedImageIds } }, { $set: { isActive: false } }, { multi:true })
+        await Image.updateMany({ _id: { $in: updatedImageIds } }, { $set: { isActive: true } }, { multi:true })
+        next()
+    } catch (err) {
+        next(err)
+    }
+})
+
+schema.post('save', async function (doc, next) {
+    try {
+        await Image.updateMany({ _id: { $in: doc.images } }, { $set: { isActive: true } }, { multi:true })
+        next()
+    } catch (err) {
+        next(err)
+    }
+})
 
 module.exports = mongoose.model('Product', schema)
