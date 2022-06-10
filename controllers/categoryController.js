@@ -93,13 +93,11 @@ exports._import = async (req, res) => {
 }
 
 exports.batch = async (req, res) => {
-    const ObjectId = mongoose.Types.ObjectId
     try {
         const categories = req.body
 
         categories.forEach(category => {
             category.name = JSON.parse(category.name)
-            category.icon = new ObjectId(category.icon)
         })
 
         Category.insertMany(categories)

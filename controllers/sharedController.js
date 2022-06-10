@@ -4,12 +4,8 @@ const Image = require('../models/Image')
 const { failureMsg } = require('../constants/responseMsg')
 
 exports.uploadImageController = (req, res) => {
-    const files = []
-    req.files.forEach(file => {
-        const fileObj = {
-            filename: file.filename
-        }
-        files.push(fileObj)
+    const files = req.files.map(file => {
+        return { filename: file.filename }
     })
     try {
         Image.insertMany(files, (err, image) => {
