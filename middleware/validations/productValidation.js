@@ -14,13 +14,24 @@ const createProductValidation = Joi.object({
     images: Joi.array().optional()
 })
 
-const updateValueValidation = Joi.object({
-    colors: Joi.array().optional(),
-    options: Joi.array().optional(),
-    images: Joi.array().optional()
+const createOptionValidation = Joi.object({
+    name: Joi.object().required(),
+    price: Joi.number().optional(),
+    currency: Joi.string().optional(),
+    profile: Joi.any().optional(),
+    description: Joi.string().optional().allow(''),
+    property: Joi.string().required(),
+    product: Joi.string().required(),
+})
+
+const createPropertyValidation = Joi.object({
+    name: Joi.object().required(),
+    description: Joi.string().optional().allow(''),
+    product: Joi.string().required(),
 })
 
 module.exports = {
     createProductValidation,
-    updateValueValidation
+    createOptionValidation,
+    createPropertyValidation
 }

@@ -8,7 +8,7 @@ const schema = mongoose.Schema(
             require: true
         },
         price: {
-            type: String,
+            type: Number,
             require: true
         },
         currency: {
@@ -67,6 +67,10 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'ProductOption'
         }],
+        properties: [{
+            type: mongoose.Schema.ObjectId,
+            ref: 'ProductProperty'
+        }],
         stocks: [{
             type: mongoose.Schema.ObjectId,
             ref: 'ProductStock'
@@ -94,15 +98,6 @@ schema.pre('findOneAndUpdate', async function (next) {
         })
         await Image.updateMany({ _id: { $in: removedImageIds } }, { $set: { isActive: false } }, { multi:true })
         await Image.updateMany({ _id: { $in: updatedImageIds } }, { $set: { isActive: true } }, { multi:true })
-        next()
-    } catch (err) {
-        next(err)
-    }
-})
-
-schema.post('save', async function (doc, next) {
-    try {
-        await Image.updateMany({ _id: { $in: doc.images } }, { $set: { isActive: true } }, { multi:true })
         next()
     } catch (err) {
         next(err)

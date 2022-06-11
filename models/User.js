@@ -1,8 +1,8 @@
 const mongoose = require('mongoose')
 const Role = require('./Role')
-const { encryptPassword, comparePassword, issueToken } = require('../helpers/utils')
 const Profile = require('./Profile')
 const Config = require('./Config')
+const { encryptPassword, comparePassword, issueToken } = require('../helpers/utils')
 
 const schema = mongoose.Schema(
     {
