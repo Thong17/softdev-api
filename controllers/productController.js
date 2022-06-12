@@ -209,13 +209,24 @@ exports.createOption = async (req, res) => {
     }
 }
 
+exports.detailOption = async (req, res) => {
+    try {
+        const option = await ProductOption.findById(req.params.id)
+            .populate('profile')
+
+        return response.success(200, { data: option }, res)
+    } catch (err) {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }   
+}
+
 exports.updateOption = async (req, res) => {
     const body = req.body
     const { error } = createOptionValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductOption.findByIdAndUpdate(req.params.id, body, (err, option) => {
+        ProductOption.findByIdAndUpdate(req.params.id, body, { new: true }, (err, option) => {
             if (err) {
                 switch (err.code) {
                     default:
