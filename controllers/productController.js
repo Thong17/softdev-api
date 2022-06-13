@@ -144,13 +144,23 @@ exports.createProperty = async (req, res) => {
     }
 }
 
+exports.detailProperty = async (req, res) => {
+    try {
+        const property = await ProductProperty.findById(req.params.id)
+
+        return response.success(200, { data: property }, res)
+    } catch (err) {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }   
+}
+
 exports.updateProperty = async (req, res) => {
     const body = req.body
     const { error } = createPropertyValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductProperty.findByIdAndUpdate(req.params.id, body, (err, property) => {
+        ProductProperty.findByIdAndUpdate(req.params.id, body, { new: true }, (err, property) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -168,7 +178,7 @@ exports.updateProperty = async (req, res) => {
 
 exports.disableProperty = async (req, res) => {
     try {
-        ProductProperty.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, property) => {
+        ProductProperty.findByIdAndRemove(req.params.id, (err, property) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -244,7 +254,7 @@ exports.updateOption = async (req, res) => {
 
 exports.disableOption = async (req, res) => {
     try {
-        ProductOption.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, option) => {
+        ProductOption.findByIdAndRemove(req.params.id, (err, option) => {
             if (err) {
                 switch (err.code) {
                     default:

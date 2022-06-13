@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, create, update, detail, disable, _import, batch, createProperty, updateProperty, disableProperty, createOption, updateOption, disableOption, detailOption } = require('../../controllers/productController')
+const { index, create, update, detail, disable, _import, batch, createProperty, updateProperty, disableProperty, createOption, updateOption, disableOption, detailOption, detailProperty } = require('../../controllers/productController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -35,6 +35,10 @@ router.post('/batch', security.role(privilege.product.create), (req, res) => {
 
 router.post('/property/create', security.role(privilege.product.create), (req, res) => {
     createProperty(req, res)
+})
+
+router.get('/property/detail/:id', security.role(privilege.product.detail), (req, res) => {
+    detailProperty(req, res)
 })
 
 router.put('/property/update/:id', security.role(privilege.product.update), (req, res) => {
