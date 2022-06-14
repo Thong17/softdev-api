@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, create, update, detail, disable, _import, batch, createProperty, updateProperty, disableProperty, createOption, updateOption, disableOption, detailOption, detailProperty } = require('../../controllers/productController')
+const { index, create, update, detail, disable, _import, batch, createProperty, updateProperty, disableProperty, createOption, updateOption, disableOption, detailOption, detailProperty, createColor, updateColor, disableColor, detailColor } = require('../../controllers/productController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -64,5 +64,22 @@ router.put('/option/update/:id', security.role(privilege.product.update), (req, 
 router.delete('/option/disable/:id', security.role(privilege.product.delete), (req, res) => {
     disableOption(req, res)
 })
+
+router.post('/color/create', security.role(privilege.product.create), (req, res) => {
+    createColor(req, res)
+})
+
+router.get('/color/detail/:id', security.role(privilege.product.detail), (req, res) => {
+    detailColor(req, res)
+})
+
+router.put('/color/update/:id', security.role(privilege.product.update), (req, res) => {
+    updateColor(req, res)
+})
+
+router.delete('/color/disable/:id', security.role(privilege.product.delete), (req, res) => {
+    disableColor(req, res)
+})
+
 
 module.exports = router

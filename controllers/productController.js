@@ -6,7 +6,7 @@ const ProductProperty = require('../models/ProductProperty')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
-const { createProductValidation, createPropertyValidation, createOptionValidation } = require('../middleware/validations/productValidation')
+const { createProductValidation, createPropertyValidation, createOptionValidation, createColorValidation } = require('../middleware/validations/productValidation')
 
 
 exports.index = async (req, res) => {
@@ -270,5 +270,80 @@ exports.disableOption = async (req, res) => {
     }
 }
 
+// CRUD Product Color
+exports.createColor = async (req, res) => {
+    const body = req.body
+    const { error } = createColorValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        ProductColor.create(body, (err, color) => {
+            if (err) {
+                switch (err.code) {
+                    case 11000:
+                        return response.failure(422, { msg: 'Color already exists!' }, res, err)
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!color) return response.failure(422, { msg: 'No color created!' }, res, err)
+            response.success(200, { msg: 'Color has created successfully', data: color }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.detailColor = async (req, res) => {
+    try {
+        const color = await ProductColor.findById(req.params.id)
+            .populate('profile').populate('images')
+
+        return response.success(200, { data: color }, res)
+    } catch (err) {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }   
+}
+
+exports.updateColor = async (req, res) => {
+    const body = req.body
+    const { error } = createColorValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        ProductColor.findByIdAndUpdate(req.params.id, body, { new: true }, (err, color) => {
+            if (err) {
+                switch (err.code) {
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!color) return response.failure(422, { msg: 'No color updated!' }, res, err)
+            response.success(200, { msg: 'Option has updated successfully', data: color }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.disableColor = async (req, res) => {
+    try {
+        ProductColor.findByIdAndRemove(req.params.id, (err, color) => {
+            if (err) {
+                switch (err.code) {
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!color) return response.failure(422, { msg: 'No color deleted!' }, res, err)
+            response.success(200, { msg: 'Option has deleted successfully', data: color }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
 
 
