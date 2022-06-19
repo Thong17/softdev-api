@@ -88,12 +88,12 @@ const schema = mongoose.Schema(
 schema.pre('findOneAndUpdate', async function (next) {
     try {
         const Product = await this.model.findById(this._conditions._id).populate('images')
-        const updatedImageIds = this._update.images.map((image) => image._id)
+        const updatedImageIds = this._update.images?.map((image) => image._id)
         const removedImageIds = []
-        Product.images.forEach(image => {
+        Product.images?.forEach(image => {
             const id = image._id.toString()
-            if (!updatedImageIds.includes(id)) {
-                removedImageIds.push(id)
+            if (!updatedImageIds?.includes(id)) {
+                removedImageIds?.push(id)
             }
         })
         await Image.updateMany({ _id: { $in: removedImageIds } }, { $set: { isActive: false } }, { multi:true })

@@ -15,10 +15,6 @@ const schema = mongoose.Schema(
             type: String,
             default: 'USD'
         },
-        code: {
-            type: String,
-            default: ''
-        },
         profile: {
             type: mongoose.Schema.ObjectId,
             ref: 'Image'

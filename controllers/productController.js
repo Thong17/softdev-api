@@ -45,7 +45,7 @@ exports.create = async (req, res) => {
 
             if (!product) return response.failure(422, { msg: 'No product created!' }, res, err)
 
-            await Image.updateMany({ _id: { $in: doc.images } }, { $set: { isActive: true } }, { multi:true })
+            await Image.updateMany({ _id: { $in: product.images } }, { $set: { isActive: true } }, { multi:true })
             response.success(200, { msg: 'Product has created successfully', data: product }, res)
         })
     } catch (err) {
@@ -345,5 +345,3 @@ exports.disableColor = async (req, res) => {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
-
-
