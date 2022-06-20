@@ -14,6 +14,10 @@ const schema = mongoose.Schema(
             type: Number,
             default: 0
         },
+        remain: {
+            type: Number,
+            default: 0
+        },
         code: {
             type: String,
             default: ''

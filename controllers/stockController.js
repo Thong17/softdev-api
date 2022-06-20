@@ -1,6 +1,7 @@
 const ProductStock = require('../models/ProductStock')
 const ProductColor = require('../models/ProductColor')
 const ProductOption = require('../models/ProductOption')
+const ProductProperty = require('../models/ProductProperty')
 const Product = require('../models/Product')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
@@ -21,7 +22,7 @@ exports.stock = async (req, res) => {
     }).populate('color').populate('options')
 }
 
-exports.detail = async (req, res) => {
+exports.product = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
             .populate('images').populate({ path: 'stocks', model: ProductStock }).populate({ path: 'colors', model: ProductColor }).populate({ path: 'options', model: ProductOption }).populate('brand').populate('category').populate('properties')
@@ -32,9 +33,9 @@ exports.detail = async (req, res) => {
     }   
 }
 
-exports.detailStock = async (req, res) => {
+exports.detail = async (req, res) => {
     try {
-        const stock = await ProductStock.findById(req.params.id).populate({ path: 'options', model: ProductOption })
+        const stock = await ProductStock.findById(req.params.id).populate({ path: 'options', model: ProductOption, populate: { path: 'property', model: ProductProperty, select: 'name' } })
 
         return response.success(200, { data: stock }, res)
     } catch (err) {

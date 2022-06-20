@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { index, stock, detail, detailStock, createStock, updateStock, disableStock } = require('../../controllers/stockController')
+const { index, stock, detail, product, createStock, updateStock, disableStock } = require('../../controllers/stockController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -9,6 +9,10 @@ router.get('/', security.role(privilege.product.list), (req, res) => {
 
 router.get('/list', security.role(privilege.product.list), (req, res) => {
     stock(req, res)
+})
+
+router.get('/product/:id', security.role(privilege.product.detail), (req, res) => {
+    product(req, res)
 })
 
 router.get('/detail/:id', security.role(privilege.product.detail), (req, res) => {
