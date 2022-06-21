@@ -5,7 +5,7 @@ const createStockValidation = Joi.object({
     currency: Joi.string().required(),
     quantity: Joi.number().required(),
     code: Joi.string().optional().allow(''),
-    expireAt: Joi.date().optional(),
+    expireAt: Joi.date().optional().allow(null),
     alertAt: Joi.number().optional(),
     color: Joi.string().optional(),
     product: Joi.string().required(),
