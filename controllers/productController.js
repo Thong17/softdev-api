@@ -13,7 +13,7 @@ exports.index = async (req, res) => {
     Product.find({ isDeleted: false }, (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: products }, res)
-    }).populate('profile').populate('category').populate('brand')
+    }).populate('profile').populate('category').populate('brand').populate('images').populate('properties').populate({ path: 'colors', model: ProductColor, populate: { path: 'images', model: Image } }).populate({ path: 'options', model: ProductOption, populate: { path: 'profile', model: Image } })
 }
 
 exports.detail = async (req, res) => {
@@ -107,12 +107,63 @@ exports.batch = async (req, res) => {
 
     products.forEach(product => {
         product.name = JSON.parse(product.name)
-        product.images = JSON.parse(product.images)
+        product.images = JSON.parse(product.images || '[]')
+        product.options = JSON.parse(product.options || '[]')
+        product.properties = JSON.parse(product.properties || '[]')
+        product.colors = JSON.parse(product.colors || '[]')
     })
 
     Product.insertMany(products)
         .then(data => {
             response.success(200, { msg: `${data.length} ${data.length > 1 ? 'products' : 'product'} has been inserted` }, res)
+        })
+        .catch(err => {
+            return response.failure(422, { msg: err.message }, res)
+        })
+}
+
+exports.batchImage = async (req, res) => {
+    const images = req.body
+
+    Image.insertMany(images)
+        .then(data => {
+            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'images' : 'image'} has been inserted` }, res)
+        })
+        .catch(err => {
+            return response.failure(422, { msg: err.message }, res)
+        })
+}
+
+exports.batchColor = async (req, res) => {
+    const colors = req.body
+
+    ProductColor.insertMany(colors)
+        .then(data => {
+            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'colors' : 'color'} has been inserted` }, res)
+        })
+        .catch(err => {
+            return response.failure(422, { msg: err.message }, res)
+        })
+}
+
+exports.batchProperty = async (req, res) => {
+    const properties = req.body
+
+    ProductProperty.insertMany(properties)
+        .then(data => {
+            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'properties' : 'property'} has been inserted` }, res)
+        })
+        .catch(err => {
+            return response.failure(422, { msg: err.message }, res)
+        })
+}
+
+exports.batchOption = async (req, res) => {
+    const options = req.body
+
+    ProductOption.insertMany(options)
+        .then(data => {
+            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'options' : 'option'} has been inserted` }, res)
         })
         .catch(err => {
             return response.failure(422, { msg: err.message }, res)

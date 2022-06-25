@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, create, update, detail, disable, _import, batch, createProperty, updateProperty, disableProperty, createOption, updateOption, disableOption, detailOption, detailProperty, createColor, updateColor, disableColor, detailColor } = require('../../controllers/productController')
+const { index, create, update, detail, disable, _import, batch, batchColor, batchImage, batchOption, batchProperty, createProperty, updateProperty, disableProperty, createOption, updateOption, disableOption, detailOption, detailProperty, createColor, updateColor, disableColor, detailColor } = require('../../controllers/productController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -31,6 +31,22 @@ router.post('/excel/import', security.role(privilege.product.create), upload.sin
 
 router.post('/batch', security.role(privilege.product.create), (req, res) => {
     batch(req, res)
+})
+
+router.post('/color/batch', security.role(privilege.product.create), (req, res) => {
+    batchColor(req, res)
+})
+
+router.post('/image/batch', security.role(privilege.product.create), (req, res) => {
+    batchImage(req, res)
+})
+
+router.post('/property/batch', security.role(privilege.product.create), (req, res) => {
+    batchProperty(req, res)
+})
+
+router.post('/option/batch', security.role(privilege.product.create), (req, res) => {
+    batchOption(req, res)
 })
 
 router.post('/property/create', security.role(privilege.product.create), (req, res) => {
