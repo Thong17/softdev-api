@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { index, stock, detail, product, createStock, updateStock, disableStock } = require('../../controllers/stockController')
+const { index, stock, detail, product, createStock, updateStock, disableStock, batch } = require('../../controllers/stockController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -29,6 +29,10 @@ router.put('/update/:id', security.role(privilege.product.update), (req, res) =>
 
 router.delete('/disable/:id', security.role(privilege.product.delete), (req, res) => {
     disableStock(req, res)
+})
+
+router.post('/batch', security.role(privilege.product.create), (req, res) => {
+    batch(req, res)
 })
 
 

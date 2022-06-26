@@ -106,3 +106,20 @@ exports.disableStock = async (req, res) => {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
+
+exports.batch = async (req, res) => {
+    const stocks = req.body
+
+    stocks.forEach(stock => {
+        stock.options = JSON.parse(stock.options || '[]')
+        stock.color = JSON.parse(stock.color || '[]')
+    })
+
+    ProductStock.insertMany(stocks)
+        .then(data => {
+            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'stocks' : 'stock'} has been inserted` }, res)
+        })
+        .catch(err => {
+            return response.failure(422, { msg: err.message }, res)
+        })
+}
