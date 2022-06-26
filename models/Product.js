@@ -73,7 +73,8 @@ const schema = mongoose.Schema(
         }],
         stocks: [{
             type: mongoose.Schema.ObjectId,
-            ref: 'ProductStock'
+            ref: 'ProductStock',
+            unique: true
         }],
         images: [{
             type: mongoose.Schema.ObjectId,

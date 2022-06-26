@@ -49,6 +49,15 @@ const schema = mongoose.Schema(
     }
 )
 
+schema.post('insertMany', function (doc) {
+    doc.forEach(async stock => {
+        const product = await Product.findOne({ _id: stock.product._id })
+        if (product.stocks?.indexOf(stock._id) > -1) return
+        product.stocks?.push(stock._id)
+        product.save()
+    });
+})
+
 schema.post('save', async function () {
     const product = await Product.findOne({ _id: this.product._id })
     product.stocks.push(this._id)
