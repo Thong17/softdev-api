@@ -16,7 +16,8 @@ exports.index = async (req, res) => {
 }
 
 exports.stock = async (req, res) => {
-    ProductStock.find({ isDeleted: false }, (err, stocks) => {
+    const product = req.query.productId
+    ProductStock.find({ isDeleted: false, product }, (err, stocks) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: stocks }, res)
     }).populate('color').populate('options')
