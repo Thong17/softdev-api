@@ -12,7 +12,7 @@ exports.index = async (req, res) => {
     Product.find({ isDeleted: false }, (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: products }, res)
-    }).populate('profile').populate('category').populate('stocks')
+    }).populate('profile').populate('category').populate('brand').populate('stocks')
 }
 
 exports.stock = async (req, res) => {
