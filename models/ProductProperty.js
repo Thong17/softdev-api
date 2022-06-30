@@ -7,6 +7,10 @@ const schema = mongoose.Schema(
             type: Object,
             require: true
         },
+        order: {
+            type: Number,
+            default: 0
+        },
         description: {
             type: String,
             default: ''
