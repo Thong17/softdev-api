@@ -19,7 +19,7 @@ exports.index = async (req, res) => {
 exports.detail = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
-            .populate('images').populate('properties').populate({ path: 'colors', model: ProductColor }).populate({ path: 'options', model: ProductOption })
+            .populate('images').populate({ path: 'properties', options: { sort: { 'order': 1 } }}).populate({ path: 'colors', model: ProductColor }).populate({ path: 'options', model: ProductOption })
 
         return response.success(200, { data: product }, res)
     } catch (err) {
@@ -222,6 +222,15 @@ exports.updateProperty = async (req, res) => {
             if (!property) return response.failure(422, { msg: 'No property updated!' }, res, err)
             response.success(200, { msg: 'Property has updated successfully', data: property }, res)
         })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.reorderProperty = async (req, res) => {
+    try {
+        await ProductProperty.reorder(req.body)
+        response.success(200, { msg: 'Property has reordered successfully' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }

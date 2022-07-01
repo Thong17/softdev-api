@@ -32,4 +32,14 @@ schema.post('save', async function () {
     product.save()
 })
 
+schema.statics.reorder = function (reorderedItems) {
+    const promises = []
+    for (let index = 0; index < reorderedItems.length; index++) {
+        const item = reorderedItems[index];
+        const promise = this.findByIdAndUpdate(item._id, { order: item.order }, { new: true })
+        promises.push(promise)
+    }
+    Promise.all(promises)
+}
+
 module.exports = mongoose.model('ProductProperty', schema)
