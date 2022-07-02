@@ -98,6 +98,7 @@ exports.batch = async (req, res) => {
 
         brands.forEach(brand => {
             brand.name = JSON.parse(brand.name)
+            brand.icon = JSON.parse(brand.icon)
         })
 
         Brand.insertMany(brands)
