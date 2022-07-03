@@ -8,6 +8,10 @@ COPY package.json .
 
 RUN npm install
 
+RUN npm uninstall dotenv
+
+RUN npm install dotenv --save
+
 COPY . .
 
 EXPOSE 3030

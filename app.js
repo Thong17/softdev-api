@@ -5,7 +5,7 @@ const logger = require('morgan')
 const cors = require('cors')
 const app = express()
 
-app.use(cors({ origin: '*' }))
+app.use(cors({ origin: '*', credentials: true }))
 app.use(logger('tiny'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
