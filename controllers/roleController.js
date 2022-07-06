@@ -73,6 +73,9 @@ exports.update = async (req, res) => {
 
 exports.disable = async (req, res) => {
     try {
+        const role = await Role.findById(req.params.id)
+        if (role?.isDefault) return response.failure(422, { msg: 'Default role cannot be delete' }, res)
+
         Role.findByIdAndUpdate(req.params.id, { isDisabled: true }, (err, role) => {
             if (err) {
                 switch (err.code) {
