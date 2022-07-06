@@ -2,7 +2,7 @@ const response = require('../helpers/response')
 const Config = require('../models/Config')
 const User = require('../models/User')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, encryptPassword, comparePassword } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, encryptPassword } = require('../helpers/utils')
 const { createUserValidation, updateUserValidation } = require('../middleware/validations/userValidation')
 
 exports.index = (req, res) => {
@@ -49,11 +49,10 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        
-        if (body.password === '') {
-            delete body.password
-        } else {
+        if (body.password !== '') {
             body.password = await encryptPassword(body.password)
+        } else {
+            delete body.password
         }
         
         User.findByIdAndUpdate(req.params.id, body, (err, user) => {
