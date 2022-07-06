@@ -43,13 +43,14 @@ exports.create = (req, res) => {
     }
 }
 
-exports.update = (req, res) => {
+exports.update = async (req, res) => {
     const body = req.body
     const { error } = createUserValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        User.findByIdAndUpdate(req.params.id, body, (err, user) => {
+        const password = await encryptPassword(body.password)
+        User.findByIdAndUpdate(req.params.id, { ...body, password }, (err, user) => {
             if (err) {
                 switch (err.code) {
                     default:

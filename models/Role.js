@@ -20,6 +20,10 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'User'
         },
+        isDefault: {
+            type: Boolean,
+            default: false
+        },
         isDisabled: {
             type: Boolean,
             default: false
