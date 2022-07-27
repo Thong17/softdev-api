@@ -7,5 +7,6 @@ router.use('/admin', require('./admin'))
 router.use('/store', require('./store'))
 router.use('/sale', require('./sale'))
 router.use('/user', require('./user'))
+router.use('/dashboard', require('./dashboard'))
 
 module.exports = router

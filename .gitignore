@@ -4,4 +4,4 @@ package-lock.json
 
 # Ignore all file in uploads except default.jpg
 uploads/*
-!uploads/default.jpg
+!uploads/default.png
