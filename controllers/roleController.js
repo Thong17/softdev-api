@@ -5,10 +5,30 @@ const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createRoleValidation } = require('../middleware/validations/roleValidation')
 
 exports.index = async (req, res) => {
-    Role.find({ isDisabled: false }, (err, roles) => {
+    const limit = parseInt(req.query.limit) || 10
+    const page = parseInt(req.query.page) || 0
+    const search = req.query.search?.replace(/ /g,'')
+    const field = req.query.field || 'tags'
+    const filter = req.query.filter || 'createdAt'
+    const sort = req.query.sort || 'asc'
+
+    let filterObj = { [filter]: sort }
+    let query = {}
+    if (search) {
+        query[field] = {
+            $regex: new RegExp(search, 'i')
+        }
+    }
+
+    Role.find({ isDisabled: false, ...query }, async (err, roles) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        return response.success(200, { data: roles }, res)
-    }).populate('createdBy')
+
+        const totalCount = await Role.count({ isDisabled: false })
+        return response.success(200, { data: roles, length: totalCount }, res)
+    })
+        .skip(page * limit).limit(limit)
+        .sort(filterObj)
+        .populate('createdBy')
 }
 
 exports.detail = async (req, res) => {
@@ -22,7 +42,7 @@ exports.list = async (req, res) => {
     Role.find({ isDisabled: false }, (err, roles) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: roles }, res)
-    })
+    }).select('name privilege')
 }
 
 exports.create = async (req, res) => {

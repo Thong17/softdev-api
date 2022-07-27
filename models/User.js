@@ -15,10 +15,6 @@ const schema = mongoose.Schema(
         },
         email: {
             type: String,
-            required: [true, 'Email is required!'],
-            index: {
-                unique: true
-            }
         },
         password: {
             type: String,
@@ -69,7 +65,14 @@ const schema = mongoose.Schema(
         isDisabled: {
             type: Boolean,
             default: false
-        }
+        },
+        isDefault: {
+            type: Boolean,
+            default: false
+        },
+        tags: {
+            type: String,
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
@@ -78,6 +81,7 @@ const schema = mongoose.Schema(
 
 schema.pre('save', async function (next) {
     try {
+        this.tags = `${this.username}${this.email || ''}`.replace(/ /g,'')
         this.password = await encryptPassword(this.password)
         next()
     } catch (err) {

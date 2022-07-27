@@ -6,10 +6,30 @@ const { extractJoiErrors, readExcel, encryptPassword } = require('../helpers/uti
 const { createUserValidation, updateUserValidation } = require('../middleware/validations/userValidation')
 
 exports.index = (req, res) => {
-    User.find({ isDisabled: false }, (err, users) => {
+    const limit = parseInt(req.query.limit) || 10
+    const page = parseInt(req.query.page) || 0
+    const search = req.query.search?.replace(/ /g,'')
+    const field = req.query.field || 'tags'
+    const filter = req.query.filter || 'createdAt'
+    const sort = req.query.sort || 'asc'
+
+    let filterObj = { [filter]: sort }
+    let query = {}
+    if (search) {
+        query[field] = {
+            $regex: new RegExp(search, 'i')
+        }
+    }
+
+    User.find({ isDisabled: false, ...query }, async (err, users) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        return response.success(200, { data: users }, res)
-    }).populate('role')
+
+        const totalCount = await User.count({ isDisabled: false })
+        return response.success(200, { data: users, length: totalCount }, res)
+    })
+        .skip(page * limit).limit(limit)
+        .sort(filterObj)
+        .populate('role')
 }
 
 exports.detail = (req, res) => {
@@ -44,6 +64,7 @@ exports.create = (req, res) => {
 }
 
 exports.update = async (req, res) => {
+    const id = req.params.id
     const body = req.body
     const { error } = updateUserValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
@@ -54,13 +75,9 @@ exports.update = async (req, res) => {
         } else {
             delete body.password
         }
-        
-        User.findByIdAndUpdate(req.params.id, body, (err, user) => {
+        User.findByIdAndUpdate(id, body, (err, user) => {
             if (err) {
-                switch (err.code) {
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
+                return response.failure(422, { msg: err.message }, res, err)
             }
 
             if (!user) return response.failure(422, { msg: 'No user updated!' }, res, err)
@@ -71,9 +88,13 @@ exports.update = async (req, res) => {
     }
 }
 
-exports.disable = (req, res) => {
+exports.disable = async (req, res) => {
+    const id = req.params.id
     try {
-        User.findByIdAndUpdate(req.params.id, { isDisabled: true }, (err, user) => {
+        const user = await User.findById(id)
+        if (user?.isDefault) return response.failure(422, { msg: 'Default user cannot be delete' }, res)
+
+        User.findByIdAndUpdate(id, { isDisabled: true }, (err, user) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -121,12 +142,12 @@ exports.batch = async (req, res) => {
 
 exports.profile = (req, res) => {
     const user = {
-        id: req.user.id,
-        username: req.user.username,
-        privilege: req.user.role.privilege,
-        photo: req.user.profile?.photo,
-        theme: req.user.config?.theme,
-        language: req.user.config?.language
+        id: req.user?.id,
+        username: req.user?.username,
+        privilege: req.user?.role.privilege,
+        photo: req.user?.profile?.photo,
+        theme: req.user?.config?.theme,
+        language: req.user?.config?.language
     }
     return response.success(200, { user }, res)
 }
