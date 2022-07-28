@@ -6,10 +6,30 @@ const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createCategoryValidation } = require('../middleware/validations/categoryValidation')
 
 exports.index = async (req, res) => {
-    Category.find({ isDeleted: false }, (err, categories) => {
+    const limit = parseInt(req.query.limit) || 10
+    const page = parseInt(req.query.page) || 0
+    const search = req.query.search?.replace(/ /g,'')
+    const field = req.query.field || 'tags'
+    const filter = req.query.filter || 'createdAt'
+    const sort = req.query.sort || 'asc'
+
+    let filterObj = { [filter]: sort }
+    let query = {}
+    if (search) {
+        query[field] = {
+            $regex: new RegExp(search, 'i')
+        }
+    }
+
+    Category.find({ isDeleted: false, ...query }, async (err, categories) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        return response.success(200, { data: categories }, res)
-    }).populate('icon')
+
+        const totalCount = await Category.count({ isDisabled: false })
+        return response.success(200, { data: categories, length: totalCount }, res)
+    })
+        .skip(page * limit).limit(limit)
+        .sort(filterObj)
+        .populate('icon')
 }
 
 exports.detail = async (req, res) => {
