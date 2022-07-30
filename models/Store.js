@@ -14,6 +14,14 @@ const schema = mongoose.Schema(
             type: String,
             default: 'Restaurant'
         },
+        font: {
+            type: String,
+            default: ''
+        },
+        tax: {
+            type: Number,
+            default: 0
+        },
         contact: {
             type: String,
             default: '000-000-000'

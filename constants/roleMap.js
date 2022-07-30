@@ -117,6 +117,32 @@ exports.privilege = {
             action: 'approve'
         }
     },
+    store: {
+        list: {
+            route: 'store',
+            action: 'list'
+        },
+        detail: {
+            route: 'store',
+            action: 'detail'
+        },
+        create: {
+            route: 'store',
+            action: 'create'
+        },
+        update: {
+            route: 'store',
+            action: 'update'
+        },
+        delete: {
+            route: 'store',
+            action: 'delete'
+        },
+        approve: {
+            route: 'store',
+            action: 'approve'
+        }
+    },
     product: {
         list: {
             route: 'product',
