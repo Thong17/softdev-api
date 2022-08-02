@@ -99,7 +99,10 @@ exports.updateLayout = async (req, res) => {
         const layout = await StoreFloor.findById(floorId)
         await StoreStructure.deleteMany({ floor: floorId })
 
-        const filteredStructures = structures.filter(structure => structure.type !== 'blank')
+        const filteredStructures = structures.filter(structure => {
+            if (structure.type === 'blank' && !structure.merged) return false
+            return true
+        })
         const insertedStructures = await StoreStructure.insertMany(filteredStructures)
 
         layout.structures = insertedStructures
