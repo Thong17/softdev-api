@@ -1,6 +1,7 @@
 const mongoose = require('mongoose')
 const Role = require('../models/Role')
 const Store = require('../models/Store')
+const StoreFloor = require('../models/StoreFloor')
 const User = require('../models/User')
 
 mongoose.connect(process.env.DATABASE_URL, {
@@ -31,6 +32,7 @@ mongoose.connect(process.env.DATABASE_URL, {
         isDefault: true
     })
     await Store.create({})
+    await StoreFloor.create({})
     console.log('Mongo Client is connected...')
 })
 .catch((error) => console.error(error))
