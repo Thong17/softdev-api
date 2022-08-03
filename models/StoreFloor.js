@@ -6,6 +6,10 @@ const schema = mongoose.Schema(
             type: String,
             default: 'GF'
         },
+        order: {
+            type: Number,
+            default: 0
+        },
         column: {
             type: Array,
             default: [1]
@@ -29,6 +33,10 @@ const schema = mongoose.Schema(
             type: Boolean,
             default: false
         },
+        description: {
+            type: String,
+            default: ''
+        },
         tags: {
             type: String,
         },
@@ -40,7 +48,7 @@ const schema = mongoose.Schema(
 
 schema.pre('save', async function (next) {
     try {
-        this.tags = `${this.floor}`.replace(/ /g,'')
+        this.tags = `${this.floor}${this.description}`.replace(/ /g,'')
         next()
     } catch (err) {
         next(err)

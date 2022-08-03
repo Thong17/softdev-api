@@ -3,7 +3,7 @@ const { default: mongoose } = require('mongoose')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
-const { createStoreValidation } = require('../middleware/validations/storeValidation')
+const { createStoreValidation, createFloorValidation } = require('../middleware/validations/storeValidation')
 const StoreFloor = require('../models/StoreFloor')
 const StoreStructure = require('../models/StoreStructure')
 
@@ -27,7 +27,7 @@ exports.floors = async (req, res) => {
     StoreFloor.find({ isDisabled: false }, (err, floors) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: floors }, res)
-    }).select('floor tags')
+    }).select('floor description order tags')
 }
 
 exports.structures = async (req, res) => {
@@ -64,6 +64,70 @@ exports.create = async (req, res) => {
 
             if (!store) return response.failure(422, { msg: 'No store created!' }, res, err)
             response.success(200, { msg: 'Store has created successfully', data: store }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.createFloor = async (req, res) => {
+    const body = req.body
+    const { error } = createFloorValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        StoreFloor.create(body, (err, floor) => {
+            if (err) {
+                switch (err.code) {
+                    case 11000:
+                        return response.failure(422, { msg: 'Floor already exists!' }, res, err)
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!floor) return response.failure(422, { msg: 'No floor created!' }, res, err)
+            response.success(200, { msg: 'Floor has created successfully', data: floor }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.updateFloor = async (req, res) => {
+    const body = req.body
+    const { error } = createFloorValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        StoreFloor.findByIdAndUpdate(req.params.id, body, (err, floor) => {
+            if (err) {
+                switch (err.code) {
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!floor) return response.failure(422, { msg: 'No floor updated!' }, res, err)
+            response.success(200, { msg: 'Floor has updated successfully', data: floor }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.disableFloor = async (req, res) => {
+    try {
+        StoreFloor.findByIdAndUpdate(req.params.id, { isDisabled: true }, (err, floor) => {
+            if (err) {
+                switch (err.code) {
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!floor) return response.failure(422, { msg: 'No floor deleted!' }, res, err)
+            response.success(200, { msg: 'Floor has deleted successfully', data: floor._id }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)

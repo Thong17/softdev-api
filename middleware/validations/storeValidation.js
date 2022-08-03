@@ -11,6 +11,13 @@ const createStoreValidation = Joi.object({
     other: Joi.string().optional().allow('')
 })
 
+const createFloorValidation = Joi.object({
+    floor: Joi.string().required(),
+    order: Joi.number().required(),
+    description: Joi.string().optional().allow('')
+})
+
 module.exports = {
-    createStoreValidation
+    createStoreValidation,
+    createFloorValidation
 }

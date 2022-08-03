@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, create, update, detail, disable, _import, batch, floors, structures, layout, updateLayout } = require('../../controllers/storeController')
+const { index, create, update, detail, disable, _import, batch, floors, structures, layout, updateLayout, createFloor, updateFloor, disableFloor } = require('../../controllers/storeController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -31,6 +31,18 @@ router.delete('/disable/:id', security.role(privilege.store.delete), (req, res) 
 
 router.get('/floor', (req, res) => {
     floors(req, res)
+})
+
+router.post('/floor/create', (req, res) => {
+    createFloor(req, res)
+})
+
+router.put('/floor/update/:id', (req, res) => {
+    updateFloor(req, res)
+})
+
+router.delete('/floor/disable/:id', security.role(privilege.store.delete), (req, res) => {
+    disableFloor(req, res)
 })
 
 router.get('/structure', (req, res) => {
