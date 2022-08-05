@@ -27,7 +27,12 @@ exports.index = async (req, res) => {
 exports.detail = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
-            .populate('images').populate({ path: 'properties', options: { sort: { 'order': 1 } }}).populate({ path: 'colors', model: ProductColor }).populate({ path: 'options', model: ProductOption })
+            .populate('brand')
+            .populate('category')
+            .populate('images')
+            .populate({ path: 'properties', options: { sort: { 'order': 1 } }})
+            .populate({ path: 'colors', model: ProductColor })
+            .populate({ path: 'options', model: ProductOption })
 
         return response.success(200, { data: product }, res)
     } catch (err) {

@@ -32,6 +32,10 @@ const schema = mongoose.Schema(
             ref: 'Product',
             require: true
         },
+        description: {
+            type: String,
+            default: ''
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
