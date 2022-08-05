@@ -88,6 +88,21 @@ exports.update = async (req, res) => {
     }
 }
 
+exports.enableStock = async (req, res) => {
+    try {
+        Product.findByIdAndUpdate(req.params.id, { isStock: true }, (err, product) => {
+            if (err) {
+                return response.failure(422, { msg: err.message }, res, err)
+            }
+
+            if (!product) return response.failure(422, { msg: 'No product updated!' }, res, err)
+            response.success(200, { msg: 'Product has updated successfully', data: product }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
 exports.disable = async (req, res) => {
     try {
         Product.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, product) => {
