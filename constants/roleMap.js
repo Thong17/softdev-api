@@ -168,7 +168,33 @@ exports.privilege = {
             route: 'product',
             action: 'approve'
         }
-    }
+    },
+    promotion: {
+        list: {
+            route: 'promotion',
+            action: 'list'
+        },
+        detail: {
+            route: 'promotion',
+            action: 'detail'
+        },
+        create: {
+            route: 'promotion',
+            action: 'create'
+        },
+        update: {
+            route: 'promotion',
+            action: 'update'
+        },
+        delete: {
+            route: 'promotion',
+            action: 'delete'
+        },
+        approve: {
+            route: 'promotion',
+            action: 'approve'
+        }
+    },
 }
 
 let role

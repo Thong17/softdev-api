@@ -4,7 +4,6 @@ const schema = mongoose.Schema(
     {
         description: {
             type: Object,
-            require: true
         },
         value: {
             type: Number,
@@ -18,9 +17,16 @@ const schema = mongoose.Schema(
             type: Boolean,
             default: false
         },
+        startAt: {
+            type: Date,
+        },
         expireAt: {
             type: Date,
             default: () => new Date(+new Date() + 1*24*60*60*1000)
+        },
+        isDeleted: {
+            type: Boolean,
+            default: false
         },
         products: [{
             type: mongoose.Schema.ObjectId,
