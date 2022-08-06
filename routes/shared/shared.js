@@ -1,5 +1,6 @@
 const router = require('express').Router()
-const { list } = require('../../controllers/roleController')
+const { list: roleList } = require('../../controllers/roleController')
+const { list: productList } = require('../../controllers/productController')
 const response = require('../../helpers/response')
 const { uploadImageController, uploadIconController } = require('../../controllers/sharedController')
 const multer = require('multer')
@@ -25,7 +26,11 @@ const uploadIcon = multer({
 }).single('icon') 
 
 router.get('/role/list', (req, res) => {
-  list(req, res)
+  roleList(req, res)
+})
+
+router.get('/product/list', (req, res) => {
+  productList(req, res)
 })
 
 router.post('/upload/image', (req, res) => {

@@ -24,6 +24,22 @@ exports.index = async (req, res) => {
         .populate({ path: 'options', model: ProductOption, populate: { path: 'profile', model: Image } })
 }
 
+exports.list = async (req, res) => {
+    const limit = parseInt(req.query.limit) || 10
+    const offset = parseInt(req.query.offset) || 0
+    Product.find({ isDeleted: false, status: true }, async (err, products) => {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        const totalCount = await Product.count({ isDeleted: false, status: true }) 
+
+        return response.success(200, { data: products, hasMore: totalCount > offset + limit }, res)
+    })  
+        .skip(offset).limit(limit)
+        .populate('profile')
+        .populate('category')
+        .populate('brand')
+        .populate('stocks')
+}
+
 exports.detail = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)

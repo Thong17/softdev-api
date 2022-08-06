@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, create, update, detail, disable, enableStock, _import, batch, batchColor, batchImage, batchOption, batchProperty, createProperty, updateProperty, reorderProperty, disableProperty, createOption, updateOption, disableOption, detailOption, detailProperty, createColor, updateColor, disableColor, detailColor } = require('../../controllers/productController')
+const { index, list, create, update, detail, disable, enableStock, _import, batch, batchColor, batchImage, batchOption, batchProperty, createProperty, updateProperty, reorderProperty, disableProperty, createOption, updateOption, disableOption, detailOption, detailProperty, createColor, updateColor, disableColor, detailColor } = require('../../controllers/productController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
