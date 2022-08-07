@@ -12,7 +12,7 @@ exports.index = async (req, res) => {
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
     const sort = req.query.sort || 'asc'
-
+    
     let filterObj = { [filter]: sort }
     let query = {}
     if (search) {
@@ -20,7 +20,7 @@ exports.index = async (req, res) => {
             $regex: new RegExp(search, 'i')
         }
     }
-
+    
     Brand.find({ isDeleted: false, ...query }, async (err, categories) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
@@ -30,6 +30,13 @@ exports.index = async (req, res) => {
         .skip(page * limit).limit(limit)
         .sort(filterObj)
         .populate('icon')
+}
+
+exports.list = async (req, res) => {
+    Brand.find({ isDeleted: false }, (err, brands) => {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        return response.success(200, { data: brands }, res)
+    }).select('name tags')
 }
 
 exports.detail = async (req, res) => {

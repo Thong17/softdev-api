@@ -31,6 +31,8 @@ exports.list = async (req, res) => {
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
     const sort = req.query.sort || 'asc'
+    const brand = req.query.brand || 'all'
+    const category = req.query.category || 'all'
 
     let filterObj = { [filter]: sort }
     let query = {}
@@ -39,6 +41,9 @@ exports.list = async (req, res) => {
             $regex: new RegExp(search, 'i')
         }
     }
+    if (brand && brand !== 'all') query['brand'] = brand
+    if (category && category !== 'all') query['category'] = category
+
     Product.find({ isDeleted: false, status: true, ...query }, async (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         const totalCount = await Product.count({ isDeleted: false, status: true }) 
