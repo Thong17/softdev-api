@@ -46,9 +46,11 @@ exports.list = async (req, res) => {
 
     Product.find({ isDeleted: false, status: true, ...query }, async (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        const totalCount = await Product.count({ isDeleted: false, status: true }) 
+        const totalCount = await Product.count({ isDeleted: false, status: true, ...query  }) 
+        let hasMore = totalCount > offset + limit
+        if (search !== '' || brand !== 'all' || category !== 'all') hasMore = true
 
-        return response.success(200, { data: products, length: totalCount }, res)
+        return response.success(200, { data: products, length: totalCount, hasMore }, res)
     })  
         .skip(offset).limit(limit)
         .sort(filterObj)
