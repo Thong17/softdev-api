@@ -74,17 +74,28 @@ const schema = mongoose.Schema(
         stocks: [{
             type: mongoose.Schema.ObjectId,
             ref: 'ProductStock',
-            unique: true
         }],
         images: [{
             type: mongoose.Schema.ObjectId,
             ref: 'Image'
-        }]
+        }],
+        tags: {
+            type: String,
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
     }
 )
+
+schema.pre('save', async function (next) {
+    try {
+        this.tags = `${JSON.stringify(this.name)}${this.description}${this.code}`.replace(/ /g,'')
+        next()
+    } catch (err) {
+        next(err)
+    }
+})
 
 schema.pre('findOneAndUpdate', async function (next) {
     try {

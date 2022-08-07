@@ -27,13 +27,26 @@ exports.index = async (req, res) => {
 exports.list = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
     const offset = parseInt(req.query.offset) || 0
-    Product.find({ isDeleted: false, status: true }, async (err, products) => {
+    const search = req.query.search?.replace(/ /g,'')
+    const field = req.query.field || 'tags'
+    const filter = req.query.filter || 'createdAt'
+    const sort = req.query.sort || 'asc'
+
+    let filterObj = { [filter]: sort }
+    let query = {}
+    if (search) {
+        query[field] = {
+            $regex: new RegExp(search, 'i')
+        }
+    }
+    Product.find({ isDeleted: false, status: true, ...query }, async (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         const totalCount = await Product.count({ isDeleted: false, status: true }) 
 
-        return response.success(200, { data: products, hasMore: totalCount > offset + limit }, res)
+        return response.success(200, { data: products, length: totalCount }, res)
     })  
         .skip(offset).limit(limit)
+        .sort(filterObj)
         .populate('profile')
         .populate('category')
         .populate('brand')
