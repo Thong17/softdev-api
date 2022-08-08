@@ -35,7 +35,7 @@ exports.detail = async (req, res) => {
     Promotion.findById(req.params.id, (err, promotion) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: promotion }, res)
-    }).populate('products')
+    })
 }
 
 exports.create = async (req, res) => {
