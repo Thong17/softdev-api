@@ -25,7 +25,7 @@ exports.index = async (req, res) => {
 }
 
 exports.list = async (req, res) => {
-    const limit = parseInt(req.query.limit) || 10
+    const limit = parseInt(req.query.limit)
     const offset = parseInt(req.query.offset) || 0
     const search = req.query.search?.replace(/ /g,'')
     const field = req.query.field || 'tags'
@@ -33,6 +33,7 @@ exports.list = async (req, res) => {
     const sort = req.query.sort || 'asc'
     const brand = req.query.brand || 'all'
     const category = req.query.category || 'all'
+    const selectedProducts = req.query.products
 
     let filterObj = { [filter]: sort }
     let query = {}
@@ -43,12 +44,13 @@ exports.list = async (req, res) => {
     }
     if (brand && brand !== 'all') query['brand'] = brand
     if (category && category !== 'all') query['category'] = category
+    if (selectedProducts) query['_id'] = { '$in': JSON.parse(selectedProducts) }
 
     Product.find({ isDeleted: false, status: true, ...query }, async (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         const totalCount = await Product.count({ isDeleted: false, status: true, ...query  }) 
         let hasMore = totalCount > offset + limit
-        if (search !== '' || brand !== 'all' || category !== 'all') hasMore = true
+        if (search !== '' || brand !== 'all' || category !== 'all' || selectedProducts) hasMore = true
 
         return response.success(200, { data: products, length: totalCount, hasMore }, res)
     })  
