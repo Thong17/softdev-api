@@ -147,7 +147,8 @@ exports.profile = (req, res) => {
         privilege: req.user?.role.privilege,
         photo: req.user?.profile?.photo,
         theme: req.user?.config?.theme,
-        language: req.user?.config?.language
+        language: req.user?.config?.language,
+        favorites: req.user?.favorites
     }
     return response.success(200, { user }, res)
 }
@@ -169,6 +170,30 @@ exports.changeLanguage = async (req, res) => {
         config.language = req.body.language
         await config.save()
         return response.success(200, { language: config.language }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.addFavorite = async (req, res) => {
+    try {
+        const productId = req.params.id
+        const user = await User.findById(req.user?.id)
+        user.favorites.push(productId)
+        await user.save()
+        return response.success(200, { msg: 'An item has been added to favorite' }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.removeFavorite = async (req, res) => {
+    try {
+        const productId = req.params.id
+        const user = await User.findById(req.user?.id)
+        user.favorites = user.favorites.filter(id => !id.equals(productId))
+        await user.save()
+        return response.success(200, { msg: 'An item has been removed from favorite' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
