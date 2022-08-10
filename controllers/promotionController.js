@@ -1,4 +1,5 @@
 const Promotion = require('../models/Promotion')
+const Product = require('../models/Product')
 const { default: mongoose } = require('mongoose')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
@@ -68,17 +69,23 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Promotion.findByIdAndUpdate(req.params.id, body, (err, promotion) => {
-            if (err) {
-                switch (err.code) {
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
-            }
+        const promotion = await Promotion.findById(req.params.id)
+        if (!promotion) return response.failure(422, { msg: 'No promotion updated!' }, res, err)
 
-            if (!promotion) return response.failure(422, { msg: 'No promotion updated!' }, res, err)
-            response.success(200, { msg: 'Promotion has updated successfully', data: promotion }, res)
-        })
+        await Product.updateMany({ _id: { '$in': promotion.products } }, { promotion: null })
+
+        promotion.description = body.description
+        promotion.value = body.value
+        promotion.type = body.type
+        promotion.startAt = body.startAt
+        promotion.expireAt = body.expireAt
+        promotion.isFixed = body.isFixed
+        promotion.products = body.products
+        promotion.save()
+
+        await Product.updateMany({ _id: { '$in': body.products } }, { promotion: promotion._id })
+
+        response.success(200, { msg: 'Promotion has updated successfully', data: promotion }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }

@@ -57,9 +57,10 @@ exports.list = async (req, res) => {
         .skip(offset).limit(limit)
         .sort(filterObj)
         .populate('profile')
-        .populate('category')
-        .populate('brand')
+        .populate('category', 'name tags')
+        .populate('brand', 'name tags')
         .populate('stocks')
+        .populate('promotion', 'description isFixed startAt expireAt type value')
 }
 
 exports.detail = async (req, res) => {
