@@ -54,6 +54,10 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Profile'
         },
+        favorites: [{
+            type: mongoose.Schema.ObjectId,
+            ref: 'Product'
+        }],
         config: {
             type: mongoose.Schema.ObjectId,
             ref: 'Config'

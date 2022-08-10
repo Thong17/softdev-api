@@ -33,7 +33,8 @@ exports.list = async (req, res) => {
     const sort = req.query.sort || 'asc'
     const brand = req.query.brand || 'all'
     const category = req.query.category || 'all'
-    const selectedProducts = req.query.products
+    const promotion = req.query.promotion
+    const favorite = req.query.favorite === 'on'
 
     let filterObj = { [filter]: sort }
     let query = {}
@@ -44,13 +45,14 @@ exports.list = async (req, res) => {
     }
     if (brand && brand !== 'all') query['brand'] = brand
     if (category && category !== 'all') query['category'] = category
-    if (selectedProducts) query['_id'] = { '$in': JSON.parse(selectedProducts) }
+    if (promotion) query['promotion'] = query['promotion'] = promotion
+    if (favorite) query['_id'] = { '$in': req.user?.favorites }
 
     Product.find({ isDeleted: false, status: true, ...query }, async (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         const totalCount = await Product.count({ isDeleted: false, status: true, ...query  }) 
         let hasMore = totalCount > offset + limit
-        if (search !== '' || brand !== 'all' || category !== 'all' || selectedProducts) hasMore = true
+        if (search !== '' || brand !== 'all' || category !== 'all' || promotion || favorite) hasMore = true
 
         return response.success(200, { data: products, length: totalCount, hasMore }, res)
     })  
