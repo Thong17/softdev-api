@@ -21,6 +21,7 @@ exports.login = async (req, res) => {
                 photo: data.user.profile?.photo,
                 theme: data.user.config?.theme,
                 language: data.user.config?.language,
+                favorites: data.user.favorites
             }
             response.success(200, { accessToken: data.token, user }, res)
         })

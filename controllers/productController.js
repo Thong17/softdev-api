@@ -35,6 +35,7 @@ exports.list = async (req, res) => {
     const category = req.query.category || 'all'
     const promotion = req.query.promotion
     const favorite = req.query.favorite === 'on'
+    const promotions = req.query.promotions === 'on'
 
     let filterObj = { [filter]: sort }
     let query = {}
@@ -43,16 +44,20 @@ exports.list = async (req, res) => {
             $regex: new RegExp(search, 'i')
         }
     }
+    let promotionObj = {}
+    if (promotions) promotionObj['$ne'] = null
+    if (promotion) promotionObj['$e'] = promotion
+
+    if (Object.keys(promotionObj).length > 0) query['promotion'] = promotionObj
     if (brand && brand !== 'all') query['brand'] = brand
     if (category && category !== 'all') query['category'] = category
-    if (promotion) query['promotion'] = query['promotion'] = promotion
     if (favorite) query['_id'] = { '$in': req.user?.favorites }
 
     Product.find({ isDeleted: false, status: true, ...query }, async (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         const totalCount = await Product.count({ isDeleted: false, status: true, ...query  }) 
         let hasMore = totalCount > offset + limit
-        if (search !== '' || brand !== 'all' || category !== 'all' || promotion || favorite) hasMore = true
+        if (search !== '' || brand !== 'all' || category !== 'all' || promotion || favorite || promotions) hasMore = true
 
         return response.success(200, { data: products, length: totalCount, hasMore }, res)
     })  
