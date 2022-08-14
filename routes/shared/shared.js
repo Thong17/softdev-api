@@ -3,6 +3,7 @@ const { list: roleList } = require('../../controllers/roleController')
 const { list: productList } = require('../../controllers/productController')
 const { list: brandList } = require('../../controllers/brandController')
 const { list: categoryList } = require('../../controllers/categoryController')
+const { info: productInfo } = require('../../controllers/productController')
 const response = require('../../helpers/response')
 const { uploadImageController, uploadIconController } = require('../../controllers/sharedController')
 const multer = require('multer')
@@ -25,7 +26,11 @@ const uploadImage = multer({
 const uploadIcon = multer({
   storage,
   limits: { fileSize: 0.5 * 1000 * 1000 },
-}).single('icon') 
+}).single('icon')
+
+router.get('/product/info/:id', (req, res) => {
+  productInfo(req, res)
+})
 
 router.get('/role/list', (req, res) => {
   roleList(req, res)

@@ -3,6 +3,7 @@ const Image = require('../models/Image')
 const ProductColor = require('../models/ProductColor')
 const ProductOption = require('../models/ProductOption')
 const ProductProperty = require('../models/ProductProperty')
+const ProductStock = require('../models/ProductStock')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
@@ -79,6 +80,23 @@ exports.detail = async (req, res) => {
             .populate({ path: 'properties', options: { sort: { 'order': 1 } }})
             .populate({ path: 'colors', model: ProductColor })
             .populate({ path: 'options', model: ProductOption })
+
+        return response.success(200, { data: product }, res)
+    } catch (err) {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }   
+}
+
+exports.info = async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id)
+            .populate('brand')
+            .populate('category')
+            .populate('images')
+            .populate({ path: 'properties', options: { sort: { 'order': 1 } }})
+            .populate({ path: 'colors', model: ProductColor })
+            .populate({ path: 'options', model: ProductOption })
+            .populate({ path: 'stocks', model: ProductStock })
 
         return response.success(200, { data: product }, res)
     } catch (err) {
