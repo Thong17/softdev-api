@@ -19,6 +19,14 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Image'
         },
+        choice: {
+            type: String,
+            default: 'SINGLE'
+        },
+        isRequire: {
+            type: Boolean,
+            default: false
+        },
         description: {
             type: String,
             default: ''
