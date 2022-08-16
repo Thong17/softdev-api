@@ -11,6 +11,14 @@ const schema = mongoose.Schema(
             type: Number,
             default: 0
         },
+        choice: {
+            type: String,
+            default: 'SINGLE'
+        },
+        isRequire: {
+            type: Boolean,
+            default: false
+        },
         description: {
             type: String,
             default: ''

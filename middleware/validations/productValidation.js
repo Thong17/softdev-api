@@ -22,14 +22,14 @@ const createOptionValidation = Joi.object({
     description: Joi.string().optional().allow(''),
     property: Joi.string().required(),
     product: Joi.string().required(),
-    choice: Joi.string().required(),
-    isRequire: Joi.boolean().required(),
 })
 
 const createPropertyValidation = Joi.object({
     name: Joi.object().required(),
     description: Joi.string().optional().allow(''),
     product: Joi.string().required(),
+    choice: Joi.string().required(),
+    isRequire: Joi.boolean().required(),
 })
 
 const createColorValidation = Joi.object({
