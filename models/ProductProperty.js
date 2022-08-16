@@ -23,6 +23,10 @@ const schema = mongoose.Schema(
             type: String,
             default: ''
         },
+        options: [{
+            type: mongoose.Schema.ObjectId,
+            ref: 'ProductOption'
+        }],
         product: {
             type: mongoose.Schema.ObjectId,
             ref: 'Product',

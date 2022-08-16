@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const Product = require('./Product')
+const ProductProperty = require('./ProductProperty')
 
 const schema = mongoose.Schema(
     {
@@ -23,6 +24,10 @@ const schema = mongoose.Schema(
             type: String,
             default: ''
         },
+        isDefault: {
+            type: Boolean,
+            default: false
+        },
         property: {
             type: mongoose.Schema.ObjectId,
             ref: 'Property',
@@ -43,6 +48,10 @@ schema.post('save', async function () {
     const product = await Product.findOne({ _id: this.product._id })
     product.options.push(this._id)
     product.save()
+
+    const property = await ProductProperty.findOne({ _id: this.property._id })
+    property.options.push(this._id)
+    property.save()
 })
 
 module.exports = mongoose.model('ProductOption', schema)
