@@ -404,6 +404,29 @@ exports.updateOption = async (req, res) => {
     }
 }
 
+exports.toggleDefault = async (req, res) => {
+    try {
+        const id = req.params.id
+        const option = await ProductOption.findById(id).populate('property')
+
+        if (option.isDefault) {
+            await ProductOption.findByIdAndUpdate(id, { isDefault: false })
+            return response.success(200, { msg: 'Option has updated successfully' }, res)
+        }
+
+        if (option?.property?.choice === 'MULTIPLE') {
+            await ProductOption.findByIdAndUpdate(id, { isDefault: true })
+            return response.success(200, { msg: 'Option has updated successfully' }, res)
+        }
+
+        await ProductOption.updateMany({ property: option.property }, { isDefault: false })
+        await ProductOption.findByIdAndUpdate(id, { isDefault: true })
+        return response.success(200, { msg: 'Option has updated successfully' }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
 exports.disableOption = async (req, res) => {
     try {
         ProductOption.findByIdAndRemove(req.params.id, (err, option) => {

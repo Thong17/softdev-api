@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, list, create, update, detail, disable, enableStock, _import, batch, batchColor, batchImage, batchOption, batchProperty, createProperty, updateProperty, reorderProperty, disableProperty, createOption, updateOption, disableOption, detailOption, detailProperty, createColor, updateColor, disableColor, detailColor } = require('../../controllers/productController')
+const { index, list, create, update, detail, disable, enableStock, _import, batch, batchColor, batchImage, batchOption, batchProperty, createProperty, updateProperty, reorderProperty, disableProperty, createOption, updateOption, toggleDefault, disableOption, detailOption, detailProperty, createColor, updateColor, disableColor, detailColor } = require('../../controllers/productController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -83,6 +83,10 @@ router.get('/option/detail/:id', security.role(privilege.product.detail), (req, 
 
 router.put('/option/update/:id', security.role(privilege.product.update), (req, res) => {
     updateOption(req, res)
+})
+
+router.put('/option/toggle/:id', security.role(privilege.product.update), (req, res) => {
+    toggleDefault(req, res)
 })
 
 router.delete('/option/disable/:id', security.role(privilege.product.delete), (req, res) => {

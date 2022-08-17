@@ -30,7 +30,7 @@ const schema = mongoose.Schema(
         },
         property: {
             type: mongoose.Schema.ObjectId,
-            ref: 'Property',
+            ref: 'ProductProperty',
             require: true
         },
         product: {
