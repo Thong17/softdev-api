@@ -45,13 +45,11 @@ const schema = mongoose.Schema(
 )
 
 schema.post('save', async function () {
-    const product = await Product.findOne({ _id: this.product._id })
-    product.options.push(this._id)
-    product.save()
+    const product = await Product.findById(this.product._id)
+    await Product.findByIdAndUpdate(this.product._id, { options: [...product.options, this._id] })
 
-    const property = await ProductProperty.findOne({ _id: this.property._id })
-    property.options.push(this._id)
-    property.save()
+    const property = await ProductProperty.findById(this.property._id)
+    await ProductProperty.findByIdAndUpdate(this.property._id, { options: [...property.options, this._id] })
 })
 
 module.exports = mongoose.model('ProductOption', schema)
