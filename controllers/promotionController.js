@@ -45,7 +45,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Promotion.create(body, (err, promotion) => {
+        Promotion.create(body, async (err, promotion) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -54,7 +54,8 @@ exports.create = async (req, res) => {
                         return response.failure(422, { msg: err.message }, res, err)
                 }
             }
-
+            await Product.updateMany({ _id: { '$in': body.products } }, { promotion: promotion._id })
+            
             if (!promotion) return response.failure(422, { msg: 'No promotion created!' }, res, err)
             response.success(200, { msg: 'Promotion has created successfully', data: promotion }, res)
         })

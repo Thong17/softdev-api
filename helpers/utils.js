@@ -79,5 +79,34 @@ module.exports = utils = {
                 reject({ msg: responseMsg.failureMsg.trouble, code: 422 })
             }
         })
-    }
+    },
+    calculateTransactionTotal: (totalObj, discountObj, exchangeRate) => {
+        if (discountObj.isFixed) {
+            if (discountObj.type !== 'PCT') {
+                totalObj.total = discountObj.value
+                totalObj.currency = discountObj.type
+            }
+            totalObj.total = (totalObj.total * discountObj.value) / 100
+            totalObj.currency = discountObj.type
+        }
+
+        if (discountObj.type === 'PCT') {
+            totalObj.total = (totalObj.total - (totalObj.total * discountObj.value) / 100)
+        }
+
+        const { sellRate = 4000, buyRate = 4100 } = exchangeRate
+        if (totalObj.currency === discountObj.type) {
+            totalObj.total = totalObj.total - discountObj.value
+        }
+
+        let totalExchange = 0
+        if (discountObj.type === 'USD') {
+            totalExchange = discountObj.value * sellRate
+            totalObj.total = totalObj.total - totalExchange
+        } else {
+            totalExchange = discountObj.value / buyRate
+            totalObj.total = totalObj.total - totalExchange
+        }
+        return totalObj
+    },
 }

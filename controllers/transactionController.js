@@ -2,9 +2,11 @@ const Transaction = require('../models/Transaction')
 const { default: mongoose } = require('mongoose')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, calculateTransactionTotal } = require('../helpers/utils')
 const { createTransactionValidation } = require('../middleware/validations/transactionValidation')
 const ProductStock = require('../models/ProductStock')
+const Promotion = require('../models/Promotion')
+
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
@@ -46,6 +48,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
+        var transactionId = mongoose.Types.ObjectId()
         let filter = { product: body.product }
         if (body.options.length > 0) filter['options'] = { '$in': body.options }
         if (body.color) filter['color'] = body.color
@@ -53,8 +56,6 @@ exports.create = async (req, res) => {
         const stocks = await ProductStock.find(filter)
         let orderQuantity = body.quantity
         let orderStocks = []
-
-        var transactionId = mongoose.Types.ObjectId()
 
         for (let index = 0; index < stocks.length; index++) {
             const stock = stocks[index]
@@ -74,7 +75,23 @@ exports.create = async (req, res) => {
             await ProductStock.findByIdAndUpdate(stock._id, { quantity: remainQuantity, transactions: [...stock.transactions, transactionId] })
         }
 
-        Transaction.create({ ...body, stocks: orderStocks }, (err, transaction) => {
+        if (body.promotion) {
+            const promotion = await Promotion.findById(body.promotion)
+            body['discount'] = {
+                value: promotion.value,
+                type: promotion.type,
+                isFixed: promotion.isFixed,
+            }
+            totalTransaction = calculateTransactionTotal(
+                { total: body.total, currency: body.currency }, 
+                { value: promotion.value, type: promotion.type, isFixed: promotion.isFixed }, 
+                { sellRate: 4000, buyRate: 4100 }
+            )
+            body.total = totalTransaction.total
+            body.currency = totalTransaction.currency
+        }
+
+        Transaction.create({ ...body, _id: transactionId, stocks: orderStocks }, (err, transaction) => {
             if (err) {
                 switch (err.code) {
                     case 11000:

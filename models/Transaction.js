@@ -7,7 +7,7 @@ const schema = mongoose.Schema(
             type: String,
             default: ''
         },
-        price: {
+        total: {
             type: Number,
             default: 0
         },
@@ -31,7 +31,7 @@ const schema = mongoose.Schema(
             type: Object,
             default: {
                 value: 0,
-                currency: 'PCT',
+                type: 'PCT',
                 isFixed: false
             }
         },
