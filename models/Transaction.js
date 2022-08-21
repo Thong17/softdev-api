@@ -7,13 +7,17 @@ const schema = mongoose.Schema(
             type: String,
             default: ''
         },
-        total: {
+        price: {
             type: Number,
             default: 0
         },
         currency: {
             type: String,
             default: 'USD'
+        },
+        total: {
+            type: Number,
+            default: 0
         },
         quantity: {
             type: Number,
