@@ -15,6 +15,10 @@ const schema = mongoose.Schema(
             type: Number,
             default: 0
         },
+        totalQuantity: {
+            type: Number,
+            default: 0
+        },
         remain: {
             type: Number,
             default: 0
@@ -37,6 +41,10 @@ const schema = mongoose.Schema(
         options: [{
             type: mongoose.Schema.ObjectId,
             ref: 'ProductOption',
+        }],
+        transactions: [{
+            type: mongoose.Schema.ObjectId,
+            ref: 'Transaction',
         }],
         product: {
             type: mongoose.Schema.ObjectId,

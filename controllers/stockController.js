@@ -43,7 +43,7 @@ exports.createStock = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductStock.create(body, (err, stock) => {
+        ProductStock.create({...body, totalQuantity: body.quantity}, (err, stock) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -67,7 +67,7 @@ exports.updateStock = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductStock.findByIdAndUpdate(req.params.id, body, { new: true }, (err, stock) => {
+        ProductStock.findByIdAndUpdate(req.params.id, {...body, totalQuantity: body.quantity}, { new: true }, (err, stock) => {
             if (err) {
                 switch (err.code) {
                     default:
