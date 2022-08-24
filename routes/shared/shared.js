@@ -1,13 +1,13 @@
 const router = require('express').Router()
 const { list: roleList } = require('../../controllers/roleController')
 const { list: productList } = require('../../controllers/productController')
+const { list: customerList } = require('../../controllers/customerController')
 const { list: brandList } = require('../../controllers/brandController')
 const { list: categoryList } = require('../../controllers/categoryController')
 const { info: productInfo } = require('../../controllers/productController')
 const response = require('../../helpers/response')
 const { uploadImageController, uploadIconController } = require('../../controllers/sharedController')
 const multer = require('multer')
-const security = require('../../middleware/security/index')
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -46,6 +46,10 @@ router.get('/category/list', (req, res) => {
 
 router.get('/product/list', (req, res) => {
   productList(req, res)
+})
+
+router.get('/customer/list', (req, res) => {
+  customerList(req, res)
 })
 
 router.post('/upload/image', (req, res) => {
