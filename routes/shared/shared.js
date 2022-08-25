@@ -6,7 +6,7 @@ const { list: brandList } = require('../../controllers/brandController')
 const { list: categoryList } = require('../../controllers/categoryController')
 const { info: productInfo } = require('../../controllers/productController')
 const response = require('../../helpers/response')
-const { uploadImageController, uploadIconController } = require('../../controllers/sharedController')
+const { uploadImageController, uploadIconController, uploadPictureController } = require('../../controllers/sharedController')
 const multer = require('multer')
 
 const storage = multer.diskStorage({
@@ -27,6 +27,11 @@ const uploadIcon = multer({
   storage,
   limits: { fileSize: 0.5 * 1000 * 1000 },
 }).single('icon')
+
+const uploadPicture = multer({
+  storage,
+  limits: { fileSize: 0.5 * 1000 * 1000 },
+}).single('picture')
 
 router.get('/product/info/:id', (req, res) => {
   productInfo(req, res)
@@ -63,6 +68,13 @@ router.post('/upload/icon', (req, res) => {
   uploadIcon(req, res, (err) => {
     if (err) return response.failure(422, { msg: err.message }, res, err)
     uploadIconController(req, res)
+  })
+})
+
+router.post('/upload/picture', (req, res) => {
+  uploadPicture(req, res, (err) => {
+    if (err) return response.failure(422, { msg: err.message }, res, err)
+    uploadPictureController(req, res)
   })
 })
 

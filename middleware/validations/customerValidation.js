@@ -5,7 +5,8 @@ const createCustomerValidation = Joi.object({
     firstName: Joi.string().required(),
     dateOfBirth: Joi.string().required(),
     phone: Joi.string().required(),
-    address: Joi.string().optional().allow('')
+    address: Joi.string().optional().allow(''),
+    picture: Joi.any().optional(),
 })
 
 module.exports = {

@@ -14,11 +14,19 @@ const schema = mongoose.Schema(
             type: String,
             require: true
         },
+        picture: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Picture'
+        },
         dateOfBirth: {
             type: String,
         },
         address: {
             type: String,
+        },
+        createdBy: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'User'
         },
         tags: {
             type: String,
