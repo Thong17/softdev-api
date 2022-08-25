@@ -45,6 +45,7 @@ exports.list = async (req, res) => {
     })  
         .skip(offset).limit(limit)
         .sort(filterObj)
+        .populate('picture', 'filename')
 }
 
 exports.detail = async (req, res) => {
