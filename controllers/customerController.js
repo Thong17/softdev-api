@@ -35,9 +35,9 @@ exports.list = async (req, res) => {
     if (category && category !== 'all') query['category'] = category
     if (favorite) query['_id'] = { '$in': req.user?.favorites }
 
-    Customer.find({ isDeleted: false, status: true, ...query }, async (err, customers) => {
+    Customer.find({ isDeleted: false, isDisabled: false, ...query }, async (err, customers) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        const totalCount = await Customer.count({ isDeleted: false, status: true, ...query  }) 
+        const totalCount = await Customer.count({ isDeleted: false, isDisabled: false, ...query  }) 
         let hasMore = totalCount > offset + limit
         if (search !== '' || brand !== 'all' || category !== 'all' || promotion || favorite || promotions) hasMore = true
 

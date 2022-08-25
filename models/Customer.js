@@ -24,6 +24,14 @@ const schema = mongoose.Schema(
         address: {
             type: String,
         },
+        isDeleted: {
+            type: Boolean,
+            default: false
+        },
+        isDisabled: {
+            type: Boolean,
+            default: false
+        },
         createdBy: {
             type: mongoose.Schema.ObjectId,
             ref: 'User'
