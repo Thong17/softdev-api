@@ -2,17 +2,18 @@ const mongoose = require('mongoose')
 
 const schema = mongoose.Schema(
     {
-        lastName: {
+        displayName: {
             type: String,
-            require: true
+            require: true,
+            index: {
+                unique: true
+            }
         },
-        firstName: {
+        fullName: {
             type: String,
-            require: true
         },
-        phone: {
+        contact: {
             type: String,
-            require: true
         },
         picture: {
             type: mongoose.Schema.ObjectId,

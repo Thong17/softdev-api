@@ -1,10 +1,10 @@
 const Joi = require('joi')
 
 const createCustomerValidation = Joi.object({
-    lastName: Joi.string().required(),
-    firstName: Joi.string().required(),
-    dateOfBirth: Joi.string().required(),
-    phone: Joi.string().required(),
+    displayName: Joi.string().required(),
+    fullName: Joi.string().optional().allow(''),
+    dateOfBirth: Joi.any().optional(),
+    contact: Joi.string().optional().allow(''),
     address: Joi.string().optional().allow(''),
     picture: Joi.any().optional(),
 })
