@@ -86,7 +86,6 @@ const schema = mongoose.Schema(
 schema.pre('save', async function (next) {
     try {
         this.tags = `${this.username}${this.email || ''}`.replace(/ /g,'')
-        this.password = await encryptPassword(this.password)
         next()
     } catch (err) {
         next(err)

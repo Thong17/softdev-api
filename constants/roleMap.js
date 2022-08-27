@@ -221,6 +221,58 @@ exports.privilege = {
             action: 'approve'
         }
     },
+    drawer: {
+        list: {
+            route: 'drawer',
+            action: 'list'
+        },
+        detail: {
+            route: 'drawer',
+            action: 'detail'
+        },
+        create: {
+            route: 'drawer',
+            action: 'create'
+        },
+        update: {
+            route: 'drawer',
+            action: 'update'
+        },
+        delete: {
+            route: 'drawer',
+            action: 'delete'
+        },
+        approve: {
+            route: 'drawer',
+            action: 'approve'
+        }
+    },
+    preset: {
+        list: {
+            route: 'preset',
+            action: 'list'
+        },
+        detail: {
+            route: 'preset',
+            action: 'detail'
+        },
+        create: {
+            route: 'preset',
+            action: 'create'
+        },
+        update: {
+            route: 'preset',
+            action: 'update'
+        },
+        delete: {
+            route: 'preset',
+            action: 'delete'
+        },
+        approve: {
+            route: 'preset',
+            action: 'approve'
+        }
+    },
 }
 
 let role

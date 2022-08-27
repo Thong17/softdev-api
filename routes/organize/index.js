@@ -5,5 +5,6 @@ router.use('/brand', require('./brand'))
 router.use('/product', require('./product'))
 router.use('/store', require('./store'))
 router.use('/customer', require('./customer'))
+router.use('/preset', require('./preset'))
 
 module.exports = router

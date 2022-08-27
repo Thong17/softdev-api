@@ -39,13 +39,14 @@ exports.detail = (req, res) => {
     })
 }
 
-exports.create = (req, res) => {
+exports.create = async (req, res) => {
     const body = req.body
     const { error } = createUserValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        User.create({...body, createdBy: req.user.id}, (err, user) => {
+        const password = await encryptPassword(body.password)
+        User.create({...body, password, createdBy: req.user.id}, (err, user) => {
             if (err) {
                 switch (err.code) {
                     case 11000:

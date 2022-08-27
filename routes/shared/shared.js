@@ -4,6 +4,7 @@ const { list: productList } = require('../../controllers/productController')
 const { list: customerList } = require('../../controllers/customerController')
 const { list: brandList } = require('../../controllers/brandController')
 const { list: categoryList } = require('../../controllers/categoryController')
+const { list: presetCashList } = require('../../controllers/presetController')
 const { info: productInfo } = require('../../controllers/productController')
 const response = require('../../helpers/response')
 const { uploadImageController, uploadIconController, uploadPictureController } = require('../../controllers/sharedController')
@@ -47,6 +48,10 @@ router.get('/brand/list', (req, res) => {
 
 router.get('/category/list', (req, res) => {
   categoryList(req, res)
+})
+
+router.get('/preset/cash/list', (req, res) => {
+  presetCashList(req, res)
 })
 
 router.get('/product/list', (req, res) => {
