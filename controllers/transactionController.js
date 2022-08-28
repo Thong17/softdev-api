@@ -1,10 +1,8 @@
 const Transaction = require('../models/Transaction')
-const { default: mongoose } = require('mongoose')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, calculateTransactionTotal } = require('../helpers/utils')
-const { createTransactionValidation } = require('../middleware/validations/transactionValidation')
-const ProductStock = require('../models/ProductStock')
+const { extractJoiErrors, readExcel, calculateTransactionTotal, determineProductStock, reverseProductStock } = require('../helpers/utils')
+const { createTransactionValidation, updateTransactionValidation } = require('../middleware/validations/transactionValidation')
 const Promotion = require('../models/Promotion')
 
 
@@ -48,32 +46,8 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        var transactionId = mongoose.Types.ObjectId()
-        let filter = { product: body.product }
-        if (body.options.length > 0) filter['options'] = { '$in': body.options }
-        if (body.color) filter['color'] = body.color
-
-        const stocks = await ProductStock.find(filter)
-        let orderQuantity = body.quantity
-        let orderStocks = []
-
-        for (let index = 0; index < stocks.length; index++) {
-            const stock = stocks[index]
-            let remainQuantity = stock.quantity
-
-            if (orderQuantity < 1) break
-            if (stock.quantity < 1) continue
-            if (orderQuantity > stock.quantity) {
-                orderStocks.push(stock._id)
-                orderQuantity -= stock.quantity
-                remainQuantity = 0
-            } else {
-                remainQuantity -= orderQuantity
-                orderQuantity = 0
-            }
-            orderStocks.push(stock._id)
-            await ProductStock.findByIdAndUpdate(stock._id, { quantity: remainQuantity, transactions: [...stock.transactions, transactionId] })
-        }
+        const { isValid, transactionId, orderStocks, msg } = await determineProductStock(body.product, body.color, body.options, body.quantity)
+        if (!isValid) return response.failure(422, { msg }, res)
 
         if (body.promotion) {
             const promotion = await Promotion.findById(body.promotion)
@@ -82,13 +56,12 @@ exports.create = async (req, res) => {
                 type: promotion.type,
                 isFixed: promotion.isFixed,
             }
-            totalTransaction = calculateTransactionTotal(
-                { total: body.total, currency: body.currency }, 
+            const { total, currency } = calculateTransactionTotal(
+                { total: body.total.value, currency: body.total.currency },
                 { value: promotion.value, type: promotion.type, isFixed: promotion.isFixed }, 
-                { sellRate: 4000, buyRate: 4100 }
+                { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
             )
-            body.total = totalTransaction.total
-            body.currency = totalTransaction.currency
+            body.total = { value: total, currency }
         }
 
         Transaction.create({ ...body, _id: transactionId, stocks: orderStocks }, (err, transaction) => {
@@ -111,39 +84,63 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
     const body = req.body
-    const { error } = createTransactionValidation.validate(body, { abortEarly: false })
+    const { error } = updateTransactionValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Transaction.findByIdAndUpdate(req.params.id, body, (err, transaction) => {
-            if (err) {
-                switch (err.code) {
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
-            }
+        const id = req.params.id
+        const transaction = await Transaction.findById(id)
 
-            if (!transaction) return response.failure(422, { msg: 'No transaction updated!' }, res, err)
-            response.success(200, { msg: 'Transaction has updated successfully', data: transaction }, res)
-        })
+        reverseProductStock(transaction?.stocks)
+            .then(async () => {
+                try {
+                    const { isValid, orderStocks, msg } = await determineProductStock(transaction.product, transaction.color, transaction.options, body.quantity)
+                    if (!isValid) return response.failure(422, { msg }, res)
+
+                    body.stocks = orderStocks
+
+                    const { total, currency } = calculateTransactionTotal(
+                        { total: body.price * body.quantity, currency: body.currency }, 
+                        { value: body.discount.value, type: body.discount.currency, isFixed: body.discount.isFixed }, 
+                        { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
+                    )
+                    body.total = { value: total, currency }
+
+                    Transaction.findByIdAndUpdate(req.params.id, body, { new: true }, (err, transaction) => {
+                        if (err) return response.failure(422, { msg: err.message }, res, err)
+            
+                        if (!transaction) return response.failure(422, { msg: 'No transaction updated!' }, res, err)
+                        response.success(200, { msg: 'Transaction has updated successfully', data: transaction }, res)
+                    })
+                } catch (err) {
+                    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+                }
+            })
+            .catch((err) => {
+                return response.failure(err.code, { msg: err.msg }, res, err)
+            })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
 
-exports.disable = async (req, res) => {
+exports.remove = async (req, res) => {
     try {
-        Transaction.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, transaction) => {
-            if (err) {
-                switch (err.code) {
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
+        const id = req.params.id
+        const transaction = await Transaction.findById(id)
+        
+        reverseProductStock(transaction?.stocks)
+            .then(async () => {
+                try {
+                    await Transaction.findByIdAndDelete(id)
+                    response.success(200, { msg: 'Transaction has deleted successfully', data: transaction }, res)
+                } catch (err) {
+                    return response.failure(422, { msg: failureMsg.trouble }, res, err)
                 }
-            }
-
-            if (!transaction) return response.failure(422, { msg: 'No transaction deleted!' }, res, err)
-            response.success(200, { msg: 'Transaction has deleted successfully', data: transaction }, res)
-        })
+            })
+            .catch((err) => {
+                return response.failure(err.code, { msg: err.msg }, res, err)
+            })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }

@@ -16,8 +16,7 @@ const schema = mongoose.Schema(
             default: 'USD'
         },
         total: {
-            type: Number,
-            default: 0
+            type: Object,
         },
         quantity: {
             type: Number,
@@ -39,14 +38,16 @@ const schema = mongoose.Schema(
                 isFixed: false
             }
         },
+        note: {
+            type: String,
+        },
         options: [{
             type: mongoose.Schema.ObjectId,
             ref: 'ProductOption'
         }],
-        stocks: [{
-            type: mongoose.Schema.ObjectId,
-            ref: 'ProductStock'
-        }],
+        stocks: {
+            type: Array,
+        },
         product: {
             type: mongoose.Schema.ObjectId,
             ref: 'Product'

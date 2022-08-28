@@ -6,12 +6,22 @@ const createTransactionValidation = Joi.object({
     color: Joi.string().optional().allow(null),
     price: Joi.number().required(),
     currency: Joi.string().required(),
-    total: Joi.number().required(),
+    total: Joi.object().required(),
     quantity: Joi.number().required(),
     options: Joi.array().required(),
     promotion: Joi.string().optional()
 })
 
+const updateTransactionValidation = Joi.object({
+    description: Joi.string().required(),
+    price: Joi.number().required(),
+    currency: Joi.string().required(),
+    quantity: Joi.number().required(),
+    note: Joi.string().optional().allow(''),
+    discount: Joi.object().required()
+})
+
 module.exports = {
-    createTransactionValidation
+    createTransactionValidation,
+    updateTransactionValidation
 }
