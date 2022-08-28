@@ -149,7 +149,8 @@ exports.profile = (req, res) => {
         photo: req.user?.profile?.photo,
         theme: req.user?.config?.theme,
         language: req.user?.config?.language,
-        favorites: req.user?.favorites
+        favorites: req.user?.favorites,
+        drawer: req.user?.drawer
     }
     return response.success(200, { user }, res)
 }

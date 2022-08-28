@@ -4,6 +4,7 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createDrawerValidation } = require('../middleware/validations/drawerValidation')
+const User = require('../models/User')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
@@ -45,13 +46,13 @@ exports.detail = async (req, res) => {
     })
 }
 
-exports.create = async (req, res) => {
+exports.open = async (req, res) => {
     const body = req.body
     const { error } = createDrawerValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Drawer.create(body, (err, drawer) => {
+        Drawer.create({ ...body, user: req.user._id }, (err, drawer) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -69,7 +70,7 @@ exports.create = async (req, res) => {
     }
 }
 
-exports.update = async (req, res) => {
+exports.save = async (req, res) => {
     const body = req.body
     const { error } = createDrawerValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
@@ -91,18 +92,19 @@ exports.update = async (req, res) => {
     }
 }
 
-exports.disable = async (req, res) => {
+exports.close = async (req, res) => {
     try {
-        Drawer.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, drawer) => {
+        Drawer.findByIdAndUpdate(req.params.id, { status: false, endedAt: Date.now() }, async (err, drawer) => {
             if (err) {
                 switch (err.code) {
                     default:
                         return response.failure(422, { msg: err.message }, res, err)
                 }
             }
+            await User.findByIdAndUpdate(drawer.user, { drawer: null })
 
-            if (!drawer) return response.failure(422, { msg: 'No drawer deleted!' }, res, err)
-            response.success(200, { msg: 'Drawer has deleted successfully', data: drawer }, res)
+            if (!drawer) return response.failure(422, { msg: 'No drawer updated!' }, res, err)
+            response.success(200, { msg: 'Drawer has updated successfully', data: drawer }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)

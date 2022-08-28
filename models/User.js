@@ -62,6 +62,10 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Config'
         },
+        drawer: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Drawer'
+        },
         createdBy: {
             type: mongoose.Schema.ObjectId,
             ref: 'User'
@@ -121,6 +125,7 @@ schema.statics.authenticate = function (username, password, cb) {
         .populate('role')
         .populate('profile')
         .populate('config')
+        .populate('drawer')
         .then(user => {
             if (!user) return cb({ code: 404, msg: 'Username is incorrect' }, null)
             comparePassword(password, user.password)
