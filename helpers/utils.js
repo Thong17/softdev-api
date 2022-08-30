@@ -81,7 +81,7 @@ module.exports = utils = {
             }
         })
     },
-    calculateTransactionTotal: (totalObj, discountObj, exchangeRate) => {
+    calculatePromotion: (totalObj, discountObj, exchangeRate) => {
         if (discountObj.isFixed) {
             if (discountObj.type !== 'PCT') {
                 totalObj.total = discountObj.value
@@ -111,6 +111,28 @@ module.exports = utils = {
         } else {
             totalExchange = discountObj.value / buyRate
             totalObj.total = totalObj.total - totalExchange
+        }
+        return totalObj
+    },
+    calculateService: (totalObj, serviceObj, exchangeRate) => {
+        if (serviceObj.type === 'PCT') {
+            totalObj.total = totalObj.total + (totalObj.total * serviceObj.value / 100)
+            return totalObj
+        }
+
+        const { sellRate = 4000, buyRate = 4100 } = exchangeRate
+        if (totalObj.currency === serviceObj.type) {
+            totalObj.total = totalObj.total + serviceObj.value
+            return totalObj
+        }
+
+        let totalExchange = 0
+        if (serviceObj.type === 'USD') {
+            totalExchange = serviceObj.value * sellRate
+            totalObj.total = totalObj.total + totalExchange
+        } else {
+            totalExchange = serviceObj.value / buyRate
+            totalObj.total = totalObj.total + totalExchange
         }
         return totalObj
     },
@@ -164,5 +186,46 @@ module.exports = utils = {
                 reject({ msg: responseMsg.failureMsg.trouble, code: 422 })
             }
         })
+    },
+    calculatePaymentTotal: (transactions, services, promotions, exchangeRate) => {
+        const { buyRate, sellRate } = exchangeRate
+        let totalUSD = 0
+        let totalKHR = 0
+
+        transactions.forEach(transaction => {
+            if (transaction.total?.currency === 'USD') totalUSD += transaction.total?.value
+            else totalKHR += transaction.total?.value
+        })
+
+        const totalBoth = totalUSD + (totalKHR / sellRate)
+
+        let total = totalBoth
+        let currency = 'USD'
+
+        promotions.forEach(promotion => {
+            if (currency === 'KHR') {
+                total /= sellRate
+                currency = 'USD'
+            }
+
+            let { total: totalDiscounted, currency: currencyDiscounted } = utils.calculatePromotion({ total, currency }, promotion, exchangeRate)
+
+            total = totalDiscounted
+            currency = currencyDiscounted
+        })
+
+        services.forEach(service => {
+            if (currency === 'KHR') {
+                total /= sellRate
+                currency = 'USD'
+            }
+            
+            let { total: totalCharged, currency: currencyCharged } = utils.calculateService({ total, currency }, service, exchangeRate)
+
+            total = totalCharged
+            currency = currencyCharged
+        })
+
+        return { total: { value: total, currency }, subtotal: { USD: totalUSD, KHR: totalKHR, BOTH: totalBoth }, rate: exchangeRate }
     }
 }

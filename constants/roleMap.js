@@ -197,27 +197,53 @@ exports.privilege = {
     },
     transaction: {
         list: {
-            route: 'promotion',
+            route: 'transaction',
             action: 'list'
         },
         detail: {
-            route: 'promotion',
+            route: 'transaction',
             action: 'detail'
         },
         create: {
-            route: 'promotion',
+            route: 'transaction',
             action: 'create'
         },
         update: {
-            route: 'promotion',
+            route: 'transaction',
             action: 'update'
         },
         delete: {
-            route: 'promotion',
+            route: 'transaction',
             action: 'delete'
         },
         approve: {
-            route: 'promotion',
+            route: 'transaction',
+            action: 'approve'
+        }
+    },
+    payment: {
+        list: {
+            route: 'payment',
+            action: 'list'
+        },
+        detail: {
+            route: 'payment',
+            action: 'detail'
+        },
+        create: {
+            route: 'payment',
+            action: 'create'
+        },
+        update: {
+            route: 'payment',
+            action: 'update'
+        },
+        delete: {
+            route: 'payment',
+            action: 'delete'
+        },
+        approve: {
+            route: 'payment',
             action: 'approve'
         }
     },

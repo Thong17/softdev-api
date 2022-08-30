@@ -1,7 +1,7 @@
 const Transaction = require('../models/Transaction')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, calculateTransactionTotal, determineProductStock, reverseProductStock } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, calculatePromotion, determineProductStock, reverseProductStock } = require('../helpers/utils')
 const { createTransactionValidation, updateTransactionValidation } = require('../middleware/validations/transactionValidation')
 const Promotion = require('../models/Promotion')
 
@@ -56,7 +56,7 @@ exports.create = async (req, res) => {
                 type: promotion.type,
                 isFixed: promotion.isFixed,
             }
-            const { total, currency } = calculateTransactionTotal(
+            const { total, currency } = calculatePromotion(
                 { total: body.total.value, currency: body.total.currency },
                 { value: promotion.value, type: promotion.type, isFixed: promotion.isFixed }, 
                 { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
@@ -99,7 +99,7 @@ exports.update = async (req, res) => {
 
                     body.stocks = orderStocks
 
-                    const { total, currency } = calculateTransactionTotal(
+                    const { total, currency } = calculatePromotion(
                         { total: body.price * body.quantity, currency: body.currency }, 
                         { value: body.discount.value, type: body.discount.currency, isFixed: body.discount.isFixed }, 
                         { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }

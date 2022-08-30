@@ -12,6 +12,9 @@ const schema = mongoose.Schema(
         fullName: {
             type: String,
         },
+        point: {
+            type: Number,
+        },
         contact: {
             type: String,
         },
