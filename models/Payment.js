@@ -34,7 +34,10 @@ const schema = mongoose.Schema(
             type: Boolean,
             default: false
         },
-        promotions: {
+        discounts: {
+            type: Array,
+        },
+        vouchers: {
             type: Array,
         },
         services: {

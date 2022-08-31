@@ -64,7 +64,7 @@ exports.create = async (req, res) => {
             body.total = { value: total, currency }
         }
 
-        Transaction.create({ ...body, _id: transactionId, stocks: orderStocks }, (err, transaction) => {
+        Transaction.create({ ...body, _id: transactionId, stocks: orderStocks, createdBy: req.user.id }, (err, transaction) => {
             if (err) {
                 switch (err.code) {
                     case 11000:

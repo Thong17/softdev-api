@@ -31,14 +31,13 @@ exports.index = async (req, res) => {
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
-        .populate('icon')
 }
 
 exports.detail = async (req, res) => {
     Payment.findById(req.params.id, (err, payment) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: payment }, res)
-    }).populate('icon')
+    }).populate('createdBy').populate('customer').populate('transactions')
 }
 
 exports.create = async (req, res) => {
@@ -76,6 +75,7 @@ exports.create = async (req, res) => {
 
             let data = await payment.populate('customer')
             data = await payment.populate('transactions')
+            data = await payment.populate('createdBy', 'username')
             response.success(200, { msg: 'Payment has created successfully', data }, res)
         })
     } catch (err) {
@@ -95,7 +95,7 @@ exports.checkout = async (req, res) => {
         calculateReturnCashes(payment?.drawer?.cashes, body.remainTotal, payment.rate)
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(payment?.drawer?._id, { cashes })
-                const data = await Payment.findByIdAndUpdate(payment._id, { ...body, returnCashes, status: true }, { new: true }).populate('transactions').populate('customer')
+                const data = await Payment.findByIdAndUpdate(payment._id, { ...body, returnCashes, status: true }, { new: true }).populate('transactions').populate('customer').populate('createdBy', 'username')
 
                 response.success(200, { msg: 'Payment has checked out successfully', data }, res)
             })

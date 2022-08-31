@@ -17,7 +17,7 @@ exports.index = async (req, res) => {
 }
 
 exports.detail = async (req, res) => {
-    Store.findById(req.params.id, (err, store) => {
+    Store.findOne({}, (err, store) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: store }, res)
     }).populate('logo')
