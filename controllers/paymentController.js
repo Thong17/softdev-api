@@ -57,7 +57,7 @@ exports.create = async (req, res) => {
         const transactions = await Transaction.find({ _id: { '$in': body.transactions } })
 
 
-        const { total, subtotal, rate } = calculatePaymentTotal(transactions, body.services, body.promotions, { buyRate, sellRate })
+        const { total, subtotal, rate } = calculatePaymentTotal(transactions, body.services, body.vouchers, body.discounts, { buyRate, sellRate })
 
         const mappedBody = {
             ...body,

@@ -187,8 +187,8 @@ module.exports = utils = {
             }
         })
     },
-    calculatePaymentTotal: (transactions, services, promotions, exchangeRate) => {
-        const { buyRate, sellRate } = exchangeRate
+    calculatePaymentTotal: (transactions, services, vouchers, discounts, exchangeRate) => {
+        const { sellRate } = exchangeRate
         let totalUSD = 0
         let totalKHR = 0
 
@@ -202,7 +202,7 @@ module.exports = utils = {
         let total = totalBoth
         let currency = 'USD'
 
-        promotions.forEach(promotion => {
+        discounts.forEach(promotion => {
             if (currency === 'KHR') {
                 total /= sellRate
                 currency = 'USD'
@@ -224,6 +224,18 @@ module.exports = utils = {
 
             total = totalCharged
             currency = currencyCharged
+        })
+
+        vouchers.forEach(promotion => {
+            if (currency === 'KHR') {
+                total /= sellRate
+                currency = 'USD'
+            }
+
+            let { total: totalVouchered, currency: currencyVouchered } = utils.calculatePromotion({ total, currency }, promotion, exchangeRate)
+
+            total = totalVouchered
+            currency = currencyVouchered
         })
 
         return { total: { value: total, currency }, subtotal: { USD: totalUSD, KHR: totalKHR, BOTH: totalBoth }, rate: exchangeRate }
