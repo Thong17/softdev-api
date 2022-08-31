@@ -1,3 +1,4 @@
+const Drawer = require('../models/Drawer')
 const Payment = require('../models/Payment')
 const Transaction = require('../models/Transaction')
 const response = require('../helpers/response')
@@ -92,8 +93,11 @@ exports.checkout = async (req, res) => {
         const payment = await Payment.findById(id).populate('drawer').populate('transactions')
 
         calculateReturnCashes(payment?.drawer?.cashes, body.remainTotal, payment.rate)
-            .then((result) => {
-                console.log(result)
+            .then(async ({ cashes, returnCashes }) => {
+                await Drawer.findByIdAndUpdate(payment?.drawer?._id, { cashes })
+                const data = await Payment.findByIdAndUpdate(payment._id, { ...body, returnCashes, status: true }, { new: true }).populate('transactions')
+
+                response.success(200, { msg: 'Payment has checked out successfully', data }, res)
             })
             .catch(err => response.failure(err.code, { msg: err.msg }, res, err))
 

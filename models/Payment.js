@@ -20,9 +20,6 @@ const schema = mongoose.Schema(
         remainTotal: {
             type: Object,
         },
-        returnTotal: {
-            type: Object,
-        },
         returnCashes: {
             type: Array,
         },
