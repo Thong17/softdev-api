@@ -95,7 +95,7 @@ exports.checkout = async (req, res) => {
         calculateReturnCashes(payment?.drawer?.cashes, body.remainTotal, payment.rate)
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(payment?.drawer?._id, { cashes })
-                const data = await Payment.findByIdAndUpdate(payment._id, { ...body, returnCashes, status: true }, { new: true }).populate('transactions')
+                const data = await Payment.findByIdAndUpdate(payment._id, { ...body, returnCashes, status: true }, { new: true }).populate('transactions').populate('customer')
 
                 response.success(200, { msg: 'Payment has checked out successfully', data }, res)
             })

@@ -247,7 +247,7 @@ module.exports = utils = {
             const sortedCashes = utils.sortObject(mappedCashes, 'value')
 
             sortedCashes.reverse().forEach(cash => {
-                if (returnCash / cash.value < 0 || cash.quantity < 1 || returnCash <= 0) return
+                if (returnCash / cash.value < 1 || cash.quantity < 1 || returnCash <= 0) return
                 let needQuantity = Math.floor(returnCash / cash.value)
                 const quantity = parseFloat(cash.quantity)
 
@@ -262,7 +262,7 @@ module.exports = utils = {
                 }
             })
 
-            if (returnCash > 0) returnCashes.push({ cash: returnCash, currency: 'USD', rate: sellRate, quantity: 1 })
+            if (returnCash > 0) returnCashes.push({ cash: returnCash, exchange: returnCash * sellRate, currency: 'USD', rate: sellRate, quantity: 1 })
 
             resolve({ remainCash: -returnCash, returnCashes, cashes: sortedCashes })
         })
