@@ -227,5 +227,42 @@ module.exports = utils = {
         })
 
         return { total: { value: total, currency }, subtotal: { USD: totalUSD, KHR: totalKHR, BOTH: totalBoth }, rate: exchangeRate }
-    }
+    },
+    sortObject: (array, property) => {
+        return array.sort((a, b) => (a[property] > b[property]) ? 1 : ((b[property] > a[property]) ? -1 : 0))
+    },
+    calculateReturnCashes: (cashes, remainTotal, exchangeRate) => {
+        return new Promise((resolve, reject) => {
+            if (remainTotal.USD >= 0) reject({ msg: 'No return cash', code: 422 })
+
+            const { sellRate } = exchangeRate
+            let returnCash = Math.abs(remainTotal.USD)
+            let returnCashes = []
+
+            const mappedCashes = cashes.map(cash => {
+                return cash.currency === 'USD' 
+                    ? ({ ...cash, value: parseFloat(cash.cash) }) 
+                    : ({ ...cash, value: parseFloat(cash.cash) / sellRate })
+            })
+            const sortedCashes = utils.sortObject(mappedCashes, 'value')
+
+            sortedCashes.reverse().forEach(cash => {
+                if (returnCash / cash.value < 0) return
+                let needQuantity = Math.floor(returnCash / cash.value)
+                const quantity = parseFloat(cash.quantity)
+
+                if (quantity > needQuantity) {
+                    returnCashes.push({ cash: cash.cash, quantity: needQuantity })
+                    returnCash -= cash.value * needQuantity
+                    cash.quantity = quantity - needQuantity
+                } else {
+                    returnCashes.push({ cash: cash.cash, quantity })
+                    returnCash -= cash.value * quantity
+                    cash.quantity = 0
+                }
+            })
+
+            resolve({ remainCash: -returnCash, returnCashes, sortedCashes })
+        })
+    },
 }

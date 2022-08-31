@@ -11,11 +11,24 @@ const schema = mongoose.Schema(
         subtotal: {
             type: Object,
         },
-        receive: {
+        receiveCashes: {
+            type: Array,
+        },
+        receiveTotal: {
             type: Object,
         },
-        return: {
+        remainTotal: {
             type: Object,
+        },
+        returnTotal: {
+            type: Object,
+        },
+        returnCashes: {
+            type: Array,
+        },
+        paymentMethod: {
+            type: String,
+            default: 'cash'
         },
         rate: {
             type: Object,

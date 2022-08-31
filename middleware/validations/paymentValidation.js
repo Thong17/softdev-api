@@ -6,6 +6,16 @@ const createPaymentValidation = Joi.object({
     promotions: Joi.array().required(),
     customer: Joi.string().optional().allow(null)
 })
+
+const checkoutPaymentValidation = Joi.object({
+    receiveCashes: Joi.array().required(),
+    receiveTotal: Joi.object().required(),
+    remainTotal: Joi.object().required(),
+    customer: Joi.string().optional().allow(null),
+    paymentMethod: Joi.string().optional().allow(null)
+})
+
 module.exports = {
-    createPaymentValidation
+    createPaymentValidation,
+    checkoutPaymentValidation
 }

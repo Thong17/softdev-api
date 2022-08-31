@@ -2,8 +2,8 @@ const Payment = require('../models/Payment')
 const Transaction = require('../models/Transaction')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, calculatePaymentTotal } = require('../helpers/utils')
-const { createPaymentValidation } = require('../middleware/validations/paymentValidation')
+const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes } = require('../helpers/utils')
+const { createPaymentValidation, checkoutPaymentValidation } = require('../middleware/validations/paymentValidation')
 
 
 exports.index = async (req, res) => {
@@ -77,6 +77,26 @@ exports.create = async (req, res) => {
             data = await payment.populate('transactions')
             response.success(200, { msg: 'Payment has created successfully', data }, res)
         })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.checkout = async (req, res) => {
+    const body = req.body
+    const { error } = checkoutPaymentValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        const id = req.params.id
+        const payment = await Payment.findById(id).populate('drawer').populate('transactions')
+
+        calculateReturnCashes(payment?.drawer?.cashes, body.remainTotal, payment.rate)
+            .then((result) => {
+                console.log(result)
+            })
+            .catch(err => response.failure(err.code, { msg: err.msg }, res, err))
+
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
