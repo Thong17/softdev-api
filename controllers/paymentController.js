@@ -45,7 +45,7 @@ exports.create = async (req, res) => {
     const { error } = createPaymentValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
-    if (!req.user.drawer) return response.failure(422, { msg: 'Open drawer first!' }, res, err)
+    if (!req.user.drawer) return response.failure(422, { msg: 'Open drawer first!' }, res)
 
     try {
         const countPayment = await Payment.count()
