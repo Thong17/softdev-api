@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, create, checkout, detail, _import, batch } = require('../../controllers/paymentController')
+const { index, create, checkout, update, detail, _import, batch } = require('../../controllers/paymentController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -17,7 +17,11 @@ router.post('/create', security.role(privilege.payment.create), (req, res) => {
     create(req, res)
 })
 
-router.put('/checkout/:id', security.role(privilege.payment.create), (req, res) => {
+router.put('/update/:id', security.role(privilege.payment.update), (req, res) => {
+    update(req, res)
+})
+
+router.put('/checkout/:id', security.role(privilege.payment.update), (req, res) => {
     checkout(req, res)
 })
 

@@ -54,8 +54,6 @@ exports.create = async (req, res) => {
         const sellRate = req.user.drawer.sellRate
 
         const transactions = await Transaction.find({ _id: { '$in': body.transactions } })
-
-
         const { total, subtotal, rate } = calculatePaymentTotal(transactions, body.services, body.vouchers, body.discounts, { buyRate, sellRate })
 
         const mappedBody = {
@@ -78,6 +76,32 @@ exports.create = async (req, res) => {
             data = await payment.populate('createdBy', 'username')
             response.success(200, { msg: 'Payment has created successfully', data }, res)
         })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.update = async (req, res) => {
+    const body = req.body
+
+    try {
+        const id = req.params.id
+        let data = await Payment.findByIdAndUpdate(id, body, { new: true })
+
+        const listTransactions = data.transactions
+        if (body.transaction) listTransactions.push(body.transaction.id)
+        
+        const transactions = await Transaction.find({ _id: { '$in': listTransactions } })
+        const { total, subtotal } = calculatePaymentTotal(transactions, data.services, data.vouchers, data.discounts, data.rate)
+
+        data.total = total
+        data.subtotal = subtotal
+        data.transactions = listTransactions
+        data.save()
+        data = await data.populate('customer')
+        data = await data.populate('transactions')
+        data = await data.populate('createdBy', 'username')
+        response.success(200, { msg: 'Payment has updated successfully', data }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
