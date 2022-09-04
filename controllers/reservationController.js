@@ -7,7 +7,7 @@ const { createReservationValidation } = require('../middleware/validations/reser
 const StoreStructure = require('../models/StoreStructure')
 
 exports.index = async (req, res) => {
-    const limit = parseInt(req.query.limit) || 10
+    const limit = parseInt(req.query.limit) || 0
     const page = parseInt(req.query.page) || 0
     const search = req.query.search?.replace(/ /g,'')
     const field = req.query.field || 'tags'
@@ -30,6 +30,8 @@ exports.index = async (req, res) => {
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
+        .populate({ path: 'customer', select: 'picture displayName contact', populate: { path: 'picture' } })
+        .populate('structures', 'title status type size')
 }
 
 exports.list = async (req, res) => {
@@ -60,6 +62,7 @@ exports.create = async (req, res) => {
             for (let i = 0; i < structures.length; i++) {
                 const structure = structures[i];
                 structure.reservations.push(reservation._id)
+                structure.status = 'reserved'
                 structure.save()
             }
 
