@@ -34,7 +34,7 @@ exports.structures = async (req, res) => {
     StoreStructure.find({ isDisabled: false }, (err, structures) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: structures }, res)
-    })
+    }).populate('floor', 'floor')
 }
 
 exports.listStructure = async (req, res) => {
@@ -50,7 +50,7 @@ exports.layout = async (req, res) => {
     StoreFloor.findById(id, (err, layout) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: layout }, res)
-    }).populate('structures')
+    }).populate({ path: 'structures', populate: { path: 'floor', select: 'floor' } })
 }
 
 exports.create = async (req, res) => {

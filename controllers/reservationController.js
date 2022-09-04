@@ -4,6 +4,7 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createReservationValidation } = require('../middleware/validations/reservationValidation')
+const StoreStructure = require('../models/StoreStructure')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
@@ -51,17 +52,17 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Reservation.create(body, (err, reservation) => {
-            if (err) {
-                switch (err.code) {
-                    case 11000:
-                        return response.failure(422, { msg: 'Reservation already exists!' }, res, err)
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
+        Reservation.create(body, async (err, reservation) => {
+            if (err) return response.failure(422, { msg: err.message }, res, err)
+            if (!reservation) return response.failure(422, { msg: 'No reservation created!' }, res, err)
+
+            const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } })
+            for (let i = 0; i < structures.length; i++) {
+                const structure = structures[i];
+                structure.reservations.push(reservation._id)
+                structure.save()
             }
 
-            if (!reservation) return response.failure(422, { msg: 'No reservation created!' }, res, err)
             response.success(200, { msg: 'Reservation has created successfully', data: reservation }, res)
         })
     } catch (err) {
