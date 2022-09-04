@@ -6,6 +6,7 @@ const { list: brandList } = require('../../controllers/brandController')
 const { list: categoryList } = require('../../controllers/categoryController')
 const { list: presetCashList } = require('../../controllers/presetController')
 const { info: productInfo } = require('../../controllers/productController')
+const { listStructure: structureList } = require('../../controllers/storeController')
 const response = require('../../helpers/response')
 const { uploadImageController, uploadIconController, uploadPictureController } = require('../../controllers/sharedController')
 const multer = require('multer')
@@ -56,6 +57,10 @@ router.get('/preset/cash/list', (req, res) => {
 
 router.get('/product/list', (req, res) => {
   productList(req, res)
+})
+
+router.get('/structure/list', (req, res) => {
+  structureList(req, res)
 })
 
 router.get('/customer/list', (req, res) => {

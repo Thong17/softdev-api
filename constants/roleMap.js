@@ -247,6 +247,32 @@ exports.privilege = {
             action: 'approve'
         }
     },
+    reservation: {
+        list: {
+            route: 'reservation',
+            action: 'list'
+        },
+        detail: {
+            route: 'reservation',
+            action: 'detail'
+        },
+        create: {
+            route: 'reservation',
+            action: 'create'
+        },
+        update: {
+            route: 'reservation',
+            action: 'update'
+        },
+        delete: {
+            route: 'reservation',
+            action: 'delete'
+        },
+        approve: {
+            route: 'reservation',
+            action: 'approve'
+        }
+    },
     drawer: {
         list: {
             route: 'drawer',

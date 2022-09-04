@@ -11,8 +11,20 @@ const schema = mongoose.Schema(
         merged: {
             type: Boolean,
         },
+        price: {
+            type: Object,
+            default: {
+                value: 0,
+                currency: 'USD',
+                duration: '1h'
+            }
+        },
         isMain: {
             type: Boolean,
+        },
+        status: {
+            type: String,
+            default: 'vacant'
         },
         title: {
             type: String,
@@ -50,9 +62,9 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'StoreFloor'
         },
-        reservation: [{
+        reservations: [{
             type: mongoose.Schema.ObjectId,
-            ref: 'StoreFloor'
+            ref: 'Reservation'
         }],
         updatedBy: {
             type: mongoose.Schema.ObjectId,
