@@ -49,10 +49,7 @@ const schema = mongoose.Schema(
 
 schema.pre('save', async function (next) {
     try {
-        this.tags = `${JSON.stringify(this.name)}${this.description}`.replace(/ /g,'')
-        if (this.icon) {
-            await Icon.findOneAndUpdate({ _id: this.icon }, { isActive: false })
-        }
+        this.tags = `${this.startAt}${this.endAt}`.replace(/ /g,'')
         next()
     } catch (err) {
         next(err)
