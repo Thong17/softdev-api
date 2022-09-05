@@ -1,5 +1,4 @@
 const mongoose = require('mongoose')
-const Icon = require('./Icon')
 
 const schema = mongoose.Schema(
     {
@@ -9,6 +8,14 @@ const schema = mongoose.Schema(
         },
         endAt: {
             type: Date,
+        },
+        price: {
+            type: Object,
+            default: {
+                value: 0,
+                currency: 'USD',
+                duration: '1h'
+            }
         },
         note: {
             type: String,
