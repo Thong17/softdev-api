@@ -14,6 +14,7 @@ const schema = mongoose.Schema(
         },
         point: {
             type: Number,
+            default: 0
         },
         contact: {
             type: String,

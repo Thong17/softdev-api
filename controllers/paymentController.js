@@ -37,7 +37,7 @@ exports.detail = async (req, res) => {
     Payment.findById(req.params.id, (err, payment) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: payment }, res)
-    }).populate('createdBy').populate('customer').populate('transactions')
+    }).populate('createdBy').populate('customer', 'displayName point').populate('transactions')
 }
 
 exports.create = async (req, res) => {

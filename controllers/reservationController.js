@@ -53,8 +53,12 @@ exports.create = async (req, res) => {
     const { error } = createReservationValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
+    if (!req.user.drawer) return response.failure(422, { msg: 'Open drawer first!' }, res)
+
     try {
-        Reservation.create(body, async (err, reservation) => {
+        const buyRate = req.user.drawer.buyRate
+        const sellRate = req.user.drawer.sellRate
+        Reservation.create({...body, drawer: req.user.drawer, rate: { buyRate, sellRate }}, async (err, reservation) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!reservation) return response.failure(422, { msg: 'No reservation created!' }, res, err)
 
