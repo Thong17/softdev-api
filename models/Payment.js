@@ -7,9 +7,18 @@ const schema = mongoose.Schema(
         },
         total: {
             type: Object,
+            default: {
+                value: 0,
+                currency: 'USD'
+            }
         },
         subtotal: {
             type: Object,
+            default: {
+                USD: 0,
+                KHR: 0,
+                BOTH: 0
+            }
         },
         receiveCashes: {
             type: Array,
