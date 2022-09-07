@@ -1,4 +1,5 @@
 const Reservation = require('../models/Reservation')
+const Payment = require('../models/Payment')
 const { default: mongoose } = require('mongoose')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
@@ -68,6 +69,49 @@ exports.create = async (req, res) => {
 
             response.success(200, { msg: 'Reservation has created successfully', data: reservation }, res)
         })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.checkIn = async (req, res) => {
+    if (!req.user.drawer) return response.failure(422, { msg: 'Open drawer first!' }, res)
+
+    try {
+        const buyRate = req.user.drawer.buyRate
+        const sellRate = req.user.drawer.sellRate
+
+        const reservation = await Reservation.findById(req.params.id)
+        if (!reservation) return response.failure(422, { msg: 'No reservation found!' }, res, err)
+        
+        const countPayment = await Payment.count()
+        const invoice = 'INV' + countPayment.toString().padStart(5, '0')
+        const payment = await Payment.create({ invoice, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, rate: { buyRate, sellRate } })
+
+        reservation.status = 'occupied'
+        reservation.startAt = Date.now()
+        reservation.payment = payment._id
+        reservation.save()
+
+        const data = await reservation.populate({ path: 'payment', populate: [{ path: 'transactions' }, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] })
+        response.success(200, { msg: 'Reservation has checked in successfully', data }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.checkOut = async (req, res) => {
+    try {
+        const reservation = await Reservation.findById(req.params.id)
+        if (!reservation) return response.failure(422, { msg: 'No reservation found!' }, res, err)
+
+        reservation.status = 'completed'
+        reservation.endAt = Date.now()
+        reservation.isCompleted = true
+        reservation.save()
+
+        const data = await reservation.populate({ path: 'payment', populate: [{ path: 'transactions' }, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] })
+        response.success(200, { msg: 'Reservation has checked out successfully', data }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }

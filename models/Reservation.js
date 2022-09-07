@@ -1,5 +1,4 @@
 const mongoose = require('mongoose')
-const Payment = require('./Payment')
 
 const schema = mongoose.Schema(
     {
@@ -63,12 +62,5 @@ schema.pre('save', async function (next) {
         next(err)
     }
 })
-
-// schema.post('save', async function () {
-//     const countPayment = await Payment.count()
-//     const invoice = 'INV' + countPayment.toString().padStart(5, '0')
-//     const payment = await Payment.create({ invoice, createdBy: this.createdBy, customer: this.customer, drawer: this.drawer, rate: this.rate })
-//     await this.model('Reservation').findOneAndUpdate({ _id: this.id }, { payment: payment.id })
-// })
 
 module.exports = mongoose.model('Reservation', schema)

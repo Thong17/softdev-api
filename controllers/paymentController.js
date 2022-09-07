@@ -88,7 +88,7 @@ exports.update = async (req, res) => {
         const id = req.params.id
         let data = await Payment.findByIdAndUpdate(id, body, { new: true })
 
-        const listTransactions = data.transactions
+        const listTransactions = data?.transactions
         if (body.transaction) listTransactions.push(body.transaction.id)
         
         const transactions = await Transaction.find({ _id: { '$in': listTransactions } })
@@ -119,7 +119,7 @@ exports.checkout = async (req, res) => {
         calculateReturnCashes(payment?.drawer?.cashes, body.remainTotal, payment.rate)
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(payment?.drawer?._id, { cashes })
-                const data = await Payment.findByIdAndUpdate(payment._id, { ...body, returnCashes, status: true }, { new: true }).populate('transactions').populate('customer').populate('createdBy', 'username')
+                const data = await Payment.findByIdAndUpdate(id, { ...body, returnCashes, status: true }, { new: true }).populate('transactions').populate('customer').populate('createdBy', 'username')
 
                 response.success(200, { msg: 'Payment has checked out successfully', data }, res)
             })
