@@ -46,7 +46,7 @@ exports.detail = async (req, res) => {
     Reservation.findById(req.params.id, (err, reservation) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: reservation }, res)
-    }).populate({ path: 'payment', populate: [{ path: 'transactions' }, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] })
+    }).populate({ path: 'payment', populate: [{ path: 'transactions' }, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] }).populate('customer', 'displayName point')
 }
 
 exports.create = async (req, res) => {
@@ -93,7 +93,7 @@ exports.checkIn = async (req, res) => {
         reservation.payment = payment._id
         reservation.save()
 
-        const data = await reservation.populate({ path: 'payment', populate: [{ path: 'transactions' }, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] })
+        const data = await reservation.populate([{ path: 'payment', populate: [{ path: 'transactions' }, { path: 'createdBy' }] }, { path: 'customer', select: 'displayName point' }])
         response.success(200, { msg: 'Reservation has checked in successfully', data }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
