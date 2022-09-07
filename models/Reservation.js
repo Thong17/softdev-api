@@ -22,9 +22,6 @@ const schema = mongoose.Schema(
             type: String,
             default: ''
         },
-        rate: {
-            type: Object,
-        },
         status: {
             type: String,
             default: 'reserved'
@@ -49,10 +46,6 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Payment'
         },
-        drawer: {
-            type: mongoose.Schema.ObjectId,
-            ref: 'Drawer'
-        },
         tags: {
             type: String,
         },
@@ -71,11 +64,11 @@ schema.pre('save', async function (next) {
     }
 })
 
-schema.post('save', async function () {
-    const countPayment = await Payment.count()
-    const invoice = 'INV' + countPayment.toString().padStart(5, '0')
-    const payment = await Payment.create({ invoice, createdBy: this.createdBy, customer: this.customer, drawer: this.drawer, rate: this.rate })
-    await this.model('Reservation').findOneAndUpdate({ _id: this.id }, { payment: payment.id })
-})
+// schema.post('save', async function () {
+//     const countPayment = await Payment.count()
+//     const invoice = 'INV' + countPayment.toString().padStart(5, '0')
+//     const payment = await Payment.create({ invoice, createdBy: this.createdBy, customer: this.customer, drawer: this.drawer, rate: this.rate })
+//     await this.model('Reservation').findOneAndUpdate({ _id: this.id }, { payment: payment.id })
+// })
 
 module.exports = mongoose.model('Reservation', schema)

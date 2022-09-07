@@ -45,7 +45,7 @@ exports.detail = async (req, res) => {
     Reservation.findById(req.params.id, (err, reservation) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: reservation }, res)
-    })
+    }).populate({ path: 'payment', populate: [{ path: 'transactions' }, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] })
 }
 
 exports.create = async (req, res) => {
@@ -53,12 +53,8 @@ exports.create = async (req, res) => {
     const { error } = createReservationValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
-    if (!req.user.drawer) return response.failure(422, { msg: 'Open drawer first!' }, res)
-
     try {
-        const buyRate = req.user.drawer.buyRate
-        const sellRate = req.user.drawer.sellRate
-        Reservation.create({...body, drawer: req.user.drawer, rate: { buyRate, sellRate }}, async (err, reservation) => {
+        Reservation.create(body, async (err, reservation) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!reservation) return response.failure(422, { msg: 'No reservation created!' }, res, err)
 
