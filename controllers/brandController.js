@@ -36,7 +36,7 @@ exports.list = async (req, res) => {
     Brand.find({ isDeleted: false }, (err, brands) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: brands }, res)
-    }).select('name tags')
+    }).select('name tags icon').populate('icon')
 }
 
 exports.detail = async (req, res) => {

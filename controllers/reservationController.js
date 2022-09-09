@@ -94,6 +94,13 @@ exports.checkIn = async (req, res) => {
         reservation.payment = payment._id
         reservation.save()
 
+        const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } })
+        for (let i = 0; i < structures.length; i++) {
+            const structure = structures[i]
+            structure.status = 'occupied'
+            structure.save()
+        }
+
         const data = await reservation.populate([{ path: 'payment', populate: [{ path: 'transactions' }, { path: 'createdBy' }] }, { path: 'customer', select: 'displayName point' }])
         response.success(200, { msg: 'Reservation has checked in successfully', data }, res)
     } catch (err) {
