@@ -1,7 +1,7 @@
 const Transaction = require('../models/Transaction')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, calculatePromotion, determineProductStock, reverseProductStock } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, calculatePromotion, determineProductStock, reverseProductStock, compareDate } = require('../helpers/utils')
 const { createTransactionValidation, updateTransactionValidation } = require('../middleware/validations/transactionValidation')
 const Promotion = require('../models/Promotion')
 
@@ -51,6 +51,7 @@ exports.create = async (req, res) => {
 
         if (body.promotion) {
             const promotion = await Promotion.findById(body.promotion)
+            if (promotion && !compareDate(Date.now(), new Date(promotion.expireAt)))
             body['discount'] = {
                 value: promotion.value,
                 type: promotion.type,

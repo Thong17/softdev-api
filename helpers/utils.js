@@ -48,6 +48,10 @@ module.exports = utils = {
         const sha256 = require('js-sha256')
         return sha256.hex(str).toString()
     },
+    compareDate: (date1, date2) => {
+        if (!date1 && !date2) return false
+        return date1 > date2
+    },
     readExcel: (buffer, field) => {
         const xlsx = require('xlsx')
         const ObjectId = mongoose.Types.ObjectId
