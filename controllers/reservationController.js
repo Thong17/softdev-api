@@ -61,7 +61,7 @@ exports.create = async (req, res) => {
 
             const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } })
             for (let i = 0; i < structures.length; i++) {
-                const structure = structures[i];
+                const structure = structures[i]
                 structure.reservations.push(reservation._id)
                 structure.status = 'reserved'
                 structure.save()
@@ -87,7 +87,7 @@ exports.checkIn = async (req, res) => {
         
         const countPayment = await Payment.count()
         const invoice = 'INV' + countPayment.toString().padStart(5, '0')
-        const payment = await Payment.create({ ...paymentBody, invoice, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, rate: { buyRate, sellRate } })
+        const payment = await Payment.create({ ...paymentBody, invoice, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, reservation: reservation._id, rate: { buyRate, sellRate } })
 
         reservation.status = 'occupied'
         reservation.startAt = Date.now()
@@ -106,10 +106,16 @@ exports.checkOut = async (req, res) => {
         const reservation = await Reservation.findById(req.params.id)
         if (!reservation) return response.failure(422, { msg: 'No reservation found!' }, res, err)
 
-        reservation.status = 'completed'
         reservation.endAt = Date.now()
-        reservation.isCompleted = true
+        reservation.status = 'completed'
         reservation.save()
+
+        const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } })
+        for (let i = 0; i < structures.length; i++) {
+            const structure = structures[i]
+            structure.status = 'vacant'
+            structure.save()
+        }
 
         const data = await reservation.populate({ path: 'payment', populate: [{ path: 'transactions' }, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] })
         response.success(200, { msg: 'Reservation has checked out successfully', data }, res)

@@ -60,6 +60,10 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Customer'
         },
+        reservation: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Reservation'
+        },
         transactions: [{
             type: mongoose.Schema.ObjectId,
             ref: 'Transaction'

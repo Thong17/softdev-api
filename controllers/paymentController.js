@@ -5,6 +5,7 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes } = require('../helpers/utils')
 const { createPaymentValidation, checkoutPaymentValidation } = require('../middleware/validations/paymentValidation')
+const Reservation = require('../models/Reservation')
 
 
 exports.index = async (req, res) => {
@@ -87,6 +88,7 @@ exports.update = async (req, res) => {
     try {
         const id = req.params.id
         let data = await Payment.findByIdAndUpdate(id, body, { new: true })
+        if (data.status) return response.failure(422, { msg: 'Payment has already completed' }, res)
 
         const listTransactions = data?.transactions
         if (body.transaction) listTransactions.push(body.transaction.id)
@@ -120,6 +122,9 @@ exports.checkout = async (req, res) => {
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(payment?.drawer?._id, { cashes })
                 const data = await Payment.findByIdAndUpdate(id, { ...body, returnCashes, status: true }, { new: true }).populate('transactions').populate('customer').populate('createdBy', 'username')
+                if (data.reservation) {
+                    await Reservation.findByIdAndUpdate(data.reservation, { isCompleted: true })
+                }
 
                 response.success(200, { msg: 'Payment has checked out successfully', data }, res)
             })

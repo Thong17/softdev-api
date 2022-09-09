@@ -1,5 +1,4 @@
 const mongoose = require('mongoose')
-const Icon = require('./Icon')
 
 const schema = mongoose.Schema(
     {
