@@ -16,7 +16,7 @@ const schema = mongoose.Schema(
         },
         font: {
             type: String,
-            default: ''
+            default: 'Arial'
         },
         tax: {
             type: Number,

@@ -78,6 +78,7 @@ exports.checkIn = async (req, res) => {
     if (!req.user.drawer) return response.failure(422, { msg: 'Open drawer first!' }, res)
 
     try {
+        const paymentBody = req.body
         const buyRate = req.user.drawer.buyRate
         const sellRate = req.user.drawer.sellRate
 
@@ -86,7 +87,7 @@ exports.checkIn = async (req, res) => {
         
         const countPayment = await Payment.count()
         const invoice = 'INV' + countPayment.toString().padStart(5, '0')
-        const payment = await Payment.create({ invoice, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, rate: { buyRate, sellRate } })
+        const payment = await Payment.create({ ...paymentBody, invoice, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, rate: { buyRate, sellRate } })
 
         reservation.status = 'occupied'
         reservation.startAt = Date.now()
