@@ -1,8 +1,8 @@
 const Joi = require('joi')
 
 const createReservationValidation = Joi.object({
-    startAt: Joi.any().required(),
-    endAt: Joi.any().required(),
+    startAt: Joi.any().optional(),
+    endAt: Joi.any().optional(),
     customer: Joi.string().required(),
     structures: Joi.array().required(),
     price: Joi.object().required(),
