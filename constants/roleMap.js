@@ -169,6 +169,20 @@ exports.privilege = {
             action: 'approve'
         }
     },
+    report: {
+        sale: {
+            route: 'report',
+            action: 'sale'
+        },
+        product: {
+            route: 'report',
+            action: 'product'
+        },
+        staff: {
+            route: 'report',
+            action: 'staff'
+        },
+    },
     promotion: {
         list: {
             route: 'promotion',

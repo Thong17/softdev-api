@@ -151,6 +151,7 @@ module.exports = utils = {
 
         const stocks = await ProductStock.find(filter)
         let totalStock = 0
+        let stockCosts = []
         stocks.forEach(stock => {
             totalStock += stock.quantity
         })
@@ -164,17 +165,19 @@ module.exports = utils = {
             if (stock.quantity < 1) continue
             if (orderQuantity > stock.quantity) {
                 orderStocks.push({ id: stock._id, quantity: stock.quantity })
+                stockCosts.push({ cost: stock.cost * stock.quantity, currency: stock.currency })
                 orderQuantity -= stock.quantity
                 remainQuantity = 0
             } else {
                 orderStocks.push({ id: stock._id, quantity: orderQuantity })
+                stockCosts.push({ cost: stock.cost * orderQuantity, currency: stock.currency })
                 remainQuantity -= orderQuantity
                 orderQuantity = 0
             }
             
             await ProductStock.findByIdAndUpdate(stock._id, { quantity: remainQuantity, transactions: [...stock.transactions, transactionId] })
         }
-        return { isValid: true, transactionId, orderStocks }
+        return { isValid: true, transactionId, orderStocks, stockCosts }
     },
     reverseProductStock: (stocks) => {
         return new Promise(async (resolve, reject) => {

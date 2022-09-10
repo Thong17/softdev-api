@@ -46,7 +46,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        const { isValid, transactionId, orderStocks, msg } = await determineProductStock(body.product, body.color, body.options, body.quantity)
+        const { isValid, transactionId, orderStocks, stockCosts, msg } = await determineProductStock(body.product, body.color, body.options, body.quantity)
         if (!isValid) return response.failure(422, { msg }, res)
 
         if (body.promotion) {
@@ -65,7 +65,7 @@ exports.create = async (req, res) => {
             body.total = { value: total, currency }
         }
 
-        Transaction.create({ ...body, _id: transactionId, stocks: orderStocks, createdBy: req.user.id }, (err, transaction) => {
+        Transaction.create({ ...body, _id: transactionId, stocks: orderStocks, stockCosts, createdBy: req.user.id }, (err, transaction) => {
             if (err) {
                 switch (err.code) {
                     case 11000:

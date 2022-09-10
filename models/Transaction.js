@@ -40,6 +40,10 @@ const schema = mongoose.Schema(
         note: {
             type: String,
         },
+        stockCosts: {
+            type: Array,
+            default: []
+        },
         options: [{
             type: mongoose.Schema.ObjectId,
             ref: 'ProductOption'
