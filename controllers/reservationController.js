@@ -3,7 +3,7 @@ const Payment = require('../models/Payment')
 const { default: mongoose } = require('mongoose')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel } = require('../helpers/utils')
+const { extractJoiErrors, calculatePaymentTotal, readExcel } = require('../helpers/utils')
 const { createReservationValidation } = require('../middleware/validations/reservationValidation')
 const StoreStructure = require('../models/StoreStructure')
 const Transaction = require('../models/Transaction')
@@ -87,7 +87,8 @@ exports.checkIn = async (req, res) => {
         const reservation = await Reservation.findById(req.params.id)
         if (!reservation) return response.failure(422, { msg: 'No reservation found!' }, res, err)
 
-        const transactions = []
+        // If the reservation price > 0
+        let dataObj = {}
         if (reservation.price.value > 0) {
             const transaction = await Transaction.create({ 
                 description: 'Reservation price', 
@@ -99,12 +100,22 @@ exports.checkIn = async (req, res) => {
                 },
                 quantity: 1
             })
-            transactions.push(transaction._id)
+            const { total, subtotal } = calculatePaymentTotal([transaction], paymentBody.services, paymentBody.vouchers, paymentBody.discounts, { buyRate, sellRate })
+            dataObj = {
+                transactions: [transaction._id],
+                total,
+                subtotal,
+                remainTotal: {
+                    USD: total.currency === 'USD' ? total.value : 0,
+                    KHR: total.currency === 'KHR' ? total.value : 0,
+                }
+            }
         }
+        // End
         
         const countPayment = await Payment.count()
         const invoice = 'INV' + countPayment.toString().padStart(5, '0')
-        const payment = await Payment.create({ ...paymentBody, invoice, transactions, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, reservation: reservation._id, rate: { buyRate, sellRate } })
+        const payment = await Payment.create({ ...paymentBody, ...dataObj, invoice, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, reservation: reservation._id, rate: { buyRate, sellRate } })
 
         reservation.status = 'occupied'
         reservation.startAt = Date.now()
