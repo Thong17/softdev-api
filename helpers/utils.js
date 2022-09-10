@@ -256,7 +256,7 @@ module.exports = utils = {
     },
     calculateReturnCashes: (cashes, remainTotal, exchangeRate) => {
         return new Promise((resolve, reject) => {
-            if (remainTotal.USD >= 0) reject({ msg: 'No return cash', code: 422 })
+            if (remainTotal.USD > 0) reject({ msg: 'Not enough cash', code: 422 })
 
             const { sellRate } = exchangeRate
             let returnCash = Math.abs(remainTotal.USD)
