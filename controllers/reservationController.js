@@ -23,11 +23,11 @@ exports.index = async (req, res) => {
         }
     }
     
-    Reservation.find({ isCompleted: false, ...query }, async (err, categories) => {
+    Reservation.find({ isCompleted: false, ...query }, async (err, reservations) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         const totalCount = await Reservation.count({ isDisabled: false })
-        return response.success(200, { data: categories, length: totalCount }, res)
+        return response.success(200, { data: reservations, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
@@ -55,6 +55,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
+        if (!body.startAt) delete body.startAt
         Reservation.create(body, async (err, reservation) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!reservation) return response.failure(422, { msg: 'No reservation created!' }, res, err)

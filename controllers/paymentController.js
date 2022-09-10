@@ -122,9 +122,13 @@ exports.checkout = async (req, res) => {
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(payment?.drawer?._id, { cashes })
                 const data = await Payment.findByIdAndUpdate(id, { ...body, returnCashes, status: true }, { new: true }).populate('transactions').populate('customer').populate('createdBy', 'username')
-                if (data.reservation) {
-                    await Reservation.findByIdAndUpdate(data.reservation, { isCompleted: true })
+                
+                for (let i = 0; i < data.transactions.length; i++) {
+                    const transaction = data.transactions[i]
+                    await Transaction.findByIdAndUpdate(transaction, { status: true })
                 }
+
+                if (data.reservation) await Reservation.findByIdAndUpdate(data.reservation, { isCompleted: true })
 
                 response.success(200, { msg: 'Payment has checked out successfully', data }, res)
             })
