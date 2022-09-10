@@ -144,7 +144,7 @@ module.exports = utils = {
     determineProductStock: async (product, color, options, quantity) => {
         var transactionId = mongoose.Types.ObjectId()
         const result = await Product.findById(product).select('isStock')
-        if (!result.isStock) return { isValid: true, transactionId, orderStocks: [], stockCosts: [] }
+        if (!result || !result.isStock) return { isValid: true, transactionId, orderStocks: [], stockCosts: [] }
 
         let filter = { product }
         if (options.length > 0) filter['options'] = { '$in': options }

@@ -92,6 +92,7 @@ exports.update = async (req, res) => {
     try {
         const id = req.params.id
         const transaction = await Transaction.findById(id)
+        if (transaction.status) return response.failure(422, { msg: 'Transaction has already completed' }, res)
 
         reverseProductStock(transaction?.stocks)
             .then(async () => {

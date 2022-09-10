@@ -6,6 +6,7 @@ const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createReservationValidation } = require('../middleware/validations/reservationValidation')
 const StoreStructure = require('../models/StoreStructure')
+const Transaction = require('../models/Transaction')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 0
@@ -85,10 +86,25 @@ exports.checkIn = async (req, res) => {
 
         const reservation = await Reservation.findById(req.params.id)
         if (!reservation) return response.failure(422, { msg: 'No reservation found!' }, res, err)
+
+        const transactions = []
+        if (reservation.price.value > 0) {
+            const transaction = await Transaction.create({ 
+                description: 'Reservation price', 
+                price: reservation.price.value, 
+                currency: reservation.price.currency,
+                total: {
+                    value: reservation.price.value,
+                    currency: reservation.price.currency
+                },
+                quantity: 1
+            })
+            transactions.push(transaction._id)
+        }
         
         const countPayment = await Payment.count()
         const invoice = 'INV' + countPayment.toString().padStart(5, '0')
-        const payment = await Payment.create({ ...paymentBody, invoice, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, reservation: reservation._id, rate: { buyRate, sellRate } })
+        const payment = await Payment.create({ ...paymentBody, invoice, transactions, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, reservation: reservation._id, rate: { buyRate, sellRate } })
 
         reservation.status = 'occupied'
         reservation.startAt = Date.now()
