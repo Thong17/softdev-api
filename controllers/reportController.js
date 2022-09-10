@@ -4,7 +4,7 @@ const { failureMsg } = require('../constants/responseMsg')
 const moment = require('moment')
 
 exports.sale = async (req, res) => {
-  const chart = req.query._chartDate || 'day'
+  const chart = req.query._chartData || 'day'
   const income = req.query._totalIncome || 'day'
   const profit = req.query._totalProfit || 'day'
 
@@ -59,25 +59,30 @@ exports.sale = async (req, res) => {
     const listSale = []
 
     let label = ''
+    let format = ''
     switch (chart) {
         case 'day':
             label = 'hour'
+            format = '[Today] ha'
             break
         case 'week':
             label = 'day'
+            format = 'MMM Do'
             break
         case 'month':
             label = 'week'
+            format = 'MMM YYYY'
             break
         default:
             label = 'month'
+            format = 'YYYY'
             break
     }
     listPayment.forEach(payment => {
         const { buyRate } = payment.rate
         const isInList = listSale.some(item => moment(item.name).isSame(payment.createdAt, label))
         if (!isInList) {
-            listSale.push({ name: payment.createdAt, value: payment.total.value })
+            listSale.push({ name: payment.createdAt, value: payment.total.value, format })
         } else {
             listSale.map(item => {
                 if (moment(item.name).isSame(payment.createdAt, label)) {

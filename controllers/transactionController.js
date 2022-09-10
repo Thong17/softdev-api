@@ -51,18 +51,19 @@ exports.create = async (req, res) => {
 
         if (body.promotion) {
             const promotion = await Promotion.findById(body.promotion)
-            if (promotion && !compareDate(Date.now(), new Date(promotion.expireAt)))
-            body['discount'] = {
-                value: promotion.value,
-                type: promotion.type,
-                isFixed: promotion.isFixed,
+            if (promotion && !compareDate(Date.now(), new Date(promotion.expireAt))) {
+                body['discount'] = {
+                    value: promotion.value,
+                    type: promotion.type,
+                    isFixed: promotion.isFixed,
+                }
+                const { total, currency } = calculatePromotion(
+                    { total: body.total.value, currency: body.total.currency },
+                    { value: promotion.value, type: promotion.type, isFixed: promotion.isFixed }, 
+                    { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
+                )
+                body.total = { value: total, currency }
             }
-            const { total, currency } = calculatePromotion(
-                { total: body.total.value, currency: body.total.currency },
-                { value: promotion.value, type: promotion.type, isFixed: promotion.isFixed }, 
-                { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
-            )
-            body.total = { value: total, currency }
         }
 
         Transaction.create({ ...body, _id: transactionId, stocks: orderStocks, stockCosts, createdBy: req.user.id }, (err, transaction) => {
