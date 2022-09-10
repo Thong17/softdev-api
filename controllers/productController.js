@@ -1,4 +1,5 @@
 const Product = require('../models/Product')
+const Brand = require('../models/Brand')
 const Image = require('../models/Image')
 const ProductColor = require('../models/ProductColor')
 const ProductOption = require('../models/ProductOption')
@@ -8,6 +9,7 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createProductValidation, createPropertyValidation, createOptionValidation, createColorValidation } = require('../middleware/validations/productValidation')
+const Category = require('../models/Category')
 
 
 exports.index = async (req, res) => {
@@ -122,6 +124,15 @@ exports.create = async (req, res) => {
 
             if (!product) return response.failure(422, { msg: 'No product created!' }, res, err)
 
+            const category = await Category.findById(product.category).select('products')
+            const brand = await Brand.findById(product.brand).select('products')
+
+            const listCategory = [...category.products, product._id]
+            const listBrand = [...brand.products, product._id]
+
+            await Category.findByIdAndUpdate(product.category, { products: listCategory })
+            await Brand.findByIdAndUpdate(product.brand, { products: listBrand })
+
             await Image.updateMany({ _id: { $in: product.images } }, { $set: { isActive: true } }, { multi:true })
             response.success(200, { msg: 'Product has created successfully', data: product }, res)
         })
@@ -136,7 +147,18 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Product.findByIdAndUpdate(req.params.id, body, (err, product) => {
+        const productId = req.params.id
+        const oldProduct = await Product.findById(productId)
+        const oldCategory = await Category.findById(oldProduct.category).select('products')
+        const oldBrand = await Brand.findById(oldProduct.brand).select('products')
+
+        const oldListCategory = oldCategory.products.filter(id => !id.equals(productId))
+        const oldListBrand = oldBrand.products.filter(id => !id.equals(productId))
+
+        await Category.findByIdAndUpdate(oldProduct.category, { products: oldListCategory })
+        await Brand.findByIdAndUpdate(oldProduct.brand, { products: oldListBrand })
+
+        Product.findByIdAndUpdate(productId, body, { new: true }, async (err, product) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -145,6 +167,16 @@ exports.update = async (req, res) => {
             }
 
             if (!product) return response.failure(422, { msg: 'No product updated!' }, res, err)
+
+            const category = await Category.findById(product.category).select('products')
+            const brand = await Brand.findById(product.brand).select('products')
+
+            const listCategory = [...category.products, product._id]
+            const listBrand = [...brand.products, product._id]
+
+            await Category.findByIdAndUpdate(product.category, { products: listCategory })
+            await Brand.findByIdAndUpdate(product.brand, { products: listBrand })
+
             response.success(200, { msg: 'Product has updated successfully', data: product }, res)
         })
     } catch (err) {
