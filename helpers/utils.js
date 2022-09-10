@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken')
 const { default: mongoose } = require('mongoose')
 const responseMsg = require('../constants/responseMsg')
 const ProductStock = require('../models/ProductStock')
+const Product = require('../models/Product')
 
 module.exports = utils = {
     encryptPassword: (plainPassword) => {
@@ -142,6 +143,9 @@ module.exports = utils = {
     },
     determineProductStock: async (product, color, options, quantity) => {
         var transactionId = mongoose.Types.ObjectId()
+        const result = await Product.findById(product).select('isStock')
+        if (!result.isStock) return { isValid: true, transactionId, orderStocks: [], stockCosts: [] }
+
         let filter = { product }
         if (options.length > 0) filter['options'] = { '$in': options }
         if (color) filter['color'] = color
