@@ -8,7 +8,7 @@ const { list: presetCashList } = require('../../controllers/presetController')
 const { info: productInfo } = require('../../controllers/productController')
 const { listStructure: structureList } = require('../../controllers/storeController')
 const response = require('../../helpers/response')
-const { uploadImageController, uploadIconController, uploadPictureController } = require('../../controllers/sharedController')
+const { uploadImageController, uploadIconController, uploadPictureController, structureCapacity } = require('../../controllers/sharedController')
 const multer = require('multer')
 
 const storage = multer.diskStorage({
@@ -65,6 +65,10 @@ router.get('/structure/list', (req, res) => {
 
 router.get('/customer/list', (req, res) => {
   customerList(req, res)
+})
+
+router.get('/structure/capacity', (req, res) => {
+  structureCapacity(req, res)
 })
 
 router.post('/upload/image', (req, res) => {
