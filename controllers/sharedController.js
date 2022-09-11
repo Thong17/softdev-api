@@ -82,14 +82,20 @@ exports.structureCapacity = async (req, res) => {
         const reservations = await Reservation.find({ isCompleted: false })
 
         listRemaining = []
-        let totalRemaining = 0
+
+        // Add 15min to remaining
+        let totalRemaining = 900000
+        
         reservations.forEach(reservation => {
             const endAt = reservation.endAt || moment(reservation.startAt).add(2, 'hours')
             const remainTime = moment(endAt).diff(moment(Date.now()))
             if (remainTime > 0) listRemaining.push(remainTime)
         })
         if (listRemaining.length > 0) {
-            totalRemaining = Math.min(...listRemaining)
+            listRemaining.forEach(remain => {
+                totalRemaining += remain
+            })
+            totalRemaining /= listRemaining.length
         }
         avgWaiting = moment.duration(totalRemaining).humanize()
 

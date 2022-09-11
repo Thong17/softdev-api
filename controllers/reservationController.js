@@ -85,7 +85,10 @@ exports.checkIn = async (req, res) => {
         const sellRate = req.user.drawer.sellRate
 
         const reservation = await Reservation.findById(req.params.id)
-        if (!reservation) return response.failure(422, { msg: 'No reservation found!' }, res, err)
+        if (!reservation) return response.failure(422, { msg: 'No reservation found!' }, res)
+
+        const occupiedReservation = await Reservation.count({ status: 'occupied', structures: { '$in': reservation.structures } })
+        if (occupiedReservation > 0) return response.failure(422, { msg: 'Please check out the current reservation first' }, res)
 
         // If the reservation price > 0
         let dataObj = {}
