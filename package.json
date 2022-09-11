@@ -5,7 +5,9 @@
   "main": "app.js",
   "scripts": {
     "start": "node start app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "dockerBuild": "docker build -t thonggee/softdev-api .",
+    "dockerPush": "docker push thonggee/softdev-api"
   },
   "repository": {
     "type": "git",

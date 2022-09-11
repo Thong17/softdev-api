@@ -94,7 +94,7 @@ module.exports = utils = {
                 return totalObj
             }
             totalObj.total = (totalObj.total * discountObj.value) / 100
-            totalObj.currency = discountObj.type
+            totalObj.currency = totalObj.currency
             return totalObj
         }
 
