@@ -80,12 +80,19 @@ exports.structureCapacity = async (req, res) => {
         if (vacant > 0) return response.success(200, { data: { vacant, reserved, occupied, total: structures.length, avgWaiting } }, res)
 
         const reservations = await Reservation.find({ isCompleted: false })
+
+        listRemaining = []
         let totalRemaining = 0
         reservations.forEach(reservation => {
-            const remainTime = moment(reservation.endAt || Date.now()).diff(moment(reservation.startAt))
-            totalRemaining += remainTime
+            const endAt = reservation.endAt || moment(reservation.startAt).add(2, 'hours')
+            const remainTime = moment(endAt).diff(moment(Date.now()))
+            if (remainTime > 0) listRemaining.push(remainTime)
         })
-        avgWaiting = moment.duration(totalRemaining / reservations.length).humanize()
+        if (listRemaining.length > 0) {
+            totalRemaining = Math.min(...listRemaining)
+        }
+        avgWaiting = moment.duration(totalRemaining).humanize()
+
         return response.success(200, { data: { vacant, reserved, occupied, total: structures.length, avgWaiting } }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
