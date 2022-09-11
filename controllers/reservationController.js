@@ -184,15 +184,10 @@ exports.update = async (req, res) => {
     }
 }
 
-exports.disable = async (req, res) => {
+exports._delete = async (req, res) => {
     try {
-        Reservation.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, reservation) => {
-            if (err) {
-                switch (err.code) {
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
-            }
+        Reservation.findByIdAndDelete(req.params.id, (err, reservation) => {
+            if (err) return response.failure(422, { msg: err.message }, res, err)
 
             if (!reservation) return response.failure(422, { msg: 'No reservation deleted!' }, res, err)
             response.success(200, { msg: 'Reservation has deleted successfully', data: reservation }, res)
