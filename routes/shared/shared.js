@@ -5,7 +5,7 @@ const { list: customerList } = require('../../controllers/customerController')
 const { list: brandList } = require('../../controllers/brandController')
 const { list: categoryList } = require('../../controllers/categoryController')
 const { list: presetCashList } = require('../../controllers/presetController')
-const { info: productInfo } = require('../../controllers/productController')
+const { info: productInfo, listCode } = require('../../controllers/productController')
 const { listStructure: structureList } = require('../../controllers/storeController')
 const response = require('../../helpers/response')
 const { uploadImageController, uploadIconController, uploadPictureController, structureCapacity } = require('../../controllers/sharedController')
@@ -69,6 +69,10 @@ router.get('/customer/list', (req, res) => {
 
 router.get('/structure/capacity', (req, res) => {
   structureCapacity(req, res)
+})
+
+router.get('/product/listCode', (req, res) => {
+  listCode(req, res)
 })
 
 router.post('/upload/image', (req, res) => {

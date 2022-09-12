@@ -73,6 +73,15 @@ exports.list = async (req, res) => {
         .populate('promotion', 'description isFixed startAt expireAt type value')
 }
 
+exports.listCode = async (req, res) => {
+    Product.find({ isDeleted: false }, (err, products) => {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+
+        return response.success(200, { data: products }, res)
+    })  
+        .select('code')
+}
+
 exports.detail = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
