@@ -73,7 +73,7 @@ exports.create = async (req, res) => {
             if (!payment) return response.failure(422, { msg: 'No payment created!' }, res, err)
 
             let data = await payment.populate('customer')
-            data = await payment.populate('transactions')
+            data = await payment.populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } })
             data = await payment.populate('createdBy', 'username')
             response.success(200, { msg: 'Payment has created successfully', data }, res)
         })
@@ -101,7 +101,7 @@ exports.update = async (req, res) => {
         data.transactions = listTransactions
         data.save()
         data = await data.populate('customer')
-        data = await data.populate('transactions')
+        data = await data.populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } })
         data = await data.populate('createdBy', 'username')
         response.success(200, { msg: 'Payment has updated successfully', data }, res)
     } catch (err) {

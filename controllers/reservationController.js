@@ -47,7 +47,7 @@ exports.detail = async (req, res) => {
     Reservation.findById(req.params.id, (err, reservation) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: reservation }, res)
-    }).populate({ path: 'payment', populate: [{ path: 'transactions' }, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] }).populate('customer', 'displayName point')
+    }).populate({ path: 'payment', populate: [{ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' }}}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] }).populate('customer', 'displayName point')
 }
 
 exports.create = async (req, res) => {

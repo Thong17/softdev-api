@@ -66,7 +66,7 @@ exports.create = async (req, res) => {
             }
         }
 
-        Transaction.create({ ...body, _id: transactionId, stocks: orderStocks, stockCosts, createdBy: req.user.id }, (err, transaction) => {
+        Transaction.create({ ...body, _id: transactionId, stocks: orderStocks, stockCosts, createdBy: req.user.id }, async (err, transaction) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -77,7 +77,8 @@ exports.create = async (req, res) => {
             }
 
             if (!transaction) return response.failure(422, { msg: 'No transaction created!' }, res, err)
-            response.success(200, { msg: 'Transaction has created successfully', data: transaction }, res)
+            const data = await transaction.populate({ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } })
+            response.success(200, { msg: 'Transaction has created successfully', data }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -109,11 +110,12 @@ exports.update = async (req, res) => {
                     )
                     body.total = { value: total, currency }
 
-                    Transaction.findByIdAndUpdate(req.params.id, body, { new: true }, (err, transaction) => {
+                    Transaction.findByIdAndUpdate(req.params.id, body, { new: true }, async (err, transaction) => {
                         if (err) return response.failure(422, { msg: err.message }, res, err)
             
                         if (!transaction) return response.failure(422, { msg: 'No transaction updated!' }, res, err)
-                        response.success(200, { msg: 'Transaction has updated successfully', data: transaction }, res)
+                        const data = await transaction.populate({ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } })
+                        response.success(200, { msg: 'Transaction has updated successfully', data }, res)
                     })
                 } catch (err) {
                     return response.failure(422, { msg: failureMsg.trouble }, res, err)
