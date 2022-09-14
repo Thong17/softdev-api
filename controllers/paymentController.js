@@ -6,6 +6,7 @@ const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes } = require('../helpers/utils')
 const { createPaymentValidation, checkoutPaymentValidation } = require('../middleware/validations/paymentValidation')
 const Reservation = require('../models/Reservation')
+const Customer = require('../models/Customer')
 
 
 exports.index = async (req, res) => {
@@ -129,6 +130,12 @@ exports.checkout = async (req, res) => {
                 }
 
                 if (data.reservation) await Reservation.findByIdAndUpdate(data.reservation, { isCompleted: true })
+                if (data.customer) {
+                    const customer = await Customer.findById(data.customer)
+                    const paymentPoint = payment.total.currency === 'USD' ? payment.total.value : payment.total.value / payment.rate.buyRate
+                    customer.point = customer.point + paymentPoint
+                    customer.save()
+                }
 
                 response.success(200, { msg: 'Payment has checked out successfully', data }, res)
             })
