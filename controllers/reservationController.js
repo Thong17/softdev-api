@@ -164,8 +164,6 @@ exports.checkOut = async (req, res) => {
 
 exports.update = async (req, res) => {
     const body = req.body
-    const { error } = createReservationValidation.validate(body, { abortEarly: false })
-    if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
         Reservation.findByIdAndUpdate(req.params.id, body, (err, reservation) => {
