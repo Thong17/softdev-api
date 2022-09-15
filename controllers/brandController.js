@@ -33,7 +33,7 @@ exports.index = async (req, res) => {
 }
 
 exports.list = async (req, res) => {
-    Brand.find({ isDeleted: false }, (err, brands) => {
+    Brand.find({ isDeleted: false, status: true }, (err, brands) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: brands }, res)
     }).select('name tags icon').populate('icon')

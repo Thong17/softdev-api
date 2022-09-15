@@ -33,7 +33,7 @@ exports.index = async (req, res) => {
 }
 
 exports.list = async (req, res) => {
-    Category.find({ isDeleted: false }, (err, categories) => {
+    Category.find({ isDeleted: false, status: true }, (err, categories) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: categories }, res)
     }).select('name tags icon').populate('icon')
