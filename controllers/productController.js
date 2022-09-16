@@ -13,10 +13,38 @@ const Category = require('../models/Category')
 
 
 exports.index = async (req, res) => {
-    Product.find({ isDeleted: false }, (err, products) => {
+    const limit = parseInt(req.query.limit)
+    const offset = parseInt(req.query.offset) || 0
+    const search = req.query.search?.replace(/ /g,'') || ''
+    const field = req.query.field || 'tags'
+    const filter = req.query.filter || 'createdAt'
+    const sort = req.query.sort || 'asc'
+
+    let filterObj = { [filter]: sort }
+    let query = {}
+    if (search) {
+        query[field] = {
+            $regex: new RegExp(search, 'i')
+        }
+    }
+    let promotionObj = {}
+    if (promotions) promotionObj['$ne'] = null
+    if (promotion) promotionObj['$e'] = promotion
+
+    if (Object.keys(promotionObj).length > 0) query['promotion'] = promotionObj
+    if (brand && brand !== 'all') query['brand'] = brand
+    if (category && category !== 'all') query['category'] = category
+    if (favorite) query['_id'] = { '$in': req.user?.favorites }
+
+    Product.find({ isDeleted: false, ...query }, async (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        return response.success(200, { data: products }, res)
+        const totalCount = await Product.count({ isDeleted: false, ...query  })
+        let hasMore = totalCount > offset + limit
+        if (search !== '' || brand !== 'all' || category !== 'all' || promotion || favorite || promotions) hasMore = true
+        return response.success(200, { data: products, length: totalCount, hasMore }, res)
     })
+        .skip(offset).limit(limit)
+        .sort(filterObj)
         .populate('profile')
         .populate('category')
         .populate('brand')
@@ -30,7 +58,7 @@ exports.index = async (req, res) => {
 exports.list = async (req, res) => {
     const limit = parseInt(req.query.limit)
     const offset = parseInt(req.query.offset) || 0
-    const search = req.query.search?.replace(/ /g,'')
+    const search = req.query.search?.replace(/ /g,'') || ''
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
     const sort = req.query.sort || 'asc'
