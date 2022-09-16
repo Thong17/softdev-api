@@ -27,20 +27,12 @@ exports.index = async (req, res) => {
             $regex: new RegExp(search, 'i')
         }
     }
-    let promotionObj = {}
-    if (promotions) promotionObj['$ne'] = null
-    if (promotion) promotionObj['$e'] = promotion
-
-    if (Object.keys(promotionObj).length > 0) query['promotion'] = promotionObj
-    if (brand && brand !== 'all') query['brand'] = brand
-    if (category && category !== 'all') query['category'] = category
-    if (favorite) query['_id'] = { '$in': req.user?.favorites }
 
     Product.find({ isDeleted: false, ...query }, async (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         const totalCount = await Product.count({ isDeleted: false, ...query  })
         let hasMore = totalCount > offset + limit
-        if (search !== '' || brand !== 'all' || category !== 'all' || promotion || favorite || promotions) hasMore = true
+        if (search !== '') hasMore = true
         return response.success(200, { data: products, length: totalCount, hasMore }, res)
     })
         .skip(offset).limit(limit)
