@@ -99,7 +99,7 @@ exports.listCode = async (req, res) => {
 
         return response.success(200, { data: products }, res)
     })  
-        .select('code')
+        .select('code isStock')
 }
 
 exports.detail = async (req, res) => {
