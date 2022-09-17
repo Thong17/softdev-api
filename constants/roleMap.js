@@ -1,25 +1,82 @@
 exports.privilege = {
-    admin: {
-        list: {
-            route: 'admin',
-            action: 'list'
+    menu: {
+        operation: {
+            route: 'menu',
+            action: 'operation'
         },
-        detail: {
-            route: 'admin',
-            action: 'detail'
+        organize: {
+            route: 'menu',
+            action: 'organize'
         },
-        create: {
-            route: 'admin',
-            action: 'create'
+        admin: {
+            route: 'menu',
+            action: 'admin'
         },
-        update: {
-            route: 'admin',
-            action: 'update'
-        },
-        delete: {
-            route: 'admin',
-            action: 'delete'
+        report: {
+            route: 'menu',
+            action: 'report'
         }
+    },
+    operation: {
+        cashing: {
+            route: 'operation',
+            action: 'cashing'
+        },
+        reservation: {
+            route: 'operation',
+            action: 'reservation'
+        },
+        stock: {
+            route: 'operation',
+            action: 'stock'
+        },
+        promotion: {
+            route: 'operation',
+            action: 'promotion'
+        }
+    },
+    organize: {
+        category: {
+            route: 'organize',
+            action: 'category'
+        },
+        brand: {
+            route: 'organize',
+            action: 'brand'
+        },
+        product: {
+            route: 'organize',
+            action: 'product'
+        },
+        store: {
+            route: 'organize',
+            action: 'store'
+        }
+    },
+    admin: {
+        role: {
+            route: 'admin',
+            action: 'role'
+        },
+        user: {
+            route: 'admin',
+            action: 'role'
+        },
+    },
+    
+    report: {
+        sale: {
+            route: 'report',
+            action: 'sale'
+        },
+        product: {
+            route: 'report',
+            action: 'product'
+        },
+        staff: {
+            route: 'report',
+            action: 'staff'
+        },
     },
     user: {
         list: {
@@ -86,10 +143,6 @@ exports.privilege = {
             route: 'category',
             action: 'delete'
         },
-        approve: {
-            route: 'category',
-            action: 'approve'
-        }
     },
     brand: {
         list: {
@@ -112,10 +165,6 @@ exports.privilege = {
             route: 'brand',
             action: 'delete'
         },
-        approve: {
-            route: 'brand',
-            action: 'approve'
-        }
     },
     store: {
         list: {
@@ -138,10 +187,6 @@ exports.privilege = {
             route: 'store',
             action: 'delete'
         },
-        approve: {
-            route: 'store',
-            action: 'approve'
-        }
     },
     product: {
         list: {
@@ -163,24 +208,6 @@ exports.privilege = {
         delete: {
             route: 'product',
             action: 'delete'
-        },
-        approve: {
-            route: 'product',
-            action: 'approve'
-        }
-    },
-    report: {
-        sale: {
-            route: 'report',
-            action: 'sale'
-        },
-        product: {
-            route: 'report',
-            action: 'product'
-        },
-        staff: {
-            route: 'report',
-            action: 'staff'
         },
     },
     promotion: {
@@ -204,10 +231,6 @@ exports.privilege = {
             route: 'promotion',
             action: 'delete'
         },
-        approve: {
-            route: 'promotion',
-            action: 'approve'
-        }
     },
     transaction: {
         list: {
@@ -230,10 +253,6 @@ exports.privilege = {
             route: 'transaction',
             action: 'delete'
         },
-        approve: {
-            route: 'transaction',
-            action: 'approve'
-        }
     },
     payment: {
         list: {
@@ -256,10 +275,6 @@ exports.privilege = {
             route: 'payment',
             action: 'delete'
         },
-        approve: {
-            route: 'payment',
-            action: 'approve'
-        }
     },
     reservation: {
         list: {
@@ -282,10 +297,6 @@ exports.privilege = {
             route: 'reservation',
             action: 'delete'
         },
-        approve: {
-            route: 'reservation',
-            action: 'approve'
-        }
     },
     drawer: {
         list: {
@@ -308,10 +319,6 @@ exports.privilege = {
             route: 'drawer',
             action: 'delete'
         },
-        approve: {
-            route: 'drawer',
-            action: 'approve'
-        }
     },
     preset: {
         list: {
@@ -334,10 +341,6 @@ exports.privilege = {
             route: 'preset',
             action: 'delete'
         },
-        approve: {
-            route: 'preset',
-            action: 'approve'
-        }
     },
 }
 
