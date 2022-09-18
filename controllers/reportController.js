@@ -99,3 +99,72 @@ exports.sale = async (req, res) => {
     return response.failure(422, { msg: failureMsg.trouble }, res, err)
   }
 }
+
+exports.product = async (req, res) => {
+  const chart = req.query._chartData || 'month'
+  const income = req.query._topProduct || 'month'
+
+  try {
+    // Top Product
+    const payments = await Payment.find({
+      createdAt: {
+        $gte: moment().startOf(income).toDate(),
+        $lt: moment().endOf(income).toDate(),
+      },
+      status: true,
+    }).select('transactions').populate({ path: 'transactions', populate: { path: 'product', select: 'name' } })
+    
+    const listProduct = []
+    payments.forEach(payment => {
+      payment.transactions?.forEach(transaction => {
+        if (!transaction.product) return
+        const isInList = listProduct.some(item => item.id.equals(transaction.product._id))
+        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : payment.transaction.total.value / buyRate
+
+        if (!isInList) {
+          listProduct.push({ id: transaction.product._id, name: transaction.product.name, value: transactionTotal })
+        } else {
+          listProduct.map(item => {
+            if (item.id.equals(transaction.product._id)) {
+                item.value = item.value + transactionTotal
+            } else return item
+          })
+        }
+      })
+    })
+    const topProduct = listProduct.length && listProduct.reduce((a, b) => a.value > b.value ? a : b)
+
+    // List Product
+    const chartPayments = await Payment.find({
+      createdAt: {
+        $gte: moment().startOf(chart).toDate(),
+        $lt: moment().endOf(chart).toDate(),
+      },
+      status: true,
+    }).select('transactions').populate({ path: 'transactions', populate: { path: 'product', select: 'name' } })
+    
+    const listProductSale = []
+    chartPayments.forEach(payment => {
+      payment.transactions?.forEach(transaction => {
+        if (!transaction.product) return
+        const isInList = listProductSale.some(item => item.id.equals(transaction.product._id))
+        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : payment.transaction.total.value / buyRate
+
+        if (!isInList) {
+          listProductSale.push({ id: transaction.product._id, name: transaction.product.name, value: transactionTotal })
+        } else {
+          listProductSale.map(item => {
+            if (item.id.equals(transaction.product._id)) {
+                item.value = item.value + transactionTotal
+            } else return item
+          })
+        }
+      })
+    })
+
+    return response.success(200, { data: { topProduct, listProductSale } }, res)
+  } catch (err) {
+    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+  }
+}
+
