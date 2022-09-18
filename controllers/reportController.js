@@ -112,7 +112,7 @@ exports.product = async (req, res) => {
         $lt: moment().endOf(income).toDate(),
       },
       status: true,
-    }).select('transactions').populate({ path: 'transactions', populate: { path: 'product', select: 'name' } })
+    }).select('transactions').populate({ path: 'transactions', populate: { path: 'product', select: 'name profile', populate: { path: 'profile', select: 'filename' } } })
     
     const listProduct = []
     payments.forEach(payment => {
@@ -122,7 +122,7 @@ exports.product = async (req, res) => {
         const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : payment.transaction.total.value / buyRate
 
         if (!isInList) {
-          listProduct.push({ id: transaction.product._id, name: transaction.product.name, value: transactionTotal })
+          listProduct.push({ id: transaction.product._id, name: transaction.product.name, picture: transaction.product.profile?.filename, value: transactionTotal })
         } else {
           listProduct.map(item => {
             if (item.id.equals(transaction.product._id)) {
@@ -141,7 +141,7 @@ exports.product = async (req, res) => {
         $lt: moment().endOf(chart).toDate(),
       },
       status: true,
-    }).select('transactions').populate({ path: 'transactions', populate: { path: 'product', select: 'name' } })
+    }).select('transactions').populate({ path: 'transactions', populate: { path: 'product', select: 'name profile', populate: { path: 'profile', select: 'filename' } } })
     
     const listProductSale = []
     chartPayments.forEach(payment => {
@@ -163,6 +163,74 @@ exports.product = async (req, res) => {
     })
 
     return response.success(200, { data: { topProduct, listProductSale } }, res)
+  } catch (err) {
+    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+  }
+}
+
+exports.staff = async (req, res) => {
+  const chart = req.query._chartData || 'month'
+  const income = req.query._topProduct || 'month'
+
+  try {
+    // Top Product
+    const payments = await Payment.find({
+      createdAt: {
+        $gte: moment().startOf(income).toDate(),
+        $lt: moment().endOf(income).toDate(),
+      },
+      status: true,
+    }).select('transactions').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username profile', populate: { path: 'profile' } } })
+    
+    const listTopStaff = []
+    payments.forEach(payment => {
+      payment.transactions?.forEach(transaction => {
+        if (!transaction.createdBy) return
+        const isInList = listTopStaff.some(item => item.id.equals(transaction.createdBy._id))
+        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : payment.transaction.total.value / buyRate
+
+        if (!isInList) {
+          listTopStaff.push({ id: transaction.createdBy._id, name: transaction.createdBy.username, picture: transaction.createdBy.profile?.photo, value: transactionTotal })
+        } else {
+          listTopStaff.map(item => {
+            if (item.id.equals(transaction.createdBy._id)) {
+                item.value = item.value + transactionTotal
+            } else return item
+          })
+        }
+      })
+    })
+    const topStaff = listTopStaff.length && listTopStaff.reduce((a, b) => a.value > b.value ? a : b)
+
+    // List Product
+    const chartPayments = await Payment.find({
+      createdAt: {
+        $gte: moment().startOf(chart).toDate(),
+        $lt: moment().endOf(chart).toDate(),
+      },
+      status: true,
+    }).select('transactions').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username' } })
+    
+    const listStaff = []
+    chartPayments.forEach(payment => {
+      payment.transactions?.forEach(transaction => {
+        if (!transaction.createdBy) return
+        const isInList = listStaff.some(item => item.id.equals(transaction.createdBy._id))
+        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : payment.transaction.total.value / buyRate
+
+        if (!isInList) {
+          listStaff.push({ id: transaction.createdBy._id, name: transaction.createdBy.username, value: transactionTotal })
+        } else {
+          listStaff.map(item => {
+            if (item.id.equals(transaction.createdBy._id)) {
+                item.value = item.value + transactionTotal
+            } else return item
+          })
+        }
+      })
+    })
+
+    return response.success(200, { data: { topStaff, listStaff } }, res)
   } catch (err) {
     return response.failure(422, { msg: failureMsg.trouble }, res, err)
   }
