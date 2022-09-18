@@ -3,51 +3,10 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const moment = require('moment')
 
-exports.sale = async (req, res) => {
+exports.listSale = async (req, res) => {
   const chart = req.query._chartData || 'day'
-  const income = req.query._totalIncome || 'day'
-  const profit = req.query._totalProfit || 'day'
 
   try {
-    // Total Income
-    const incomePayment = await Payment.find({
-      createdAt: {
-        $gte: moment().startOf(income).toDate(),
-        $lt: moment().endOf(income).toDate(),
-      },
-      status: true,
-    }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
-    let totalIncome = 0
-    incomePayment.forEach(payment => {
-        const { buyRate } = payment.rate
-        let paymentTotal = payment.total.value
-        if (payment.total.currency !== 'USD') paymentTotal /= buyRate
-        totalIncome += paymentTotal
-    }) 
-
-    // Total Profit
-    const profitPayment = await Payment.find({
-      createdAt: {
-        $gte: moment().startOf(profit).toDate(),
-        $lt: moment().endOf(profit).toDate(),
-      },
-      status: true,
-    }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
-    let totalProfit = 0
-    profitPayment.forEach(payment => {
-        const { buyRate } = payment.rate
-        let paymentTotal = payment.total.value
-        if (payment.total.currency !== 'USD') paymentTotal /= buyRate
-
-        let costTotal = 0
-        payment.transactions.forEach(transaction => {
-            transaction.stockCosts.forEach(stock => {
-                costTotal += stock.currency !== 'USD' ? stock.cost / buyRate : stock.cost
-            })
-        })
-        totalProfit = paymentTotal - costTotal
-    })
-
     // List Sale
     const listPayment = await Payment.find({
         createdAt: {
@@ -94,14 +53,63 @@ exports.sale = async (req, res) => {
         }
     })
 
-    return response.success(200, { data: { totalIncome, totalProfit, listSale } }, res)
+    return response.success(200, { data: listSale }, res)
   } catch (err) {
     return response.failure(422, { msg: failureMsg.trouble }, res, err)
   }
 }
 
-exports.product = async (req, res) => {
-  const chart = req.query._chartData || 'month'
+exports.totalSale = async (req, res) => {
+  const income = req.query._totalIncome || 'day'
+  const profit = req.query._totalProfit || 'day'
+
+  try {
+    // Total Income
+    const incomePayment = await Payment.find({
+      createdAt: {
+        $gte: moment().startOf(income).toDate(),
+        $lt: moment().endOf(income).toDate(),
+      },
+      status: true,
+    }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
+    let totalIncome = 0
+    incomePayment.forEach(payment => {
+        const { buyRate } = payment.rate
+        let paymentTotal = payment.total.value
+        if (payment.total.currency !== 'USD') paymentTotal /= buyRate
+        totalIncome += paymentTotal
+    }) 
+
+    // Total Profit
+    const profitPayment = await Payment.find({
+      createdAt: {
+        $gte: moment().startOf(profit).toDate(),
+        $lt: moment().endOf(profit).toDate(),
+      },
+      status: true,
+    }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
+    let totalProfit = 0
+    profitPayment.forEach(payment => {
+        const { buyRate } = payment.rate
+        let paymentTotal = payment.total.value
+        if (payment.total.currency !== 'USD') paymentTotal /= buyRate
+
+        let costTotal = 0
+        payment.transactions.forEach(transaction => {
+            transaction.stockCosts.forEach(stock => {
+                costTotal += stock.currency !== 'USD' ? stock.cost / buyRate : stock.cost
+            })
+        })
+        totalProfit = paymentTotal - costTotal
+    })
+
+    return response.success(200, { data: { totalIncome, totalProfit } }, res)
+  } catch (err) {
+    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+  }
+}
+
+exports.topProduct = async (req, res) => {
   const income = req.query._topProduct || 'month'
 
   try {
@@ -133,7 +141,16 @@ exports.product = async (req, res) => {
       })
     })
     const topProduct = listProduct.length && listProduct.reduce((a, b) => a.value > b.value ? a : b)
+    return response.success(200, { data: topProduct }, res)
+  } catch (err) {
+    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+  }
+}
 
+exports.listProduct = async (req, res) => {
+  const chart = req.query._chartData || 'month'
+
+  try {
     // List Product
     const chartPayments = await Payment.find({
       createdAt: {
@@ -162,18 +179,17 @@ exports.product = async (req, res) => {
       })
     })
 
-    return response.success(200, { data: { topProduct, listProductSale } }, res)
+    return response.success(200, { data: listProductSale }, res)
   } catch (err) {
     return response.failure(422, { msg: failureMsg.trouble }, res, err)
   }
 }
 
-exports.staff = async (req, res) => {
-  const chart = req.query._chartData || 'month'
+exports.topStaff = async (req, res) => {
   const income = req.query._topProduct || 'month'
 
   try {
-    // Top Product
+    // Top Staff
     const payments = await Payment.find({
       createdAt: {
         $gte: moment().startOf(income).toDate(),
@@ -201,8 +217,17 @@ exports.staff = async (req, res) => {
       })
     })
     const topStaff = listTopStaff.length && listTopStaff.reduce((a, b) => a.value > b.value ? a : b)
+    return response.success(200, { data: topStaff }, res)
+  } catch (err) {
+    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+  }
+}
 
-    // List Product
+exports.listStaff = async (req, res) => {
+  const chart = req.query._chartData || 'month'
+
+  try {
+    // List Staff
     const chartPayments = await Payment.find({
       createdAt: {
         $gte: moment().startOf(chart).toDate(),
@@ -230,7 +255,7 @@ exports.staff = async (req, res) => {
       })
     })
 
-    return response.success(200, { data: { topStaff, listStaff } }, res)
+    return response.success(200, { data: listStaff }, res)
   } catch (err) {
     return response.failure(422, { msg: failureMsg.trouble }, res, err)
   }
