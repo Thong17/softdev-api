@@ -13,15 +13,15 @@ router.get('/detail/:id', security.role(privilege.transaction.detail), (req, res
     detail(req, res)
 })
 
-router.post('/add', security.role(privilege.transaction.create), (req, res) => {
+router.post('/add', security.role(privilege.transaction.create), security.audit(), (req, res) => {
     create(req, res)
 })
 
-router.put('/update/:id', security.role(privilege.transaction.update), (req, res) => {
+router.put('/update/:id', security.role(privilege.transaction.update), security.audit(), (req, res) => {
     update(req, res)
 })
 
-router.delete('/remove/:id', security.role(privilege.transaction.delete), (req, res) => {
+router.delete('/remove/:id', security.role(privilege.transaction.delete), security.audit(), (req, res) => {
     remove(req, res)
 })
 
@@ -29,7 +29,7 @@ router.post('/excel/import', upload.single('excel'), (req, res) => {
     _import(req, res)
 })
 
-router.post('/batch', (req, res) => {
+router.post('/batch', security.audit(), (req, res) => {
     batch(req, res)
 })
 

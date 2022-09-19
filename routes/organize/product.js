@@ -13,47 +13,47 @@ router.get('/detail/:id', security.role(privilege.product.detail), (req, res) =>
     detail(req, res)
 })
 
-router.post('/create', security.role(privilege.product.create), (req, res) => {
+router.post('/create', security.role(privilege.product.create), security.audit(), (req, res) => {
     create(req, res)
 })
 
-router.put('/update/:id', security.role(privilege.product.update), (req, res) => {
+router.put('/update/:id', security.role(privilege.product.update), security.audit(), (req, res) => {
     update(req, res)
 })
 
-router.put('/stock/:id/enable', security.role(privilege.product.update), (req, res) => {
+router.put('/stock/:id/enable', security.role(privilege.product.update), security.audit(), (req, res) => {
     enableStock(req, res)
 })
 
-router.delete('/disable/:id', security.role(privilege.product.delete), (req, res) => {
+router.delete('/disable/:id', security.role(privilege.product.delete), security.audit(), (req, res) => {
     disable(req, res)
 })
 
-router.post('/excel/import', security.role(privilege.product.create), upload.single('excel'), (req, res) => {
+router.post('/excel/import', security.role(privilege.product.create), security.audit(), upload.single('excel'), (req, res) => {
     _import(req, res)
 })
 
-router.post('/batch', security.role(privilege.product.create), (req, res) => {
+router.post('/batch', security.role(privilege.product.create), security.audit(), (req, res) => {
     batch(req, res)
 })
 
-router.post('/color/batch', security.role(privilege.product.create), (req, res) => {
+router.post('/color/batch', security.role(privilege.product.create), security.audit(), (req, res) => {
     batchColor(req, res)
 })
 
-router.post('/image/batch', security.role(privilege.product.create), (req, res) => {
+router.post('/image/batch', security.role(privilege.product.create), security.audit(), (req, res) => {
     batchImage(req, res)
 })
 
-router.post('/property/batch', security.role(privilege.product.create), (req, res) => {
+router.post('/property/batch', security.role(privilege.product.create), security.audit(), (req, res) => {
     batchProperty(req, res)
 })
 
-router.post('/option/batch', security.role(privilege.product.create), (req, res) => {
+router.post('/option/batch', security.role(privilege.product.create), security.audit(), (req, res) => {
     batchOption(req, res)
 })
 
-router.post('/property/create', security.role(privilege.product.create), (req, res) => {
+router.post('/property/create', security.role(privilege.product.create), security.audit(), (req, res) => {
     createProperty(req, res)
 })
 
@@ -61,19 +61,19 @@ router.get('/property/detail/:id', security.role(privilege.product.detail), (req
     detailProperty(req, res)
 })
 
-router.put('/property/update/:id', security.role(privilege.product.update), (req, res) => {
+router.put('/property/update/:id', security.role(privilege.product.update), security.audit(), (req, res) => {
     updateProperty(req, res)
 })
 
-router.put('/property/reorder', security.role(privilege.product.update), (req, res) => {
+router.put('/property/reorder', security.role(privilege.product.update), security.audit(), (req, res) => {
     reorderProperty(req, res)
 })
 
-router.delete('/property/disable/:id', security.role(privilege.product.delete), (req, res) => {
+router.delete('/property/disable/:id', security.role(privilege.product.delete), security.audit(), (req, res) => {
     disableProperty(req, res)
 })
 
-router.post('/option/create', security.role(privilege.product.create), (req, res) => {
+router.post('/option/create', security.role(privilege.product.create), security.audit(), (req, res) => {
     createOption(req, res)
 })
 
@@ -81,19 +81,19 @@ router.get('/option/detail/:id', security.role(privilege.product.detail), (req, 
     detailOption(req, res)
 })
 
-router.put('/option/update/:id', security.role(privilege.product.update), (req, res) => {
+router.put('/option/update/:id', security.role(privilege.product.update), security.audit(), (req, res) => {
     updateOption(req, res)
 })
 
-router.put('/option/toggle/:id', security.role(privilege.product.update), (req, res) => {
+router.put('/option/toggle/:id', security.role(privilege.product.update), security.audit(), (req, res) => {
     toggleDefault(req, res)
 })
 
-router.delete('/option/disable/:id', security.role(privilege.product.delete), (req, res) => {
+router.delete('/option/disable/:id', security.role(privilege.product.delete), security.audit(), (req, res) => {
     disableOption(req, res)
 })
 
-router.post('/color/create', security.role(privilege.product.create), (req, res) => {
+router.post('/color/create', security.role(privilege.product.create), security.audit(), (req, res) => {
     createColor(req, res)
 })
 
@@ -101,11 +101,11 @@ router.get('/color/detail/:id', security.role(privilege.product.detail), (req, r
     detailColor(req, res)
 })
 
-router.put('/color/update/:id', security.role(privilege.product.update), (req, res) => {
+router.put('/color/update/:id', security.role(privilege.product.update), security.audit(), (req, res) => {
     updateColor(req, res)
 })
 
-router.delete('/color/disable/:id', security.role(privilege.product.delete), (req, res) => {
+router.delete('/color/disable/:id', security.role(privilege.product.delete), security.audit(), (req, res) => {
     disableColor(req, res)
 })
 

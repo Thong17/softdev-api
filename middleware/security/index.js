@@ -55,3 +55,16 @@ exports.role = (role) => {
         next()
     }
 }
+
+exports.audit = () => {
+    const Activity = require('../../models/Activity')
+    return async (req, res, next) => {
+        const user = req.user
+        try {
+            await Activity.create({ endpoint: req.originalUrl, method: req.method, body: req.body, createdBy: user.id })
+            next()
+        } catch (err) {
+            console.error(err)
+        }
+    }
+}

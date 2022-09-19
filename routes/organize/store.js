@@ -13,19 +13,19 @@ router.get('/detail/:id', security.role(privilege.store.detail), (req, res) => {
     detail(req, res)
 })
 
-router.post('/create', security.role(privilege.store.create), (req, res) => {
+router.post('/create', security.role(privilege.store.create), security.audit(), (req, res) => {
     create(req, res)
 })
 
-router.put('/update/:id', security.role(privilege.store.update), (req, res) => {
+router.put('/update/:id', security.role(privilege.store.update), security.audit(), (req, res) => {
     update(req, res)
 })
 
-router.put('/layout/update/:id', security.role(privilege.store.update), (req, res) => {
+router.put('/layout/update/:id', security.role(privilege.store.update), security.audit(), (req, res) => {
     updateLayout(req, res)
 })
 
-router.delete('/disable/:id', security.role(privilege.store.delete), (req, res) => {
+router.delete('/disable/:id', security.role(privilege.store.delete), security.audit(), (req, res) => {
     disable(req, res)
 })
 
@@ -33,15 +33,15 @@ router.get('/floor', (req, res) => {
     floors(req, res)
 })
 
-router.post('/floor/create', (req, res) => {
+router.post('/floor/create', security.audit(), (req, res) => {
     createFloor(req, res)
 })
 
-router.put('/floor/update/:id', (req, res) => {
+router.put('/floor/update/:id', security.audit(), (req, res) => {
     updateFloor(req, res)
 })
 
-router.delete('/floor/disable/:id', security.role(privilege.store.delete), (req, res) => {
+router.delete('/floor/disable/:id', security.role(privilege.store.delete), security.audit(), (req, res) => {
     disableFloor(req, res)
 })
 
@@ -57,7 +57,7 @@ router.post('/excel/import', upload.single('excel'), (req, res) => {
     _import(req, res)
 })
 
-router.post('/batch', (req, res) => {
+router.post('/batch', security.audit(), (req, res) => {
     batch(req, res)
 })
 

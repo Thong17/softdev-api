@@ -13,15 +13,15 @@ router.get('/detail/:id', security.role(privilege.drawer.detail), (req, res) => 
     detail(req, res)
 })
 
-router.post('/open', security.role(privilege.drawer.create), (req, res) => {
+router.post('/open', security.role(privilege.drawer.create), security.audit(), (req, res) => {
     open(req, res)
 })
 
-router.put('/save/:id', security.role(privilege.drawer.update), (req, res) => {
+router.put('/save/:id', security.role(privilege.drawer.update), security.audit(), (req, res) => {
     save(req, res)
 })
 
-router.put('/close/:id', security.role(privilege.drawer.update), (req, res) => {
+router.put('/close/:id', security.role(privilege.drawer.update), security.audit(), (req, res) => {
     close(req, res)
 })
 
@@ -29,7 +29,7 @@ router.post('/excel/import', upload.single('excel'), (req, res) => {
     _import(req, res)
 })
 
-router.post('/batch', (req, res) => {
+router.post('/batch', security.audit(), (req, res) => {
     batch(req, res)
 })
 
