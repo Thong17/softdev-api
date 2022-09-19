@@ -92,6 +92,22 @@ exports.update = async (req, res) => {
     }
 }
 
+exports.toggleStatus = async (req, res) => {
+    try {
+        const id = req.params.id
+        const category = await Category.findById(id)
+        Category.findByIdAndUpdate(id, { status: !category.status }, { new: true }, async (err, category) => {
+            if (err) return response.failure(422, { msg: err.message }, res, err)
+
+            const data = await category.populate('icon')
+            if (!category) return response.failure(422, { msg: 'No category updated!' }, res, err)
+            response.success(200, { msg: 'Category has updated successfully', data }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
 exports.disable = async (req, res) => {
     try {
         Category.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, category) => {

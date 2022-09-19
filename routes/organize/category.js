@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, create, update, detail, disable, _import, batch } = require('../../controllers/categoryController')
+const { index, create, update, toggleStatus, detail, disable, _import, batch } = require('../../controllers/categoryController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -19,6 +19,10 @@ router.post('/create', security.role(privilege.category.create), (req, res) => {
 
 router.put('/update/:id', security.role(privilege.category.update), (req, res) => {
     update(req, res)
+})
+
+router.put('/toggleStatus/:id', security.role(privilege.category.update), (req, res) => {
+    toggleStatus(req, res)
 })
 
 router.delete('/disable/:id', security.role(privilege.category.delete), (req, res) => {

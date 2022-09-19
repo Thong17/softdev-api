@@ -92,6 +92,22 @@ exports.update = async (req, res) => {
     }
 }
 
+exports.toggleStatus = async (req, res) => {
+    try {
+        const id = req.params.id
+        const brand = await Brand.findById(id)
+        Brand.findByIdAndUpdate(id, { status: !brand.status }, { new: true }, async (err, brand) => {
+            if (err) return response.failure(422, { msg: err.message }, res, err)
+
+            const data = await brand.populate('icon')
+            if (!brand) return response.failure(422, { msg: 'No brand updated!' }, res, err)
+            response.success(200, { msg: 'Brand has updated successfully', data }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
 exports.disable = async (req, res) => {
     try {
         Brand.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, brand) => {
