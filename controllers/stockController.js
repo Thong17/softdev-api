@@ -67,16 +67,11 @@ exports.updateStock = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductStock.findByIdAndUpdate(req.params.id, {...body, totalQuantity: body.quantity}, { new: true }, (err, stock) => {
-            if (err) {
-                switch (err.code) {
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
-            }
-
+        ProductStock.findByIdAndUpdate(req.params.id, {...body, totalQuantity: body.quantity}, { new: true }, async (err, stock) => {
+            if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!stock) return response.failure(422, { msg: 'No stock updated!' }, res, err)
-            response.success(200, { msg: 'Option has updated successfully', data: stock }, res)
+
+            response.success(200, { msg: 'Stock has updated successfully', data: stock }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -85,16 +80,14 @@ exports.updateStock = async (req, res) => {
 
 exports.disableStock = async (req, res) => {
     try {
-        ProductStock.findByIdAndRemove(req.params.id, (err, stock) => {
-            if (err) {
-                switch (err.code) {
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
-            }
-
+        ProductStock.findByIdAndRemove(req.params.id, async (err, stock) => {
+            if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!stock) return response.failure(422, { msg: 'No stock deleted!' }, res, err)
-            response.success(200, { msg: 'Option has deleted successfully', data: stock }, res)
+
+            const product = await Product.findById(stock.product)
+            product.stocks = product.stocks.filter(item => !item._id.equals(stock._id))
+            product.save()
+            response.success(200, { msg: 'Stock has deleted successfully', data: stock }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
