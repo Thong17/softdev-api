@@ -97,9 +97,14 @@ exports.listCode = async (req, res) => {
     Product.find({ isDeleted: false }, (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        return response.success(200, { data: products }, res)
+        return response.success(200, { data: products.map(product => {
+            return {
+                ...product._doc,
+                stockCodes: product.stocks?.map(stock => stock.code)
+            }
+        }) }, res)
     })  
-        .select('code isStock')
+        .select('code isStock stocks').populate('stocks', 'code')
 }
 
 exports.detail = async (req, res) => {
