@@ -155,7 +155,7 @@ exports.checkOut = async (req, res) => {
             structure.save()
         }
 
-        const data = await reservation.populate({ path: 'payment', populate: [{ path: 'transactions' }, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] })
+        const data = await reservation.populate({ path: 'payment', populate: [{ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' }}}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] })
         response.success(200, { msg: 'Reservation has checked out successfully', data }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
