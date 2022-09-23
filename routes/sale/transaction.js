@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, create, update, detail, remove, _import, batch } = require('../../controllers/transactionController')
+const { index, create, stock, update, detail, remove, _import, batch } = require('../../controllers/transactionController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -15,6 +15,10 @@ router.get('/detail/:id', security.role(privilege.transaction.detail), (req, res
 
 router.post('/add', security.role(privilege.transaction.create), security.audit(), (req, res) => {
     create(req, res)
+})
+
+router.post('/stock', security.role(privilege.transaction.create), security.audit(), (req, res) => {
+    stock(req, res)
 })
 
 router.put('/update/:id', security.role(privilege.transaction.update), security.audit(), (req, res) => {

@@ -183,6 +183,43 @@ module.exports = utils = {
         }
         return { isValid: true, transactionId, orderStocks, stockCosts }
     },
+
+    checkProductStock: async (stockId, quantity) => {
+        var transactionId = mongoose.Types.ObjectId()
+
+        let orderQuantity = quantity
+        let orderStocks = []
+
+        const stock = await ProductStock.findById(stockId).populate('product')
+        if (!stock) return { isValid: false, msg: 'Product quantity has exceed our current stock' }
+
+        let totalStock = stock.quantity
+        let stockCosts = []
+
+        if (totalStock < orderQuantity) return { isValid: false, msg: 'Product quantity has exceed our current stock' }
+
+        const remainStock = totalStock - orderQuantity
+
+        orderStocks.push({ id: stock._id, quantity: orderQuantity })
+        stockCosts.push({ cost: stock.cost * orderQuantity, currency: stock.currency })
+        
+        await ProductStock.findByIdAndUpdate(stockId, { quantity: remainStock, transactions: [...stock.transactions, transactionId] })
+
+        const transactionBody = { _id: transactionId, 
+            product: stock.product._id, 
+            description: stock.product.name['English'],
+            color: stock.color,
+            options: stock.options,
+            price: stock.product.price,
+            currency: stock.product.currency,
+            total: { value: stock.product.price * orderQuantity, currency: stock.product.currency },
+            quantity,
+            promotion: stock.product.promotion
+        }
+        
+        return { isValid: true, transactionBody, orderStocks, stockCosts }
+    },
+
     reverseProductStock: (stocks) => {
         return new Promise(async (resolve, reject) => {
             if (!stocks) reject({ msg: responseMsg.failureMsg.trouble, code: 422 })

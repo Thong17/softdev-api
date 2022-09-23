@@ -1,8 +1,8 @@
 const Transaction = require('../models/Transaction')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, calculatePromotion, determineProductStock, reverseProductStock, compareDate } = require('../helpers/utils')
-const { createTransactionValidation, updateTransactionValidation } = require('../middleware/validations/transactionValidation')
+const { extractJoiErrors, readExcel, calculatePromotion, determineProductStock, reverseProductStock, compareDate, checkProductStock } = require('../helpers/utils')
+const { createTransactionValidation, updateTransactionValidation, stockTransactionValidation } = require('../middleware/validations/transactionValidation')
 const Promotion = require('../models/Promotion')
 
 
@@ -67,6 +67,51 @@ exports.create = async (req, res) => {
         }
 
         Transaction.create({ ...body, _id: transactionId, stocks: orderStocks, stockCosts, createdBy: req.user.id }, async (err, transaction) => {
+            if (err) {
+                switch (err.code) {
+                    case 11000:
+                        return response.failure(422, { msg: 'Transaction already exists!' }, res, err)
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!transaction) return response.failure(422, { msg: 'No transaction created!' }, res, err)
+            const data = await transaction.populate({ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } })
+            response.success(200, { msg: 'Transaction has created successfully', data }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.stock = async (req, res) => {
+    const body = req.body
+    const { error } = stockTransactionValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        const { isValid, transactionBody, orderStocks, stockCosts, msg } = await checkProductStock(body.stock, body.quantity)
+        if (!isValid) return response.failure(422, { msg }, res)
+
+        if (transactionBody.promotion) {
+            const promotion = await Promotion.findById(transactionBody.promotion)
+            if (promotion && !compareDate(Date.now(), new Date(promotion.expireAt))) {
+                transactionBody['discount'] = {
+                    value: promotion.value,
+                    type: promotion.type,
+                    isFixed: promotion.isFixed,
+                }
+                const { total, currency } = calculatePromotion(
+                    { total: transactionBody.total.value, currency: transactionBody.total.currency },
+                    { value: promotion.value, type: promotion.type, isFixed: promotion.isFixed }, 
+                    { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
+                )
+                transactionBody.total = { value: total, currency }
+            }
+        }
+
+        Transaction.create({ ...transactionBody, stocks: orderStocks, stockCosts, createdBy: req.user.id }, async (err, transaction) => {
             if (err) {
                 switch (err.code) {
                     case 11000:

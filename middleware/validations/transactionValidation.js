@@ -21,7 +21,13 @@ const updateTransactionValidation = Joi.object({
     discount: Joi.object().required()
 })
 
+const stockTransactionValidation = Joi.object({
+    stock: Joi.string().required(),
+    quantity: Joi.number().required(),
+})
+
 module.exports = {
     createTransactionValidation,
-    updateTransactionValidation
+    updateTransactionValidation,
+    stockTransactionValidation
 }
