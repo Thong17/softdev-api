@@ -12,7 +12,7 @@ exports.index = async (req, res) => {
     const search = req.query.search?.replace(/ /g,'')
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
-    const sort = req.query.sort || 'asc'
+    const sort = req.query.sort || 'desc'
     
     let filterObj = { [filter]: sort }
     let query = {}
@@ -30,14 +30,14 @@ exports.index = async (req, res) => {
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
-        .populate('icon')
+        .populate('createdBy')
 }
 
 exports.detail = async (req, res) => {
     Transaction.findById(req.params.id, (err, transaction) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: transaction }, res)
-    }).populate('icon')
+    })
 }
 
 exports.create = async (req, res) => {
@@ -46,7 +46,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        const { isValid, transactionId, orderStocks, stockCosts, msg } = await determineProductStock(body.product, body.color, body.options, body.quantity)
+        const { isValid, transactionId, orderStocks, stockCosts, msg } = await determineProductStock(body.product, body.color, body.options, body.quantity, null)
         if (!isValid) return response.failure(422, { msg }, res)
 
         if (body.promotion) {
@@ -143,7 +143,7 @@ exports.update = async (req, res) => {
         reverseProductStock(transaction?.stocks)
             .then(async () => {
                 try {
-                    const { isValid, orderStocks, msg } = await determineProductStock(transaction.product, transaction.color, transaction.options, body.quantity)
+                    const { isValid, orderStocks, msg } = await determineProductStock(transaction.product, transaction.color, transaction.options, body.quantity, transaction?.stocks)
                     if (!isValid) return response.failure(422, { msg }, res)
 
                     body.stocks = orderStocks
@@ -183,7 +183,7 @@ exports.remove = async (req, res) => {
             .then(async () => {
                 try {
                     await Transaction.findByIdAndDelete(id)
-                    response.success(200, { msg: 'Transaction has deleted successfully', data: transaction }, res)
+                    response.success(200, { msg: 'Transaction has reversed successfully', data: transaction }, res)
                 } catch (err) {
                     return response.failure(422, { msg: failureMsg.trouble }, res, err)
                 }

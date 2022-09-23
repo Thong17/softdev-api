@@ -26,6 +26,14 @@ exports.privilege = {
             route: 'operation',
             action: 'reservation'
         },
+        transaction: {
+            route: 'operation',
+            action: 'transaction'
+        },
+        payment: {
+            route: 'operation',
+            action: 'payment'
+        },
         stock: {
             route: 'operation',
             action: 'stock'

@@ -141,7 +141,7 @@ module.exports = utils = {
         }
         return totalObj
     },
-    determineProductStock: async (product, color, options, quantity) => {
+    determineProductStock: async (product, color, options, quantity, transactionStocks) => {
         var transactionId = mongoose.Types.ObjectId()
         const result = await Product.findById(product).select('isStock')
         if (!result || !result.isStock) return { isValid: true, transactionId, orderStocks: [], stockCosts: [] }
@@ -154,6 +154,17 @@ module.exports = utils = {
         let orderStocks = []
 
         const stocks = await ProductStock.find(filter)
+
+        if (transactionStocks) {
+            stocks.sort((first, second) => {
+                var a = 0
+                if (transactionStocks.some(item => item.id.equals(first._id))) a = 2
+
+                var b = 0
+                if (transactionStocks.some(item => item.id.equals(second._id))) b = 2
+                return b - a
+            })
+        }
         let totalStock = 0
         let stockCosts = []
         stocks.forEach(stock => {
