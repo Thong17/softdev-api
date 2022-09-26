@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, create, update, detail, disable, _import, batch, floors, structures, layout, updateLayout, createFloor, updateFloor, disableFloor } = require('../../controllers/storeController')
+const { index, create, update, detail, disable, _import, batch, floors, listTransfer, structures, layout, updateLayout, createFloor, updateFloor, disableFloor, createTransfer, updateTransfer, deleteTransfer } = require('../../controllers/storeController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -33,12 +33,28 @@ router.get('/floor', (req, res) => {
     floors(req, res)
 })
 
+router.get('/transfer', (req, res) => {
+    listTransfer(req, res)
+})
+
 router.post('/floor/create', security.audit(), (req, res) => {
     createFloor(req, res)
 })
 
+router.post('/transfer/create', security.audit(), (req, res) => {
+    createTransfer(req, res)
+})
+
+router.put('/transfer/update/:id', security.audit(), (req, res) => {
+    updateTransfer(req, res)
+})
+
 router.put('/floor/update/:id', security.audit(), (req, res) => {
     updateFloor(req, res)
+})
+
+router.delete('/transfer/delete/:id', security.role(privilege.store.delete), security.audit(), (req, res) => {
+    deleteTransfer(req, res)
 })
 
 router.delete('/floor/disable/:id', security.role(privilege.store.delete), security.audit(), (req, res) => {

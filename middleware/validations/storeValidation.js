@@ -17,7 +17,13 @@ const createFloorValidation = Joi.object({
     description: Joi.string().optional().allow('')
 })
 
+const transferValidation = Joi.object({
+    title: Joi.string().required(),
+    image: Joi.any().optional(),
+})
+
 module.exports = {
     createStoreValidation,
-    createFloorValidation
+    createFloorValidation,
+    transferValidation
 }

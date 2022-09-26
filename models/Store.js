@@ -34,6 +34,10 @@ const schema = mongoose.Schema(
             type: String,
             default: ''
         },
+        transferMethods: [{
+            type: mongoose.Schema.ObjectId,
+            ref: 'Transfer'
+        }],
         updatedBy: {
             type: mongoose.Schema.ObjectId,
             ref: 'User'

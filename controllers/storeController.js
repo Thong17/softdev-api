@@ -1,10 +1,10 @@
 const Store = require('../models/Store')
-const { default: mongoose } = require('mongoose')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
-const { createStoreValidation, createFloorValidation } = require('../middleware/validations/storeValidation')
+const { createStoreValidation, createFloorValidation, transferValidation } = require('../middleware/validations/storeValidation')
 const StoreFloor = require('../models/StoreFloor')
+const Transfer = require('../models/Transfer')
 const StoreStructure = require('../models/StoreStructure')
 
 exports.index = async (req, res) => {
@@ -44,6 +44,13 @@ exports.listStructure = async (req, res) => {
     }).select('title status type size price').populate('floor', 'floor')
 }
 
+exports.listTransfer = async (req, res) => {
+    Transfer.find({}, (err, transfers) => {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        return response.success(200, { data: transfers }, res)
+    }).populate('image', 'filename')
+}
+
 exports.layout = async (req, res) => {
     const id = req.query.id
 
@@ -71,6 +78,30 @@ exports.create = async (req, res) => {
 
             if (!store) return response.failure(422, { msg: 'No store created!' }, res, err)
             response.success(200, { msg: 'Store has created successfully', data: store }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.createTransfer = async (req, res) => {
+    const body = req.body
+    const { error } = transferValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        Transfer.create(body, (err, transfer) => {
+            if (err) {
+                switch (err.code) {
+                    case 11000:
+                        return response.failure(422, { msg: 'Transfer already exists!' }, res, err)
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!transfer) return response.failure(422, { msg: 'No transfer created!' }, res, err)
+            response.success(200, { msg: 'Transfer has created successfully', data: transfer }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -117,6 +148,36 @@ exports.updateFloor = async (req, res) => {
 
             if (!floor) return response.failure(422, { msg: 'No floor updated!' }, res, err)
             response.success(200, { msg: 'Floor has updated successfully', data: floor }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.updateTransfer = async (req, res) => {
+    const body = req.body
+    const { error } = transferValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        Transfer.findByIdAndUpdate(req.params.id, body, (err, transfer) => {
+            if (err) return response.failure(422, { msg: err.message }, res, err)
+
+            if (!transfer) return response.failure(422, { msg: 'No transfer updated!' }, res, err)
+            response.success(200, { msg: 'Transfer has updated successfully', data: transfer }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.deleteTransfer = async (req, res) => {
+    try {
+        Transfer.findByIdAndRemove(req.params.id, (err, transfer) => {
+            if (err) return response.failure(422, { msg: err.message }, res, err)
+
+            if (!transfer) return response.failure(422, { msg: 'No transfer deleted!' }, res, err)
+            response.success(200, { msg: 'Transfer has deleted successfully', data: transfer._id }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
