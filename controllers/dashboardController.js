@@ -80,7 +80,8 @@ exports.organize = async (req, res) => {
     const totalBrand = await Brand.count({ isDeleted: false })
     const totalFloor = await StoreFloor.count({ isDisabled: false })
     const totalProduct = await Product.count({ isDeleted: false })
-    const totalStructure = await StoreStructure.count({ isDisabled: false })
+    const totalStandardStructure = await StoreStructure.count({ isDisabled: false, merged: null })
+    const totalMergedStructure = await StoreStructure.count({ isDisabled: false, merged: true, isMain: true })
 
     const categories = await Category.find({ isDeleted: false }).select(
       'name products'
@@ -160,7 +161,7 @@ exports.organize = async (req, res) => {
           totalBrand,
           totalProduct,
           totalFloor,
-          totalStructure,
+          totalStructure: totalStandardStructure + totalMergedStructure,
           categories: categoryData,
           brands: brandData,
           products: productDate,

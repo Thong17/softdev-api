@@ -33,15 +33,19 @@ exports.floors = async (req, res) => {
 exports.structures = async (req, res) => {
     StoreStructure.find({ isDisabled: false }, (err, structures) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        return response.success(200, { data: structures }, res)
+
+        const data = structures.filter(item => !(item.merged && !item.isMain))
+        return response.success(200, { data }, res)
     }).populate('floor', 'floor')
 }
 
 exports.listStructure = async (req, res) => {
     StoreStructure.find({ isDisabled: false }, (err, structures) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        return response.success(200, { data: structures }, res)
-    }).select('title status type size price').populate('floor', 'floor')
+
+        const data = structures.filter(item => !(item.merged && !item.isMain))
+        return response.success(200, { data }, res)
+    }).select('title status type size price merged isMain').populate('floor', 'floor')
 }
 
 exports.listTransfer = async (req, res) => {
