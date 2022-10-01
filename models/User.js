@@ -2,7 +2,7 @@ const mongoose = require('mongoose')
 const Role = require('./Role')
 const Profile = require('./Profile')
 const Config = require('./Config')
-const { encryptPassword, comparePassword, issueToken } = require('../helpers/utils')
+const { comparePassword, issueToken } = require('../helpers/utils')
 
 const schema = mongoose.Schema(
     {
@@ -123,7 +123,7 @@ schema.post('insertMany', async function(users) {
 schema.statics.authenticate = function (username, password, cb) {
     this.findOne({ username, isDisabled: { $ne: true } })
         .populate('role')
-        .populate('profile')
+        .populate({ path: 'profile', populate: { path: 'photo' } })
         .populate('config')
         .populate('drawer')
         .then(user => {

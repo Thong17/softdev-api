@@ -1,8 +1,9 @@
 const response = require('../helpers/response')
 const Config = require('../models/Config')
 const User = require('../models/User')
+const Profile = require('../models/Profile')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, encryptPassword } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, encryptPassword, comparePassword } = require('../helpers/utils')
 const { createUserValidation, updateUserValidation } = require('../middleware/validations/userValidation')
 
 exports.index = (req, res) => {
@@ -37,6 +38,48 @@ exports.detail = (req, res) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: user }, res)
     })
+}
+
+exports.profileDetail = async (req, res) => {
+    const user = await User.findById(req.params.id).select('username email').populate({ path: 'profile', populate: { path: 'photo', select: 'filename' } })
+    return response.success(200, { data: user }, res)
+}
+
+exports.passwordUpdate = async (req, res) => {
+    try {
+        const { current_password, new_password } = req.body
+        const id = req.params.id
+        const user = await User.findById(id)
+        comparePassword(current_password, user.password)
+            .then(async isMatch => {
+                if (!isMatch) return response.failure(422, { msg: 'Password is incorrect' }, res)
+                const password = await encryptPassword(new_password)
+                await User.findByIdAndUpdate(id, { password })
+                return response.success(200, { msg: 'Password has updated successfully' }, res)
+            })
+            .catch(err => {
+                return response.failure(422, { msg: err.message }, res, err)
+            })
+    } catch (err) {
+        return response.failure(422, { msg: err.message }, res, err)
+    }
+}
+
+exports.profileUpdate = async (req, res) => {
+    const userData = {
+        username: req.body.username,
+        email: req.body.email
+    }
+    const profileData = {
+        photo: req.body.photo,
+        gender: req.body.gender,
+        birthday: req.body.birthday,
+        contact: req.body.contact,
+        address: req.body.address,
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, userData).select('profile')
+    await Profile.findByIdAndUpdate(user?.profile, profileData)
+    return response.success(200, { msg: 'Profile has updated successfully' }, res)
 }
 
 exports.create = async (req, res) => {
@@ -146,7 +189,7 @@ exports.profile = (req, res) => {
         id: req.user?.id,
         username: req.user?.username,
         privilege: req.user?.role.privilege,
-        photo: req.user?.profile?.photo,
+        photo: req.user?.profile?.photo?.filename,
         theme: req.user?.config?.theme,
         language: req.user?.config?.language,
         favorites: req.user?.favorites,

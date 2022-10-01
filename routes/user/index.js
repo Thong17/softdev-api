@@ -1,8 +1,21 @@
 const router = require('express').Router()
-const { profile, changeTheme, changeLanguage, addFavorite, removeFavorite } = require('../../controllers/userController')
+const { profile, profileDetail, profileUpdate, passwordUpdate, changeTheme, changeLanguage, addFavorite, removeFavorite } = require('../../controllers/userController')
+const security = require('../../middleware/security')
 
 router.get('/profile', (req, res) => {
     profile(req, res)
+})
+
+router.get('/profile/:id', security.self, (req, res) => {
+    profileDetail(req, res)
+})
+
+router.put('/profile/:id', security.self, (req, res) => {
+    profileUpdate(req, res)
+})
+
+router.put('/change-password/:id', security.self, (req, res) => {
+    passwordUpdate(req, res)
 })
 
 router.post('/theme/change', (req, res) => {

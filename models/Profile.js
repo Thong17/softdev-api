@@ -3,7 +3,8 @@ const mongoose = require('mongoose')
 const schema = mongoose.Schema(
     {
         photo: {
-            type: String
+            type: mongoose.Schema.ObjectId,
+            ref: 'Picture'
         },
         gender: {
             type: String

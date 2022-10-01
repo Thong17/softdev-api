@@ -28,7 +28,7 @@ exports.auth = (req, res, next) => {
         .then(async decoded => {
             const User = require('../../models/User')
             const { id } = decoded
-            const user = await User.findById(id).populate('role').populate('profile').populate('config').populate('drawer')
+            const user = await User.findById(id).populate('role').populate({ path: 'profile', populate: { path: 'photo' } }).populate('config').populate('drawer')
             req.user = user
             next()
         })
@@ -44,6 +44,11 @@ exports.auth = (req, res, next) => {
                     return response.failure(401, { msg: 'Something went wrong while generating refresh token!' }, res, err)
                 })
         })
+}
+
+exports.self = (req, res, next) => {
+    if (req.params?.id !== req.user?.id) return response.failure(422, { msg: 'Request is denied!' }, res)
+    next()
 }
 
 exports.role = (role) => {

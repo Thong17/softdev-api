@@ -18,7 +18,7 @@ exports.login = async (req, res) => {
                 id: data.user.id,
                 username: data.user.username,
                 privilege: data.user.role.privilege,
-                photo: data.user.profile?.photo,
+                photo: data.user.profile?.photo?.filename,
                 theme: data.user.config?.theme,
                 language: data.user.config?.language,
                 favorites: data.user.favorites,
@@ -38,7 +38,8 @@ exports.register = async (req, res) => {
 
     try {
         delete body.confirm_password
-        User.create(body, (err, user) => {
+        const password = await encryptPassword(body.password)
+        User.create({...body, password}, (err, user) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
