@@ -196,7 +196,7 @@ exports.topStaff = async (req, res) => {
         $lt: moment().endOf(income).toDate(),
       },
       status: true,
-    }).select('transactions').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username profile', populate: { path: 'profile' } } })
+    }).select('transactions').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username profile', populate: { path: 'profile', populate: { path: 'photo', select: 'filename' } } } })
     
     const listTopStaff = []
     payments.forEach(payment => {
