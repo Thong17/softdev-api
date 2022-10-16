@@ -9,7 +9,7 @@ const createTransactionValidation = Joi.object({
     total: Joi.object().required(),
     quantity: Joi.number().required(),
     options: Joi.array().required(),
-    promotion: Joi.string().optional()
+    promotion: Joi.any().optional()
 })
 
 const updateTransactionValidation = Joi.object({
