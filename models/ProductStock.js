@@ -42,6 +42,10 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'ProductOption',
         }],
+        customers: [{
+            type: mongoose.Schema.ObjectId,
+            ref: 'CustomerOption',
+        }],
         transactions: [{
             type: mongoose.Schema.ObjectId,
             ref: 'Transaction',

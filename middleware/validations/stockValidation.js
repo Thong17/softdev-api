@@ -10,6 +10,7 @@ const createStockValidation = Joi.object({
     color: Joi.string().optional(),
     product: Joi.string().required(),
     options: Joi.array().optional(),
+    customers: Joi.array().optional(),
 })
 
 module.exports = {
