@@ -7,6 +7,7 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors } = require('../helpers/utils')
 const { createStockValidation } = require('../middleware/validations/stockValidation')
+const CustomerOption = require('../models/CustomerOption')
 
 exports.stock = async (req, res) => {
     const product = req.query.productId
@@ -19,7 +20,7 @@ exports.stock = async (req, res) => {
 exports.product = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
-            .populate('images').populate({ path: 'stocks', model: ProductStock }).populate({ path: 'colors', model: ProductColor }).populate({ path: 'options', model: ProductOption }).populate('brand').populate('category').populate('properties')
+            .populate('images').populate({ path: 'stocks', model: ProductStock }).populate({ path: 'colors', model: ProductColor }).populate({ path: 'customers', model: CustomerOption }).populate({ path: 'options', model: ProductOption }).populate('brand').populate('category').populate('properties')
 
         return response.success(200, { data: product }, res)
     } catch (err) {

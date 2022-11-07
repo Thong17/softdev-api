@@ -43,9 +43,19 @@ const createColorValidation = Joi.object({
     product: Joi.string().required(),
 })
 
+const createCustomerOptionValidation = Joi.object({
+    name: Joi.object().required(),
+    price: Joi.number().optional(),
+    code: Joi.string().optional().allow(''),
+    currency: Joi.string().optional(),
+    description: Joi.string().optional().allow(''),
+    product: Joi.string().required(),
+})
+
 module.exports = {
     createProductValidation,
     createOptionValidation,
     createPropertyValidation,
-    createColorValidation
+    createColorValidation,
+    createCustomerOptionValidation
 }

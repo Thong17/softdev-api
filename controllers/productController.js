@@ -8,8 +8,9 @@ const ProductStock = require('../models/ProductStock')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
-const { createProductValidation, createPropertyValidation, createOptionValidation, createColorValidation } = require('../middleware/validations/productValidation')
+const { createProductValidation, createPropertyValidation, createOptionValidation, createColorValidation, createCustomerOptionValidation } = require('../middleware/validations/productValidation')
 const Category = require('../models/Category')
+const CustomerOption = require('../models/CustomerOption')
 
 
 exports.index = async (req, res) => {
@@ -44,6 +45,7 @@ exports.index = async (req, res) => {
         .populate('properties')
         .populate('stocks')
         .populate({ path: 'colors', model: ProductColor, populate: { path: 'images', model: Image } })
+        .populate({ path: 'customers', model: CustomerOption })
         .populate({ path: 'options', model: ProductOption, populate: { path: 'profile', model: Image } })
 }
 
@@ -115,6 +117,7 @@ exports.detail = async (req, res) => {
             .populate('images')
             .populate({ path: 'properties', options: { sort: { 'order': 1 } }})
             .populate({ path: 'colors', model: ProductColor })
+            .populate({ path: 'customers', model: CustomerOption })
             .populate({ path: 'options', model: ProductOption })
 
         return response.success(200, { data: product }, res)
@@ -131,6 +134,7 @@ exports.info = async (req, res) => {
             .populate('images')
             .populate({ path: 'properties', options: { sort: { 'order': 1 } }})
             .populate({ path: 'colors', model: ProductColor })
+            .populate({ path: 'customers', model: CustomerOption })
             .populate({ path: 'options', model: ProductOption })
             .populate({ path: 'stocks', model: ProductStock })
 
@@ -298,6 +302,18 @@ exports.batchColor = async (req, res) => {
     ProductColor.insertMany(colors)
         .then(data => {
             response.success(200, { msg: `${data.length} ${data.length > 1 ? 'colors' : 'color'} has been inserted` }, res)
+        })
+        .catch(err => {
+            return response.failure(422, { msg: err.message }, res)
+        })
+}
+
+exports.batchCustomer = async (req, res) => {
+    const customers = req.body
+
+    CustomerOption.insertMany(customers)
+        .then(data => {
+            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'customers' : 'customer'} has been inserted` }, res)
         })
         .catch(err => {
             return response.failure(422, { msg: err.message }, res)
@@ -581,6 +597,81 @@ exports.disableColor = async (req, res) => {
 
             if (!color) return response.failure(422, { msg: 'No color deleted!' }, res, err)
             response.success(200, { msg: 'Option has deleted successfully', data: color }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+// CRUD Product Customer
+exports.createCustomerOption = async (req, res) => {
+    const body = req.body
+    const { error } = createCustomerOptionValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        CustomerOption.create(body, (err, option) => {
+            if (err) {
+                switch (err.code) {
+                    case 11000:
+                        return response.failure(422, { msg: 'Option already exists!' }, res, err)
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!option) return response.failure(422, { msg: 'No option created!' }, res, err)
+            response.success(200, { msg: 'Option has created successfully', data: option }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.detailCustomerOption = async (req, res) => {
+    try {
+        const option = await CustomerOption.findById(req.params.id)
+
+        return response.success(200, { data: option }, res)
+    } catch (err) {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }   
+}
+
+exports.updateCustomerOption = async (req, res) => {
+    const body = req.body
+    const { error } = createCustomerOptionValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        CustomerOption.findByIdAndUpdate(req.params.id, body, { new: true }, (err, option) => {
+            if (err) {
+                switch (err.code) {
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!option) return response.failure(422, { msg: 'No option updated!' }, res, err)
+            response.success(200, { msg: 'Option has updated successfully', data: option }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.disableCustomerOption = async (req, res) => {
+    try {
+        CustomerOption.findByIdAndRemove(req.params.id, (err, option) => {
+            if (err) {
+                switch (err.code) {
+                    default:
+                        return response.failure(422, { msg: err.message }, res, err)
+                }
+            }
+
+            if (!option) return response.failure(422, { msg: 'No option deleted!' }, res, err)
+            response.success(200, { msg: 'Option has deleted successfully', data: option }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)

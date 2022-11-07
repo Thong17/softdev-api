@@ -63,6 +63,10 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'ProductColor'
         }],
+        customers: [{
+            type: mongoose.Schema.ObjectId,
+            ref: 'CustomerOption'
+        }],
         options: [{
             type: mongoose.Schema.ObjectId,
             ref: 'ProductOption'
