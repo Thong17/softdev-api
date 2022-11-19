@@ -15,7 +15,15 @@ exports.privilege = {
         report: {
             route: 'menu',
             action: 'report'
-        }
+        },
+        cashing: {
+            route: 'menu',
+            action: 'cashing'
+        },
+        reservation: {
+            route: 'menu',
+            action: 'reservation'
+        },
     },
     operation: {
         cashing: {
