@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node start app.js",
     "dev": "nodemon app.js",
-    "dockerBuild": "docker build -t thonggee/softdev-api .",
-    "dockerPush": "docker push thonggee/softdev-api"
+    "dockerBuild": "docker build -t thonggee/softdev-api:prod-putin-ktv .",
+    "dockerPush": "docker push thonggee/softdev-api:prod-putin-ktv"
   },
   "repository": {
     "type": "git",
