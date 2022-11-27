@@ -196,6 +196,14 @@ exports.remove = async (req, res) => {
     }
 }
 
+exports.reverseAll = async (req, res) => {
+    try {
+        response.success(200, { msg: 'All transactions have been reversed' }, res)
+    } catch (err) {
+        return response.failure(err.code, { msg: err.msg }, res)
+    }
+}
+
 exports._import = async (req, res) => {
     try {
         const transactions = await readExcel(req.file.buffer, req.body.fields)

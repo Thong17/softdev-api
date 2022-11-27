@@ -1,8 +1,9 @@
 const router = require('express').Router()
 const multer = require('multer')
 const upload = multer()
-const { index, create, stock, update, detail, remove, _import, batch } = require('../../controllers/transactionController')
+const { index, create, stock, update, detail, remove, reverseAll, _import, batch } = require('../../controllers/transactionController')
 const security = require('../../middleware/security')
+const middleware = require('../../middleware/function')
 const { privilege } = require('../../constants/roleMap')
 
 router.get('/', security.role(privilege.transaction.list), (req, res) => {
@@ -27,6 +28,10 @@ router.put('/update/:id', security.role(privilege.transaction.update), security.
 
 router.delete('/remove/:id', security.role(privilege.transaction.delete), security.audit(), (req, res) => {
     remove(req, res)
+})
+
+router.delete('/reverseAll', security.role(privilege.transaction.delete), middleware.clearPendingTransaction(), security.audit(), (req, res) => {
+    reverseAll(req, res)
 })
 
 router.post('/excel/import', upload.single('excel'), (req, res) => {
