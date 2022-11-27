@@ -30,11 +30,11 @@ exports.listSale = async (req, res) => {
             break
         case 'month':
             label = 'week'
-            format = 'MMM YYYY'
+            format = 'Do MMM YYYY'
             break
         default:
             label = 'month'
-            format = 'YYYY'
+            format = 'MMM YYYY'
             break
     }
     listPayment.forEach(payment => {
