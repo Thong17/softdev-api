@@ -5,14 +5,32 @@ const moment = require('moment')
 
 exports.listSale = async (req, res) => {
   const chart = req.query._chartData || 'day'
+  let query = {}
+  if (chart === 'range') {
+    const fromDate = moment(req.query.fromDate)
+    const toDate = moment(req.query.toDate)
+    if (fromDate.isValid() && toDate.isValid()) {
+      query = {
+        $gte: fromDate.toDate(),
+        $lt: toDate.toDate(),
+      }
+    } else {
+      query = {
+        $gte: moment().toDate(),
+        $lt: moment().toDate(),
+      }
+    }
+  } else {
+    query = {
+      $gte: moment().startOf(chart).toDate(),
+      $lt: moment().endOf(chart).toDate(),
+    }
+  }
 
   try {
     // List Sale
     const listPayment = await Payment.find({
-        createdAt: {
-          $gte: moment().startOf(chart).toDate(),
-          $lt: moment().endOf(chart).toDate(),
-        },
+        createdAt: query,
         status: true,
       }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     const listSale = []
@@ -149,14 +167,32 @@ exports.topProduct = async (req, res) => {
 
 exports.listProduct = async (req, res) => {
   const chart = req.query._chartData || 'month'
+  let query = {}
+  if (chart === 'range') {
+    const fromDate = moment(req.query.fromDate)
+    const toDate = moment(req.query.toDate)
+    if (fromDate.isValid() && toDate.isValid()) {
+      query = {
+        $gte: fromDate.toDate(),
+        $lt: toDate.toDate(),
+      }
+    } else {
+      query = {
+        $gte: moment().toDate(),
+        $lt: moment().toDate(),
+      }
+    }
+  } else {
+    query = {
+      $gte: moment().startOf(chart).toDate(),
+      $lt: moment().endOf(chart).toDate(),
+    }
+  }
 
   try {
     // List Product
     const chartPayments = await Payment.find({
-      createdAt: {
-        $gte: moment().startOf(chart).toDate(),
-        $lt: moment().endOf(chart).toDate(),
-      },
+      createdAt: query,
       status: true,
     }).select('transactions').populate({ path: 'transactions', populate: { path: 'product', select: 'name profile', populate: { path: 'profile', select: 'filename' } } })
     
@@ -225,14 +261,32 @@ exports.topStaff = async (req, res) => {
 
 exports.listStaff = async (req, res) => {
   const chart = req.query._chartData || 'month'
+  let query = {}
+  if (chart === 'range') {
+    const fromDate = moment(req.query.fromDate)
+    const toDate = moment(req.query.toDate)
+    if (fromDate.isValid() && toDate.isValid()) {
+      query = {
+        $gte: fromDate.toDate(),
+        $lt: toDate.toDate(),
+      }
+    } else {
+      query = {
+        $gte: moment().toDate(),
+        $lt: moment().toDate(),
+      }
+    }
+  } else {
+    query = {
+      $gte: moment().startOf(chart).toDate(),
+      $lt: moment().endOf(chart).toDate(),
+    }
+  }
 
   try {
     // List Staff
     const chartPayments = await Payment.find({
-      createdAt: {
-        $gte: moment().startOf(chart).toDate(),
-        $lt: moment().endOf(chart).toDate(),
-      },
+      createdAt: query,
       status: true,
     }).select('transactions').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username' } })
     
