@@ -100,7 +100,7 @@ exports.totalSale = async (req, res) => {
                 costTotal += stock.currency !== 'USD' ? stock.cost / buyRate : stock.cost
             })
         })
-        totalProfit = paymentTotal - costTotal
+        totalProfit += paymentTotal - costTotal
     })
 
     return response.success(200, { data: { totalIncome, totalProfit } }, res)
