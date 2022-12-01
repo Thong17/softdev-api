@@ -16,6 +16,10 @@ exports.privilege = {
             route: 'menu',
             action: 'report'
         },
+        config: {
+            route: 'config',
+            action: 'report'
+        },
         cashing: {
             route: 'menu',
             action: 'cashing'
