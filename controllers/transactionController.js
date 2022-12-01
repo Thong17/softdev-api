@@ -143,10 +143,11 @@ exports.update = async (req, res) => {
         reverseProductStock(transaction?.stocks)
             .then(async () => {
                 try {
-                    const { isValid, orderStocks, msg } = await determineProductStock(transaction.product, transaction.color, transaction.options, body.quantity, transaction?.stocks)
+                    const { isValid, orderStocks, stockCosts, msg } = await determineProductStock(transaction.product, transaction.color, transaction.options, body.quantity, transaction?.stocks)
                     if (!isValid) return response.failure(422, { msg }, res)
 
                     body.stocks = orderStocks
+                    body.stockCosts = stockCosts
 
                     const { total, currency } = calculatePromotion(
                         { total: body.price * body.quantity, currency: body.currency }, 
