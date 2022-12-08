@@ -3,7 +3,7 @@ const Config = require('../models/Config')
 const User = require('../models/User')
 const Profile = require('../models/Profile')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, encryptPassword, comparePassword } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, encryptPassword, comparePassword, validatePassword } = require('../helpers/utils')
 const { createUserValidation, updateUserValidation } = require('../middleware/validations/userValidation')
 
 exports.index = (req, res) => {
@@ -115,6 +115,8 @@ exports.update = async (req, res) => {
 
     try {
         if (body.password !== '') {
+            if (body.password.length < 7) return response.failure(422, { msg: 'Password must be at least 7 characters!' }, res)
+            if (!validatePassword(body.password)) return response.failure(422, { msg: 'Strong password is required!' }, res)
             body.password = await encryptPassword(body.password)
         } else {
             delete body.password
