@@ -12,6 +12,10 @@ module.exports = utils = {
     comparePassword: (plainPassword, encryptedPassword) => {
         return bcrypt.compare(plainPassword, encryptedPassword)
     },
+    validatePassword: (password) => {
+        let passwordComplexity = new RegExp('(?=.*[a-z])(?=.*[0-9])(?=.{7,})')
+        return passwordComplexity.test(password)
+    },
     extractJoiErrors: (error) => {
         const messages = []
         error.details?.forEach(error => {
