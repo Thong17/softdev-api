@@ -158,6 +158,11 @@ module.exports = utils = {
         let orderStocks = []
 
         const stocks = await ProductStock.find(filter)
+        const allStocks = await ProductStock.find({ product })
+        let totalAllStock = 0
+        allStocks.forEach(stock => {
+            totalAllStock += stock.quantity
+        })
 
         if (transactionStocks) {
             stocks.sort((first, second) => {
@@ -174,7 +179,14 @@ module.exports = utils = {
         stocks.forEach(stock => {
             totalStock += stock.quantity
         })
-        if (totalStock < orderQuantity) return { isValid: false, msg: 'Product quantity has exceed our current stock' }
+        if (totalStock < orderQuantity) {
+            for (let index = 0; index < transactionStocks.length; index++) {
+                const transactionStock = transactionStocks[index]
+                const stock = await ProductStock.findById(transactionStock.id)
+                await ProductStock.findByIdAndUpdate(transactionStock.id, { quantity: stock.quantity - transactionStock.quantity })
+            }
+            return { isValid: false, msg: 'Product quantity has exceed our current stock' }
+        }
 
         for (let index = 0; index < stocks.length; index++) {
             const stock = stocks[index]
@@ -186,17 +198,19 @@ module.exports = utils = {
                 orderStocks.push({ id: stock._id, quantity: stock.quantity })
                 stockCosts.push({ cost: stock.cost * stock.quantity, currency: stock.currency })
                 orderQuantity -= stock.quantity
+                totalAllStock -= stock.quantity
                 remainQuantity = 0
             } else {
                 orderStocks.push({ id: stock._id, quantity: orderQuantity })
                 stockCosts.push({ cost: stock.cost * orderQuantity, currency: stock.currency })
                 remainQuantity -= orderQuantity
+                totalAllStock -= orderQuantity
                 orderQuantity = 0
             }
             
             await ProductStock.findByIdAndUpdate(stock._id, { quantity: remainQuantity, transactions: [...stock.transactions, transactionId] })
         }
-        return { isValid: true, transactionId, orderStocks, stockCosts }
+        return { isValid: true, transactionId, orderStocks, stockCosts, stockRemain: { totalAllStock, productId: product } }
     },
 
     checkProductStock: async (stockId, quantity) => {
@@ -239,12 +253,14 @@ module.exports = utils = {
         return new Promise(async (resolve, reject) => {
             if (!stocks) reject({ msg: responseMsg.failureMsg.trouble, code: 422 })
             try {
+                let totalAllStock = 0
                 for (let index = 0; index < stocks.length; index++) {
                     const transactionStock = stocks[index]
                     const stock = await ProductStock.findById(transactionStock.id)
-                    await ProductStock.findByIdAndUpdate(transactionStock.id, { quantity: stock.quantity + transactionStock.quantity })
+                    const updatedStock = await ProductStock.findByIdAndUpdate(transactionStock.id, { quantity: stock.quantity + transactionStock.quantity }, { new: true })
+                    totalAllStock += updatedStock.quantity
                 }
-                resolve()
+                resolve({ totalAllStock })
             } catch (err) {
                 reject({ msg: responseMsg.failureMsg.trouble, code: 422 })
             }
