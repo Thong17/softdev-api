@@ -28,6 +28,22 @@ exports.privilege = {
             route: 'menu',
             action: 'reservation'
         },
+        stock: {
+            route: 'menu',
+            action: 'stock'
+        },
+        category: {
+            route: 'menu',
+            action: 'category'
+        },
+        brand: {
+            route: 'menu',
+            action: 'brand'
+        },
+        product: {
+            route: 'menu',
+            action: 'product'
+        },
     },
     operation: {
         cashing: {

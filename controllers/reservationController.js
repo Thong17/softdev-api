@@ -47,7 +47,7 @@ exports.detail = async (req, res) => {
     Reservation.findById(req.params.id, (err, reservation) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: reservation }, res)
-    }).populate({ path: 'payment', populate: [{ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' }}}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] }).populate('customer', 'displayName point')
+    }).populate({ path: 'payment', populate: [{ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' }}}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] }).populate('customer', 'displayName point').populate('structures')
 }
 
 exports.create = async (req, res) => {
@@ -132,7 +132,7 @@ exports.checkIn = async (req, res) => {
             structure.save()
         }
 
-        const data = await reservation.populate([{ path: 'payment', populate: [{ path: 'transactions' }, { path: 'createdBy' }] }, { path: 'customer', select: 'displayName point' }])
+        const data = await reservation.populate([{ path: 'payment', populate: [{ path: 'transactions' }, { path: 'createdBy' }] }, { path: 'customer', select: 'displayName point' }, { path: 'structures' }])
         response.success(200, { msg: 'Reservation has checked in successfully', data }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -155,7 +155,7 @@ exports.checkOut = async (req, res) => {
             structure.save()
         }
 
-        const data = await reservation.populate({ path: 'payment', populate: [{ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' }}}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] })
+        const data = await reservation.populate([{ path: 'payment', populate: [{ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' }}}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] }, { path: 'structures' }])
         response.success(200, { msg: 'Reservation has checked out successfully', data }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -166,15 +166,17 @@ exports.update = async (req, res) => {
     const body = req.body
 
     try {
-        Reservation.findByIdAndUpdate(req.params.id, body, (err, reservation) => {
-            if (err) {
-                switch (err.code) {
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
-            }
-
+        Reservation.findByIdAndUpdate(req.params.id, body, async (err, reservation) => {
+            if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!reservation) return response.failure(422, { msg: 'No reservation updated!' }, res, err)
+
+            const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } })
+            for (let i = 0; i < structures.length; i++) {
+                const structure = structures[i]
+                structure.reservations.push(reservation._id)
+                structure.status = 'reserved'
+                structure.save()
+            }
             response.success(200, { msg: 'Reservation has updated successfully', data: reservation }, res)
         })
     } catch (err) {

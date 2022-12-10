@@ -61,7 +61,7 @@ exports.layout = async (req, res) => {
     StoreFloor.findById(id, (err, layout) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: layout }, res)
-    }).populate({ path: 'structures', populate: [{ path: 'floor', select: 'floor' }, { path: 'reservations', match: { isCompleted: false } }] })
+    }).populate({ path: 'structures', populate: [{ path: 'floor', select: 'floor' }, { path: 'reservations', populate: { path: 'customer', populate: { path: 'picture' } }, match: { isCompleted: false } }] })
 }
 
 exports.create = async (req, res) => {
