@@ -46,7 +46,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        const { isValid, transactionId, orderStocks, stockCosts, msg } = await determineProductStock(body.product, body.color, body.options, body.quantity, null)
+        const { isValid, transactionId, orderStocks, stockCosts, stockRemain, msg } = await determineProductStock(body.product, body.color, body.options, body.quantity, null)
         if (!isValid) return response.failure(422, { msg }, res)
 
         if (body.promotion) {
@@ -78,7 +78,7 @@ exports.create = async (req, res) => {
 
             if (!transaction) return response.failure(422, { msg: 'No transaction created!' }, res, err)
             const data = await transaction.populate({ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } })
-            response.success(200, { msg: 'Transaction has created successfully', data }, res)
+            response.success(200, { msg: 'Transaction has created successfully', data, stockRemain }, res)
         })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -143,7 +143,7 @@ exports.update = async (req, res) => {
         reverseProductStock(transaction?.stocks)
             .then(async () => {
                 try {
-                    const { isValid, orderStocks, stockCosts, msg } = await determineProductStock(transaction.product, transaction.color, transaction.options, body.quantity, transaction?.stocks)
+                    const { isValid, orderStocks, stockCosts, stockRemain, msg } = await determineProductStock(transaction.product, transaction.color, transaction.options, body.quantity, transaction?.stocks)
                     if (!isValid) return response.failure(422, { msg }, res)
 
                     body.stocks = orderStocks
@@ -161,7 +161,99 @@ exports.update = async (req, res) => {
             
                         if (!transaction) return response.failure(422, { msg: 'No transaction updated!' }, res, err)
                         const data = await transaction.populate({ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } })
-                        response.success(200, { msg: 'Transaction has updated successfully', data }, res)
+                        response.success(200, { msg: 'Transaction has updated successfully', data, stockRemain }, res)
+                    })
+                } catch (err) {
+                    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+                }
+            })
+            .catch((err) => {
+                return response.failure(err.code, { msg: err.msg }, res, err)
+            })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.increaseQuantity = async (req, res) => {
+    try {
+        const id = req.params.id
+        const transaction = await Transaction.findById(id)
+        if (transaction.status) return response.failure(422, { msg: 'Transaction has already completed' }, res)
+
+        reverseProductStock(transaction?.stocks)
+            .then(async () => {
+                try {
+                    const increasedQty = transaction.quantity + 1
+                    const { isValid, orderStocks, stockCosts, stockRemain, msg } = await determineProductStock(transaction.product, transaction.color, transaction.options, increasedQty, transaction?.stocks)
+                    if (!isValid) return response.failure(422, { msg }, res)
+
+                    const body ={
+                        stocks: orderStocks,
+                        stockCosts: stockCosts,
+                        quantity: increasedQty
+                    }
+
+                    const { total, currency } = calculatePromotion(
+                        { total: transaction.price * increasedQty, currency: transaction.currency }, 
+                        { value: transaction.discount.value, type: transaction.discount.currency, isFixed: transaction.discount.isFixed }, 
+                        { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
+                    )
+                    body.total = { value: total, currency }
+
+                    Transaction.findByIdAndUpdate(req.params.id, body, { new: true }, async (err, transaction) => {
+                        if (err) return response.failure(422, { msg: err.message }, res, err)
+            
+                        if (!transaction) return response.failure(422, { msg: 'No transaction updated!' }, res, err)
+                        const data = await transaction.populate({ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } })
+                        response.success(200, { msg: 'Transaction has updated successfully', data, stockRemain }, res)
+                    })
+                } catch (err) {
+                    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+                }
+            })
+            .catch((err) => {
+                return response.failure(err.code, { msg: err.msg }, res, err)
+            })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.decreaseQuantity = async (req, res) => {
+    try {
+        const id = req.params.id
+        const transaction = await Transaction.findById(id)
+        if (transaction.status) return response.failure(422, { msg: 'Transaction has already completed' }, res)
+
+        const decreasedQty = transaction.quantity - 1
+        if (decreasedQty <= 0) return response.failure(422, { msg: 'Quantity must be greater than zero!' }, res)
+
+        reverseProductStock(transaction?.stocks)
+            .then(async () => {
+                try {
+                    const { isValid, orderStocks, stockCosts, stockRemain, msg } = await determineProductStock(transaction.product, transaction.color, transaction.options, decreasedQty, transaction?.stocks)
+                    if (!isValid) return response.failure(422, { msg }, res)
+
+                    const body ={
+                        stocks: orderStocks,
+                        stockCosts: stockCosts,
+                        quantity: decreasedQty
+                    }
+
+                    const { total, currency } = calculatePromotion(
+                        { total: transaction.price * decreasedQty, currency: transaction.currency }, 
+                        { value: transaction.discount.value, type: transaction.discount.currency, isFixed: transaction.discount.isFixed }, 
+                        { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
+                    )
+                    body.total = { value: total, currency }
+
+                    Transaction.findByIdAndUpdate(req.params.id, body, { new: true }, async (err, transaction) => {
+                        if (err) return response.failure(422, { msg: err.message }, res, err)
+            
+                        if (!transaction) return response.failure(422, { msg: 'No transaction updated!' }, res, err)
+                        const data = await transaction.populate({ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } })
+                        response.success(200, { msg: 'Transaction has updated successfully', data, stockRemain }, res)
                     })
                 } catch (err) {
                     return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -181,10 +273,10 @@ exports.remove = async (req, res) => {
         const transaction = await Transaction.findById(id)
         
         reverseProductStock(transaction?.stocks)
-            .then(async () => {
+            .then(async ({ totalAllStock }) => {
                 try {
                     await Transaction.findByIdAndDelete(id)
-                    response.success(200, { msg: 'Transaction has reversed successfully', data: transaction }, res)
+                    response.success(200, { msg: 'Transaction has reversed successfully', data: transaction, stockRemain: { totalAllStock, productId: transaction.product } }, res)
                 } catch (err) {
                     return response.failure(422, { msg: failureMsg.trouble }, res, err)
                 }
