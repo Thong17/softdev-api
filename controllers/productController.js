@@ -273,6 +273,7 @@ exports.batch = async (req, res) => {
         product.options = JSON.parse(product.options || '[]')
         product.properties = JSON.parse(product.properties || '[]')
         product.colors = JSON.parse(product.colors || '[]')
+        product.tags = `${JSON.stringify(product.name)}${product.description || ''}${product.code || ''}`.replace(/ /g,'')
     })
 
     Product.insertMany(products)
