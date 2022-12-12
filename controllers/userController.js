@@ -3,7 +3,7 @@ const Config = require('../models/Config')
 const User = require('../models/User')
 const Profile = require('../models/Profile')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, encryptPassword, comparePassword, validatePassword } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, encryptPassword, comparePassword, validatePassword, sendMessageTelegram } = require('../helpers/utils')
 const { createUserValidation, updateUserValidation } = require('../middleware/validations/userValidation')
 
 exports.index = (req, res) => {
@@ -26,6 +26,7 @@ exports.index = (req, res) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         const totalCount = await User.count({ isDisabled: false })
+        sendMessageTelegram('User has been fetched')
         return response.success(200, { data: users, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)

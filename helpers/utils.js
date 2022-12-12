@@ -358,4 +358,16 @@ module.exports = utils = {
             resolve({ remainCash: -returnCash, returnCashes, cashes: sortedCashes })
         })
     },
+    sendMessageTelegram: async (text) => {
+        const axios = require('axios')
+        const { TELEGRAM_API_URL, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID } = process.env
+        axios.post(`${TELEGRAM_API_URL}${TELEGRAM_TOKEN}/sendMessage`, 
+            { 
+                chat_id: TELEGRAM_CHAT_ID,
+                text
+            }
+        )
+            .then(res => console.log(res))
+            .catch(err => console.error(err))
+    }
 }
