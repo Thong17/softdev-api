@@ -26,7 +26,7 @@ exports.index = (req, res) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         const totalCount = await User.count({ isDisabled: false })
-        sendMessageTelegram('User has been fetched')
+        // sendMessageTelegram('User has been fetched')
         return response.success(200, { data: users, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -191,12 +191,13 @@ exports.profile = (req, res) => {
     const user = {
         id: req.user?.id,
         username: req.user?.username,
-        privilege: req.user?.role.privilege,
+        privilege: req.user?.role?.privilege,
         photo: req.user?.profile?.photo?.filename,
         theme: req.user?.config?.theme,
         language: req.user?.config?.language,
         favorites: req.user?.favorites,
-        drawer: req.user?.drawer
+        drawer: req.user?.drawer,
+        isDefault: req.user?.isDefault
     }
     return response.success(200, { user }, res)
 }

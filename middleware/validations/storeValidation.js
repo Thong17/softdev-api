@@ -22,8 +22,15 @@ const transferValidation = Joi.object({
     image: Joi.any().optional(),
 })
 
+const updateTelegramSettingValidation = Joi.object({
+    telegramAPIKey: Joi.string().required(),
+    telegramChatID: Joi.string().required(),
+    telegramPrivilege: Joi.object().required(),
+})
+
 module.exports = {
     createStoreValidation,
     createFloorValidation,
-    transferValidation
+    transferValidation,
+    updateTelegramSettingValidation
 }

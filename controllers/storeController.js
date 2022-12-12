@@ -1,11 +1,12 @@
 const Store = require('../models/Store')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel } = require('../helpers/utils')
-const { createStoreValidation, createFloorValidation, transferValidation } = require('../middleware/validations/storeValidation')
+const { extractJoiErrors, readExcel, sendMessageTelegram } = require('../helpers/utils')
+const { createStoreValidation, createFloorValidation, transferValidation, updateTelegramSettingValidation } = require('../middleware/validations/storeValidation')
 const StoreFloor = require('../models/StoreFloor')
 const Transfer = require('../models/Transfer')
 const StoreStructure = require('../models/StoreStructure')
+const StoreSetting = require('../models/StoreSetting')
 
 exports.index = async (req, res) => {
     try {
@@ -298,6 +299,41 @@ exports.batch = async (req, res) => {
             })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res)
+    }
+}
+
+exports.getTelegramSetting = async (req, res) => {
+    try {
+        const setting = await StoreSetting.findOne()
+        if (!setting) return response.success(200, { data: await StoreSetting.create({}) }, res)
+
+        return response.success(200, { data: { telegramAPIKey: setting.telegramAPIKey, telegramChatID: setting.telegramChatID, telegramPrivilege: setting.telegramPrivilege } }, res)
+    } catch (err) {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.updateTelegramSetting = async (req, res) => {
+    const body = req.body
+    const { error } = updateTelegramSettingValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        sendMessageTelegram({ text: 'Bot has been connected', token: body.telegramAPIKey, chatId: body.telegramChatID })
+            .then(() => {
+                StoreSetting.findOneAndUpdate({}, body, { upsert: true, new: true, setDefaultsOnInsert: true }, (err, setting) => {
+                    if (err) return response.failure(422, { msg: err.message }, res, err)
+        
+                    if (!setting) return response.failure(422, { msg: 'No setting update!' }, res, err)
+                    response.success(200, { msg: 'Setting has updated successfully', data: setting }, res)
+                })
+            })
+            .catch((err) => {
+                return response.failure(err?.response?.data?.error_code, { msg: 'Cannot connect to telegram bot' }, res, err)
+            })
+        
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
 
