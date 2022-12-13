@@ -136,7 +136,16 @@ exports.checkout = async (req, res) => {
                     customer.point = customer.point + paymentPoint
                     customer.save()
                 }
-
+                const storeConfig = await StoreSetting.findOne()
+                if (storeConfig && storeConfig.telegramPrivilege.SENT_AFTER_PAYMENT) {
+                    const text = `
+                            User: ${req.user?.username} has checkout payment ${data.invoice}
+                            Total: ${data.total.value} ${data.total.currency}
+                            Payment Method: ${data.paymentMethod}
+                        `
+                    sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+                }
+                
                 response.success(200, { msg: 'Payment has checked out successfully', data }, res)
             })
             .catch(err => response.failure(err.code, { msg: err.msg }, res, err))

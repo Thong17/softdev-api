@@ -329,7 +329,7 @@ exports.updateTelegramSetting = async (req, res) => {
                 })
             })
             .catch((err) => {
-                return response.failure(err?.response?.data?.error_code, { msg: 'Cannot connect to telegram bot' }, res, err)
+                return response.failure(err?.response?.data?.error_code || 422, { msg: 'Cannot connect to telegram bot' }, res, err)
             })
         
     } catch (err) {
