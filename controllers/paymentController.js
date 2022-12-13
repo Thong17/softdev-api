@@ -1,12 +1,14 @@
 const Drawer = require('../models/Drawer')
 const Payment = require('../models/Payment')
 const Transaction = require('../models/Transaction')
+const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes, sendMessageTelegram } = require('../helpers/utils')
 const { createPaymentValidation, checkoutPaymentValidation } = require('../middleware/validations/paymentValidation')
 const Reservation = require('../models/Reservation')
 const Customer = require('../models/Customer')
+const moment = require('moment')
 
 
 exports.index = async (req, res) => {
@@ -118,6 +120,7 @@ exports.checkout = async (req, res) => {
     try {
         const id = req.params.id
         const payment = await Payment.findById(id).populate('drawer').populate('transactions')
+        if (payment.status) return response.failure(422, { msg: 'Payment has already checked out' }, res)
 
         calculateReturnCashes(payment?.drawer?.cashes, body.remainTotal, payment.rate)
             .then(async ({ cashes, returnCashes }) => {
@@ -138,10 +141,12 @@ exports.checkout = async (req, res) => {
                 }
                 const storeConfig = await StoreSetting.findOne()
                 if (storeConfig && storeConfig.telegramPrivilege.SENT_AFTER_PAYMENT) {
-                    const text = `
-                            User: ${req.user?.username} has checkout payment ${data.invoice}
-                            Total: ${data.total.value} ${data.total.currency}
-                            Payment Method: ${data.paymentMethod}
+                    const text = `New Payment On ${moment(data.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                        🧾Invoice: ${data.invoice}
+                        💵Subtotal: ${data.subtotal.BOTH} USD
+                        💵Total: ${data.total.value} ${data.total.currency}
+                        👝Payment Method: ${data.paymentMethod || 'default'}
+                        👱‍♂️By: ${req.user?.username}
                         `
                     sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
                 }
