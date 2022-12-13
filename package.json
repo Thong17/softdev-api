@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/Thong17/SoftDev-V2#readme",
   "dependencies": {
+    "axios": "^1.2.1",
     "bcrypt": "^5.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",

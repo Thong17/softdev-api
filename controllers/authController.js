@@ -15,14 +15,15 @@ exports.login = async (req, res) => {
             if (err) return response.failure(err.code, { msg: err.msg }, res, err)
 
             const user = {
-                id: data.user.id,
-                username: data.user.username,
-                privilege: data.user.role.privilege,
-                photo: data.user.profile?.photo?.filename,
-                theme: data.user.config?.theme,
-                language: data.user.config?.language,
-                favorites: data.user.favorites,
-                drawer: data.user.drawer
+                id: data.user?.id,
+                username: data.user?.username,
+                privilege: data.user?.role?.privilege,
+                photo: data.user?.profile?.photo?.filename,
+                theme: data.user?.config?.theme,
+                language: data.user?.config?.language,
+                favorites: data.user?.favorites,
+                drawer: data.user?.drawer,
+                isDefault: data.user?.isDefault
             }
             response.success(200, { accessToken: data.token, user }, res)
         })

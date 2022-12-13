@@ -190,12 +190,13 @@ exports.profile = (req, res) => {
     const user = {
         id: req.user?.id,
         username: req.user?.username,
-        privilege: req.user?.role.privilege,
+        privilege: req.user?.role?.privilege,
         photo: req.user?.profile?.photo?.filename,
         theme: req.user?.config?.theme,
         language: req.user?.config?.language,
         favorites: req.user?.favorites,
-        drawer: req.user?.drawer
+        drawer: req.user?.drawer,
+        isDefault: req.user?.isDefault
     }
     return response.success(200, { user }, res)
 }
