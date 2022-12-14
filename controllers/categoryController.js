@@ -11,7 +11,7 @@ exports.index = async (req, res) => {
     const search = req.query.search?.replace(/ /g,'')
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
-    const sort = req.query.sort || 'asc'
+    const sort = req.query.sort || 'desc'
 
     let filterObj = { [filter]: sort }
     let query = {}
@@ -24,7 +24,7 @@ exports.index = async (req, res) => {
     Category.find({ isDeleted: false, ...query }, async (err, categories) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Category.count({ isDisabled: false })
+        const totalCount = await Category.count({ isDeleted: false })
         return response.success(200, { data: categories, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
