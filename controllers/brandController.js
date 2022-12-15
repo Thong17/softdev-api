@@ -137,11 +137,15 @@ exports._import = async (req, res) => {
 
 exports.batch = async (req, res) => {
     try {
-        const brands = req.body
+        const brands = req.body.data
+        const languages = req.body.languages
 
         brands.forEach(brand => {
-            brand.name = JSON.parse(brand.name)
-            brand.icon = JSON.parse(brand.icon)
+            let name = {}
+            languages.forEach(lang => {
+                name[lang] = brand[`name${lang}`]
+            })
+            brand.name = name
         })
 
         Brand.insertMany(brands)
