@@ -57,14 +57,14 @@ module.exports = utils = {
         if (!date1 && !date2) return false
         return date1 > date2
     },
-    readExcel: (buffer, field) => {
+    readExcel: (buffer, field, languages = []) => {
         const xlsx = require('xlsx')
         const ObjectId = mongoose.Types.ObjectId
         return new Promise((resolve, reject) => {
             try {
                 const fields = field.split(',')
                 const workbook = xlsx.read(buffer, { type: 'buffer' })
-                const json = xlsx.utils.sheet_to_json(workbook.Sheets?.['Sheet1'] || {})
+                const json = xlsx.utils.sheet_to_json(workbook.Sheets?.['WORKSHEET'] || {})
                 const data = []
                 let no = 0
                 json.forEach(row => {
@@ -72,8 +72,8 @@ module.exports = utils = {
                     no++
                     fields.forEach(column => {
                         let value = row?.[column]
-                        if (!value) return
-                        if (column === '_id') value = new ObjectId(value)
+                        if (value === undefined) return
+                        if (column === 'ID') value = new ObjectId(value)
 
                         obj = {
                             ...obj,
@@ -81,7 +81,7 @@ module.exports = utils = {
                             [column]: value
                         }
                     })
-                    Object.keys(obj).length > 0 && data.push(obj) 
+                    Object.keys(obj).length > 0 && data.push(obj)
                 })
                 if (data.length === 0) reject({ msg: 'Invalid excel format!', code: 422 })
                 resolve(data)

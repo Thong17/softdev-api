@@ -15,7 +15,7 @@ exports.failure = (code, data, res, error) => {
         ...data
     }
     error && console.error(error)
-    res.status(code)
+    res.status(code || 500)
     res.json(result)
 }
 
