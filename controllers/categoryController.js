@@ -1,9 +1,11 @@
 const Category = require('../models/Category')
-const { default: mongoose } = require('mongoose')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createCategoryValidation } = require('../middleware/validations/categoryValidation')
+const { Workbook } = require('exceljs')
+const { worksheetOption } = require('../configs/excel')
+const moment = require('moment')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
@@ -128,8 +130,137 @@ exports.disable = async (req, res) => {
 
 exports._import = async (req, res) => {
     try {
-        const categories = await readExcel(req.file.buffer, req.body.fields)
-        response.success(200, { msg: 'List has been previewed', data: categories }, res)
+        const languages = JSON.parse(req.body.languages)
+        const categories = await readExcel(req.file.buffer, req.body.fields, languages)
+
+        const data = []
+        categories.forEach(category => {
+            const mapName = {}
+            languages.forEach(lang => {
+                mapName[lang] = category[`NAME_${lang}`.toUpperCase()] || ''
+            })
+            data.push({
+                no: category.no,
+                _id: category.ID,
+                status: category.STATUS,
+                description: category.DESCRIPTION,
+                tags: category.TAGS || '',
+                name: mapName
+            }) 
+        })
+        response.success(200, { msg: 'List has been previewed', data }, res)
+    } catch (err) {
+        return response.failure(err.code, { msg: err.msg }, res)
+    }
+}
+
+exports._export = async (req, res) => {
+    try {
+        const search = req.query.search?.replace(/ /g,'')
+        const field = req.query.field || 'tags'
+        const filter = req.query.filter || 'createdAt'
+        const sort = req.query.sort || 'desc'
+        let filterObj = { [filter]: sort }
+        let query = {}
+        if (search) {
+            query[field] = {
+                $regex: new RegExp(search, 'i')
+            }
+        }
+        const categories = await Category.find({ isDeleted: false, ...query }).sort(filterObj)
+
+        // Map Excel
+        const workbook = new Workbook()
+        const worksheet = workbook.addWorksheet(`worksheet`.toUpperCase(), worksheetOption)
+        const languages = req.body.languages
+        worksheet.columns = [
+            { 
+                key: 'no', 
+                width: 5,  
+                style: {
+                    alignment: {
+                        vertical:'middle',
+                        horizontal:'center'
+                    }
+                }
+            },
+            { 
+                key: 'id', 
+                width: 27,
+            },
+            ...languages.map(lang => ({ 
+                key: `name${lang}`, 
+                width: 35,
+            })),
+            { 
+                key: 'status', 
+                width: 10,
+            },
+            { 
+                key: 'description', 
+                width: 45,
+            }, 
+            { 
+                key: 'tags', 
+                width: 55,
+            },
+        ]
+        let headerData = { no: 'NO', id: 'ID', status: 'STATUS', description: 'DESCRIPTION', tags: 'TAGS' }
+        languages.forEach(lang => {
+            headerData[`name${lang}`] = `Name_${lang}`.toUpperCase()
+        })
+        const header = worksheet.addRow(headerData)
+        header.height = 23
+        header.eachCell((cell) => {
+            cell.style = {
+                font: {
+                    bold: true,
+                    color: { argb: '000000' },
+                    size: 11,
+                },
+                fill:{
+                    fgColor: { argb: 'DDDDDD' } ,
+                    pattern: 'solid',
+                    type: 'pattern' 
+                },
+                alignment: {
+                    vertical:'middle',
+                    horizontal:'left'
+                }
+            }
+            if (['no'].includes(cell._column._key)) {
+                cell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' }
+            }
+        })
+
+        // Freeze row
+        worksheet.views = [{ state: 'frozen', ySplit: 1 }]
+
+        // Body
+        for (const index in categories) {
+            if (Object.hasOwnProperty.call(categories, index)) {
+                const category = categories[index];
+                let rowData = { 
+                    no: parseInt(index) + 1, 
+                    id: category.id,
+                    status: category.status,
+                    description: category.description,
+                    tags: category.tags,
+                }
+                languages.forEach(lang => {
+                    rowData[`name${lang}`] = category.name[lang] || ''
+                })
+                worksheet.addRow(rowData)
+            }
+        }
+
+        const now = moment().format('YYYY-MM-DD HH:mm:ss')
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        res.setHeader('Content-Disposition', `attachment; filename=CATEGORY_${now}.xlsx`)
+
+        const file = await workbook.xlsx.writeBuffer()
+
+        return response.success(200, { file, name: `CATEGORY_${now}.xlsx` }, res)
     } catch (err) {
         return response.failure(err.code, { msg: err.msg }, res)
     }
@@ -138,11 +269,6 @@ exports._import = async (req, res) => {
 exports.batch = async (req, res) => {
     try {
         const categories = req.body
-
-        categories.forEach(category => {
-            category.name = JSON.parse(category.name)
-            category.icon = JSON.parse(category.icon)
-        })
 
         Category.insertMany(categories)
             .then(data => {

@@ -1,9 +1,11 @@
 const Brand = require('../models/Brand')
-const { default: mongoose } = require('mongoose')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createBrandValidation } = require('../middleware/validations/brandValidation')
+const { Workbook } = require('exceljs')
+const { worksheetOption } = require('../configs/excel')
+const moment = require('moment')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
@@ -21,11 +23,11 @@ exports.index = async (req, res) => {
         }
     }
     
-    Brand.find({ isDeleted: false, ...query }, async (err, categories) => {
+    Brand.find({ isDeleted: false, ...query }, async (err, brands) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         const totalCount = await Brand.count({ isDeleted: false })
-        return response.success(200, { data: categories, length: totalCount }, res)
+        return response.success(200, { data: brands, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
@@ -128,8 +130,138 @@ exports.disable = async (req, res) => {
 
 exports._import = async (req, res) => {
     try {
-        const brands = await readExcel(req.file.buffer, req.body.fields)
-        response.success(200, { msg: 'List has been previewed', data: brands }, res)
+        const languages = JSON.parse(req.body.languages)
+        const brands = await readExcel(req.file.buffer, req.body.fields, languages)
+
+        const data = []
+        brands.forEach(brand => {
+            const mapName = {}
+            languages.forEach(lang => {
+                mapName[lang] = brand[`NAME_${lang}`.toUpperCase()] || ''
+            })
+            data.push({
+                no: brand.no,
+                _id: brand.ID,
+                status: brand.STATUS,
+                description: brand.DESCRIPTION,
+                tags: brand.TAGS || '',
+                name: mapName
+            }) 
+        })
+
+        response.success(200, { msg: 'List has been previewed', data }, res)
+    } catch (err) {
+        return response.failure(err.code, { msg: err.msg }, res)
+    }
+}
+
+exports._export = async (req, res) => {
+    try {
+        const search = req.query.search?.replace(/ /g,'')
+        const field = req.query.field || 'tags'
+        const filter = req.query.filter || 'createdAt'
+        const sort = req.query.sort || 'desc'
+        let filterObj = { [filter]: sort }
+        let query = {}
+        if (search) {
+            query[field] = {
+                $regex: new RegExp(search, 'i')
+            }
+        }
+        const brands = await Brand.find({ isDeleted: false, ...query }).sort(filterObj)
+
+        // Map Excel
+        const workbook = new Workbook()
+        const worksheet = workbook.addWorksheet(`worksheet`.toUpperCase(), worksheetOption)
+        const languages = req.body.languages
+        worksheet.columns = [
+            { 
+                key: 'no', 
+                width: 5,  
+                style: {
+                    alignment: {
+                        vertical:'middle',
+                        horizontal:'center'
+                    }
+                }
+            },
+            { 
+                key: 'id', 
+                width: 27,
+            },
+            ...languages.map(lang => ({ 
+                key: `name${lang}`, 
+                width: 35,
+            })),
+            { 
+                key: 'status', 
+                width: 10,
+            },
+            { 
+                key: 'description', 
+                width: 45,
+            }, 
+            { 
+                key: 'tags', 
+                width: 55,
+            },
+        ]
+        let headerData = { no: 'NO', id: 'ID', status: 'STATUS', description: 'DESCRIPTION', tags: 'TAGS' }
+        languages.forEach(lang => {
+            headerData[`name${lang}`] = `Name_${lang}`.toUpperCase()
+        })
+        const header = worksheet.addRow(headerData)
+        header.height = 23
+        header.eachCell((cell) => {
+            cell.style = {
+                font: {
+                    bold: true,
+                    color: { argb: '000000' },
+                    size: 11,
+                },
+                fill:{
+                    fgColor: { argb: 'DDDDDD' } ,
+                    pattern: 'solid',
+                    type: 'pattern' 
+                },
+                alignment: {
+                    vertical:'middle',
+                    horizontal:'left'
+                }
+            }
+            if (['no'].includes(cell._column._key)) {
+                cell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' }
+            }
+        })
+
+        // Freeze row
+        worksheet.views = [{ state: 'frozen', ySplit: 1 }]
+
+        // Body
+        for (const index in brands) {
+            if (Object.hasOwnProperty.call(brands, index)) {
+                const brand = brands[index];
+                let rowData = { 
+                    no: parseInt(index) + 1, 
+                    id: brand.id,
+                    status: brand.status,
+                    description: brand.description,
+                    tags: brand.tags,
+                }
+                languages.forEach(lang => {
+                    rowData[`name${lang}`] = brand.name[lang] || ''
+                })
+                worksheet.addRow(rowData)
+            }
+        }
+
+        const now = moment().format('YYYY-MM-DD HH:mm:ss')
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        res.setHeader('Content-Disposition', `attachment; filename=BRAND_${now}.xlsx`)
+
+        const file = await workbook.xlsx.writeBuffer()
+
+        return response.success(200, { file, name: `BRAND_${now}.xlsx` }, res)
     } catch (err) {
         return response.failure(err.code, { msg: err.msg }, res)
     }
@@ -138,11 +270,6 @@ exports._import = async (req, res) => {
 exports.batch = async (req, res) => {
     try {
         const brands = req.body
-
-        brands.forEach(brand => {
-            brand.name = JSON.parse(brand.name)
-            brand.icon = JSON.parse(brand.icon)
-        })
 
         Brand.insertMany(brands)
             .then(data => {
