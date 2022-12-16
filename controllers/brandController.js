@@ -208,7 +208,7 @@ exports._export = async (req, res) => {
         ]
         let headerData = { no: 'NO', id: 'ID', status: 'STATUS', description: 'DESCRIPTION', tags: 'TAGS' }
         languages.forEach(lang => {
-            headerData[`name${lang}`] = `Name_${lang}`.toUpperCase()
+            headerData[`name${lang}`] = `NAME_${lang}`.toUpperCase()
         })
         const header = worksheet.addRow(headerData)
         header.height = 23
