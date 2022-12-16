@@ -44,7 +44,7 @@ exports.createStock = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductStock.create({...body, totalQuantity: body.quantity}, (err, stock) => {
+        ProductStock.create({...body, createdBy: req.user.id, totalQuantity: body.quantity}, (err, stock) => {
             if (err) {
                 switch (err.code) {
                     case 11000:

@@ -51,7 +51,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        PresetCash.create(body, (err, presetCash) => {
+        PresetCash.create({...body, createdBy: req.user.id}, (err, presetCash) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
