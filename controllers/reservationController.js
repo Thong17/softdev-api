@@ -57,7 +57,7 @@ exports.create = async (req, res) => {
 
     try {
         if (!body.startAt) delete body.startAt
-        Reservation.create(body, async (err, reservation) => {
+        Reservation.create({...body, createdBy: req.user.id}, async (err, reservation) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!reservation) return response.failure(422, { msg: 'No reservation created!' }, res, err)
 

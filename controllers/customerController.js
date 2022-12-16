@@ -64,7 +64,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Customer.create(body, async (err, customer) => {
+        Customer.create({...body, createdBy: req.user.id}, async (err, customer) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
