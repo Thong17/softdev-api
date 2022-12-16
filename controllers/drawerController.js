@@ -1,8 +1,8 @@
 const Drawer = require('../models/Drawer')
-const { default: mongoose } = require('mongoose')
+const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, sendMessageTelegram } = require('../helpers/utils')
 const { createDrawerValidation } = require('../middleware/validations/drawerValidation')
 const User = require('../models/User')
 
@@ -52,7 +52,7 @@ exports.open = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Drawer.create({ ...body, user: req.user._id }, (err, drawer) => {
+        Drawer.create({ ...body, user: req.user._id }, async (err, drawer) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -61,8 +61,24 @@ exports.open = async (req, res) => {
                         return response.failure(422, { msg: err.message }, res, err)
                 }
             }
-
             if (!drawer) return response.failure(422, { msg: 'No drawer created!' }, res, err)
+
+            // Send message to Telegram
+            const storeConfig = await StoreSetting.findOne()
+            if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_OPEN_DRAWER) {
+                let totalCashes = 0
+                drawer.cashes?.forEach(cash => {
+                    totalCashes += cash.currency === 'USD' ? cash.total : cash.total / drawer.buyRate
+                })
+                const text = `✅Open Drawer On ${moment(drawer.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                    💵Buy Rate: ${drawer.buyRate}
+                    💵Sell Rate: ${drawer.sellRate}
+                    💰Total Cash: ${totalCashes}
+                    👱‍♂️By: ${req.user?.username}
+                    `
+                sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+            }
+
             response.success(200, { msg: 'Drawer has created successfully', data: drawer }, res)
         })
     } catch (err) {
@@ -76,15 +92,27 @@ exports.save = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Drawer.findByIdAndUpdate(req.params.id, body, (err, drawer) => {
-            if (err) {
-                switch (err.code) {
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
+        Drawer.findByIdAndUpdate(req.params.id, body, async (err, drawer) => {
+            if (err) return response.failure(422, { msg: err.message }, res, err)
+            if (!drawer) return response.failure(422, { msg: 'No drawer updated!' }, res, err)
+
+            // Send message to Telegram
+            const storeConfig = await StoreSetting.findOne()
+            if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_OPEN_DRAWER) {
+                let totalCashes = 0
+                drawer.cashes?.forEach(cash => {
+                    const totalRemain = parseFloat(cash.cash) * cash.quantity
+                    totalCashes += cash.currency === 'USD' ? totalRemain : totalRemain / drawer.buyRate
+                })
+                const text = `❕Update Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD HH:mm:ss')}
+                    💵Buy Rate: ${drawer.buyRate}
+                    💵Sell Rate: ${drawer.sellRate}
+                    💰Total Cash: ${totalCashes}
+                    👱‍♂️By: ${req.user?.username}
+                    `
+                sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
             }
 
-            if (!drawer) return response.failure(422, { msg: 'No drawer updated!' }, res, err)
             response.success(200, { msg: 'Drawer has updated successfully', data: drawer }, res)
         })
     } catch (err) {
@@ -95,15 +123,27 @@ exports.save = async (req, res) => {
 exports.close = async (req, res) => {
     try {
         Drawer.findByIdAndUpdate(req.params.id, { status: false, endedAt: Date.now() }, async (err, drawer) => {
-            if (err) {
-                switch (err.code) {
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
-            }
+            if (err) return response.failure(422, { msg: err.message }, res, err)
             await User.findByIdAndUpdate(drawer.user, { drawer: null })
-
             if (!drawer) return response.failure(422, { msg: 'No drawer updated!' }, res, err)
+
+            // Send message to Telegram
+            const storeConfig = await StoreSetting.findOne()
+            if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_CLOSE_DRAWER) {
+                let totalCashes = 0
+                drawer.cashes?.forEach(cash => {
+                    const totalRemain = parseFloat(cash.cash) * cash.quantity
+                    totalCashes += cash.currency === 'USD' ? totalRemain : totalRemain / drawer.buyRate
+                })
+                const text = `⛔️Close Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD HH:mm:ss')}
+                    💵Buy Rate: ${drawer.buyRate}
+                    💵Sell Rate: ${drawer.sellRate}
+                    💰Total Cash: ${totalCashes}
+                    👱‍♂️By: ${req.user?.username}
+                    `
+                sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+            }
+
             response.success(200, { msg: 'Drawer has updated successfully', data: drawer }, res)
         })
     } catch (err) {
