@@ -25,7 +25,7 @@ exports.admin = async (req, res) => {
     roles.forEach((role) => {
       let privilege = 0
       totalPrivilege = 0
-      Object.keys(role.privilege)?.forEach((route) => {
+      Object.keys(role.privilege || {})?.forEach((route) => {
         Object.keys(role.privilege?.[route])?.forEach((action) => {
           if (role.privilege?.[route]?.[action]) privilege += 1
           totalPrivilege += 1

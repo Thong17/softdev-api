@@ -11,7 +11,9 @@ const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createProductValidation, createPropertyValidation, createOptionValidation, createColorValidation, createCustomerOptionValidation } = require('../middleware/validations/productValidation')
 const Category = require('../models/Category')
 const CustomerOption = require('../models/CustomerOption')
-
+const { Workbook } = require('exceljs')
+const { worksheetOption } = require('../configs/excel')
+const moment = require('moment')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit)
@@ -257,8 +259,178 @@ exports.disable = async (req, res) => {
 
 exports._import = async (req, res) => {
     try {
-        const products = await readExcel(req.file.buffer, req.body.fields)
-        response.success(200, { msg: 'List has been previewed', data: products }, res)
+        const languages = JSON.parse(req.body.languages)
+        const products = await readExcel(req.file.buffer, req.body.fields, languages)
+
+        const data = []
+
+        for (const product of products) {
+            const mapName = {}
+            languages.forEach(lang => {
+                mapName[lang] = product[`NAME_${lang}`.toUpperCase()] || ''
+            })
+
+            const brand = await Brand.findById(product.BRAND_ID)
+            const category = await Category.findById(product.CATEGORY_ID)
+            
+            data.push({
+                no: product.no,
+                _id: product.ID,
+                status: product.STATUS,
+                currency: product.CURRENCY,
+                code: product.CODE,
+                price: product.PRICE,
+                isStock: product.IS_STOCK,
+                brand,
+                category,
+                description: product.DESCRIPTION,
+                tags: product.TAGS || '',
+                name: mapName
+            })
+        }
+        response.success(200, { msg: 'List has been previewed', data }, res)
+    } catch (err) {
+        return response.failure(err.code, { msg: err.msg }, res)
+    }
+}
+
+exports._export = async (req, res) => {
+    try {
+        const search = req.query.search?.replace(/ /g,'')
+        const field = req.query.field || 'tags'
+        const filter = req.query.filter || 'createdAt'
+        const sort = req.query.sort || 'desc'
+        let filterObj = { [filter]: sort }
+        let query = {}
+        if (search) {
+            query[field] = {
+                $regex: new RegExp(search, 'i')
+            }
+        }
+        const products = await Product.find({ isDeleted: false, ...query }).sort(filterObj)
+
+        // Map Excel
+        const workbook = new Workbook()
+        const worksheet = workbook.addWorksheet(`worksheet`.toUpperCase(), worksheetOption)
+        const languages = req.body.languages
+        worksheet.columns = [
+            { 
+                key: 'no', 
+                width: 5,  
+                style: {
+                    alignment: {
+                        vertical:'middle',
+                        horizontal:'center'
+                    }
+                }
+            },
+            { 
+                key: 'id', 
+                width: 27,
+            },
+            ...languages.map(lang => ({ 
+                key: `name${lang}`, 
+                width: 35,
+            })),
+            { 
+                key: 'price', 
+                width: 10,
+            },
+            { 
+                key: 'currency', 
+                width: 10,
+            },
+            { 
+                key: 'code', 
+                width: 30,
+            },
+            { 
+                key: 'isStock', 
+                width: 10,
+            },
+            { 
+                key: 'status', 
+                width: 10,
+            },
+            { 
+                key: 'description', 
+                width: 45,
+            }, 
+            { 
+                key: 'tags', 
+                width: 55,
+            },
+            { 
+                key: 'category', 
+                width: 27,
+            },
+            { 
+                key: 'brand', 
+                width: 27,
+            },
+        ]
+        let headerData = { no: 'NO', id: 'ID', price: 'PRICE', currency: 'CURRENCY', code: 'CODE', isStock: 'IS_STOCK', status: 'STATUS', description: 'DESCRIPTION', tags: 'TAGS', category: 'CATEGORY_ID', brand: 'BRAND_ID' }
+        languages.forEach(lang => {
+            headerData[`name${lang}`] = `NAME_${lang}`.toUpperCase()
+        })
+        const header = worksheet.addRow(headerData)
+        header.height = 23
+        header.eachCell((cell) => {
+            cell.style = {
+                font: {
+                    bold: true,
+                    color: { argb: '000000' },
+                    size: 11,
+                },
+                fill:{
+                    fgColor: { argb: 'DDDDDD' } ,
+                    pattern: 'solid',
+                    type: 'pattern' 
+                },
+                alignment: {
+                    vertical:'middle',
+                    horizontal:'left'
+                }
+            }
+            if (['no'].includes(cell._column._key)) {
+                cell.alignment = { wrapText: true, vertical: 'middle', horizontal: 'center' }
+            }
+        })
+
+        // Freeze row
+        worksheet.views = [{ state: 'frozen', ySplit: 1 }]
+
+        // Body
+        for (const index in products) {
+            if (Object.hasOwnProperty.call(products, index)) {
+                const product = products[index];
+                let rowData = { 
+                    no: parseInt(index) + 1, 
+                    id: product.id,
+                    price: product.price,
+                    currency: product.currency,
+                    code: product.code,
+                    isStock: product.isStock,
+                    status: product.status,
+                    description: product.description,
+                    tags: product.tags,
+                    brand: product.brand?.toString(),
+                    category: product.category?.toString(),
+                }
+                languages.forEach(lang => {
+                    rowData[`name${lang}`] = product.name[lang] || ''
+                })
+                worksheet.addRow(rowData)
+            }
+        }
+
+        const now = moment().format('YYYY-MM-DD HH:mm:ss')
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        res.setHeader('Content-Disposition', `attachment; filename=PRODUCT_${now}.xlsx`)
+
+        const file = await workbook.xlsx.writeBuffer()
+
+        return response.success(200, { file, name: `PRODUCT_${now}.xlsx` }, res)
     } catch (err) {
         return response.failure(err.code, { msg: err.msg }, res)
     }
@@ -267,78 +439,9 @@ exports._import = async (req, res) => {
 exports.batch = async (req, res) => {
     const products = req.body
 
-    products.forEach(product => {
-        product.name = JSON.parse(product.name)
-        product.images = JSON.parse(product.images || '[]')
-        product.options = JSON.parse(product.options || '[]')
-        product.properties = JSON.parse(product.properties || '[]')
-        product.colors = JSON.parse(product.colors || '[]')
-        product.tags = `${JSON.stringify(product.name)}${product.description || ''}${product.code || ''}`.replace(/ /g,'')
-    })
-
     Product.insertMany(products)
         .then(data => {
             response.success(200, { msg: `${data.length} ${data.length > 1 ? 'products' : 'product'} has been inserted` }, res)
-        })
-        .catch(err => {
-            return response.failure(422, { msg: err.message }, res)
-        })
-}
-
-exports.batchImage = async (req, res) => {
-    const images = req.body
-
-    Image.insertMany(images)
-        .then(data => {
-            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'images' : 'image'} has been inserted` }, res)
-        })
-        .catch(err => {
-            return response.failure(422, { msg: err.message }, res)
-        })
-}
-
-exports.batchColor = async (req, res) => {
-    const colors = req.body
-
-    ProductColor.insertMany(colors)
-        .then(data => {
-            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'colors' : 'color'} has been inserted` }, res)
-        })
-        .catch(err => {
-            return response.failure(422, { msg: err.message }, res)
-        })
-}
-
-exports.batchCustomer = async (req, res) => {
-    const customers = req.body
-
-    CustomerOption.insertMany(customers)
-        .then(data => {
-            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'customers' : 'customer'} has been inserted` }, res)
-        })
-        .catch(err => {
-            return response.failure(422, { msg: err.message }, res)
-        })
-}
-
-exports.batchProperty = async (req, res) => {
-    const properties = req.body
-
-    ProductProperty.insertMany(properties)
-        .then(data => {
-            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'properties' : 'property'} has been inserted` }, res)
-        })
-        .catch(err => {
-            return response.failure(422, { msg: err.message }, res)
-        })
-}
-
-exports.batchOption = async (req, res) => {
-    const options = req.body
-
-    ProductOption.insertMany(options)
-        .then(data => {
-            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'options' : 'option'} has been inserted` }, res)
         })
         .catch(err => {
             return response.failure(422, { msg: err.message }, res)
