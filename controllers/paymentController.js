@@ -4,7 +4,7 @@ const Transaction = require('../models/Transaction')
 const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes, sendMessageTelegram } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes, sendMessageTelegram, currencyFormat } = require('../helpers/utils')
 const { createPaymentValidation, checkoutPaymentValidation } = require('../middleware/validations/paymentValidation')
 const Reservation = require('../models/Reservation')
 const Customer = require('../models/Customer')
@@ -144,8 +144,8 @@ exports.checkout = async (req, res) => {
                 if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
                     const text = `New Payment On ${moment(data.createdAt).format('YYYY-MM-DD')}
                         🧾Invoice: ${data.invoice}
-                        💵Subtotal: ${data.subtotal.BOTH} USD
-                        💵Total: ${data.total.value} ${data.total.currency}
+                        💵Subtotal: ${currencyFormat(data.subtotal.BOTH)} USD
+                        💵Total: ${currencyFormat(data.total.value)} ${data.total.currency}
                         👝Payment Method: ${data.paymentMethod || 'cash'}
                         👱‍♂️By: ${req.user?.username}
                         `

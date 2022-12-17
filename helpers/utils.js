@@ -57,6 +57,10 @@ module.exports = utils = {
         if (!date1 && !date2) return false
         return date1 > date2
     },
+    currencyFormat: (amount) => {
+        if (!amount) return 
+        return (amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')
+    },
     readExcel: (buffer, field, languages = []) => {
         const xlsx = require('xlsx')
         const ObjectId = mongoose.Types.ObjectId
