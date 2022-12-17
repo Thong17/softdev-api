@@ -10,7 +10,6 @@ const Reservation = require('../models/Reservation')
 const Customer = require('../models/Customer')
 const moment = require('moment')
 
-
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
     const page = parseInt(req.query.page) || 0
@@ -147,10 +146,11 @@ exports.checkout = async (req, res) => {
                         🧾Invoice: ${data.invoice}
                         💵Subtotal: ${data.subtotal.BOTH} USD
                         💵Total: ${data.total.value} ${data.total.currency}
-                        👝Payment Method: ${data.paymentMethod || 'default'}
+                        👝Payment Method: ${data.paymentMethod || 'cash'}
                         👱‍♂️By: ${req.user?.username}
                         `
                     sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+                        .catch(err => console.error(err))
                 }
                 
                 response.success(200, { msg: 'Payment has checked out successfully', data }, res)

@@ -5,6 +5,7 @@ const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel, sendMessageTelegram } = require('../helpers/utils')
 const { createDrawerValidation } = require('../middleware/validations/drawerValidation')
 const User = require('../models/User')
+const moment = require('moment')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
@@ -77,6 +78,7 @@ exports.open = async (req, res) => {
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+                    .catch(err => console.error(err))
             }
 
             response.success(200, { msg: 'Drawer has created successfully', data: drawer }, res)
@@ -111,6 +113,7 @@ exports.save = async (req, res) => {
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+                    .catch(err => console.error(err))
             }
 
             response.success(200, { msg: 'Drawer has updated successfully', data: drawer }, res)
@@ -142,6 +145,7 @@ exports.close = async (req, res) => {
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+                    .catch(err => console.error(err))
             }
 
             response.success(200, { msg: 'Drawer has updated successfully', data: drawer }, res)
