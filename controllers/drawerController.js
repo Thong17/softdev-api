@@ -2,7 +2,7 @@ const Drawer = require('../models/Drawer')
 const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, sendMessageTelegram } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, sendMessageTelegram, currencyFormat } = require('../helpers/utils')
 const { createDrawerValidation } = require('../middleware/validations/drawerValidation')
 const User = require('../models/User')
 const moment = require('moment')
@@ -77,10 +77,10 @@ exports.open = async (req, res) => {
                     }
                 })
                 const text = `✅Open Drawer On ${moment(drawer.createdAt).format('YYYY-MM-DD')}
-                    💵Buy Rate: ${drawer.buyRate}
-                    💵Sell Rate: ${drawer.sellRate}
-                    💰Total USD: ${totalCashUSD} USD
-                    💰Total KHR: ${totalCashKHR} KHR
+                    💵Buy Rate: ${currencyFormat(drawer.buyRate)}
+                    💵Sell Rate: ${currencyFormat(drawer.sellRate)}
+                    💰Total USD: ${currencyFormat(totalCashUSD)} USD
+                    💰Total KHR: ${currencyFormat(totalCashKHR)} KHR
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
@@ -118,10 +118,10 @@ exports.save = async (req, res) => {
                     }
                 })
                 const text = `❕Update Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD')}
-                    💵Buy Rate: ${drawer.buyRate}
-                    💵Sell Rate: ${drawer.sellRate}
-                    💰Total USD: ${totalCashUSD} USD
-                    💰Total KHR: ${totalCashKHR} KHR
+                    💵Buy Rate: ${currencyFormat(drawer.buyRate)}
+                    💵Sell Rate: ${currencyFormat(drawer.sellRate)}
+                    💰Total USD: ${currencyFormat(totalCashUSD)} USD
+                    💰Total KHR: ${currencyFormat(totalCashKHR)} KHR
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
@@ -156,10 +156,10 @@ exports.close = async (req, res) => {
                     }
                 })
                 const text = `⛔️Close Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD')}
-                    💵Buy Rate: ${drawer.buyRate}
-                    💵Sell Rate: ${drawer.sellRate}
-                    💰Total USD: ${totalCashUSD} USD
-                    💰Total KHR: ${totalCashKHR} KHR
+                    💵Buy Rate: ${currencyFormat(drawer.buyRate)}
+                    💵Sell Rate: ${currencyFormat(drawer.sellRate)}
+                    💰Total USD: ${currencyFormat(totalCashUSD)} USD
+                    💰Total KHR: ${currencyFormat(totalCashKHR)} KHR
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
