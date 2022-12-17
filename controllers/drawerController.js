@@ -67,14 +67,20 @@ exports.open = async (req, res) => {
             // Send message to Telegram
             const storeConfig = await StoreSetting.findOne()
             if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_OPEN_DRAWER) {
-                let totalCashes = 0
+                let totalCashUSD = 0
+                let totalCashKHR = 0
                 drawer.cashes?.forEach(cash => {
-                    totalCashes += cash.currency === 'USD' ? cash.total : cash.total / drawer.buyRate
+                    if (cash.currency === 'USD') {
+                        totalCashUSD += cash.total
+                    } else {
+                        totalCashKHR += cash.total
+                    }
                 })
                 const text = `✅Open Drawer On ${moment(drawer.createdAt).format('YYYY-MM-DD HH:mm:ss')}
                     💵Buy Rate: ${drawer.buyRate}
                     💵Sell Rate: ${drawer.sellRate}
-                    💰Total Cash: ${totalCashes}
+                    💰Total USD: ${totalCashUSD}
+                    💰Total KHR: ${totalCashKHR}
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
@@ -101,15 +107,21 @@ exports.save = async (req, res) => {
             // Send message to Telegram
             const storeConfig = await StoreSetting.findOne()
             if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_OPEN_DRAWER) {
-                let totalCashes = 0
+                let totalCashUSD = 0
+                let totalCashKHR = 0
                 drawer.cashes?.forEach(cash => {
                     const totalRemain = parseFloat(cash.cash) * cash.quantity
-                    totalCashes += cash.currency === 'USD' ? totalRemain : totalRemain / drawer.buyRate
+                    if (cash.currency === 'USD') {
+                        totalCashUSD += totalRemain
+                    } else {
+                        totalCashKHR += totalRemain
+                    }
                 })
                 const text = `❕Update Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD HH:mm:ss')}
                     💵Buy Rate: ${drawer.buyRate}
                     💵Sell Rate: ${drawer.sellRate}
-                    💰Total Cash: ${totalCashes}
+                    💰Total USD: ${totalCashUSD}
+                    💰Total KHR: ${totalCashKHR}
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
@@ -133,15 +145,21 @@ exports.close = async (req, res) => {
             // Send message to Telegram
             const storeConfig = await StoreSetting.findOne()
             if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_CLOSE_DRAWER) {
-                let totalCashes = 0
+                let totalCashUSD = 0
+                let totalCashKHR = 0
                 drawer.cashes?.forEach(cash => {
                     const totalRemain = parseFloat(cash.cash) * cash.quantity
-                    totalCashes += cash.currency === 'USD' ? totalRemain : totalRemain / drawer.buyRate
+                    if (cash.currency === 'USD') {
+                        totalCashUSD += totalRemain
+                    } else {
+                        totalCashKHR += totalRemain
+                    }
                 })
                 const text = `⛔️Close Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD HH:mm:ss')}
                     💵Buy Rate: ${drawer.buyRate}
                     💵Sell Rate: ${drawer.sellRate}
-                    💰Total Cash: ${totalCashes}
+                    💰Total USD: ${totalCashUSD}
+                    💰Total KHR: ${totalCashKHR}
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
