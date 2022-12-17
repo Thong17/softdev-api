@@ -142,7 +142,7 @@ exports.checkout = async (req, res) => {
                 // Send message to Telegram
                 const storeConfig = await StoreSetting.findOne()
                 if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
-                    const text = `New Payment On ${moment(data.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                    const text = `New Payment On ${moment(data.createdAt).format('YYYY-MM-DD')}
                         🧾Invoice: ${data.invoice}
                         💵Subtotal: ${data.subtotal.BOTH} USD
                         💵Total: ${data.total.value} ${data.total.currency}
