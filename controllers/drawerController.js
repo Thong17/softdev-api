@@ -76,7 +76,7 @@ exports.open = async (req, res) => {
                         totalCashKHR += cash.total
                     }
                 })
-                const text = `✅Open Drawer On ${moment(drawer.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                const text = `✅Open Drawer On ${moment(drawer.createdAt).format('YYYY-MM-DD')}
                     💵Buy Rate: ${drawer.buyRate}
                     💵Sell Rate: ${drawer.sellRate}
                     💰Total USD: ${totalCashUSD}
@@ -117,7 +117,7 @@ exports.save = async (req, res) => {
                         totalCashKHR += totalRemain
                     }
                 })
-                const text = `❕Update Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD HH:mm:ss')}
+                const text = `❕Update Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD')}
                     💵Buy Rate: ${drawer.buyRate}
                     💵Sell Rate: ${drawer.sellRate}
                     💰Total USD: ${totalCashUSD}
@@ -155,7 +155,7 @@ exports.close = async (req, res) => {
                         totalCashKHR += totalRemain
                     }
                 })
-                const text = `⛔️Close Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD HH:mm:ss')}
+                const text = `⛔️Close Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD')}
                     💵Buy Rate: ${drawer.buyRate}
                     💵Sell Rate: ${drawer.sellRate}
                     💰Total USD: ${totalCashUSD}
