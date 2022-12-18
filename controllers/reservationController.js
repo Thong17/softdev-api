@@ -92,13 +92,14 @@ exports.checkIn = async (req, res) => {
 
         // If the reservation price > 0
         let dataObj = {}
-        if (reservation.price.value > 0) {
+        const price = parseFloat(reservation.price.value)
+        if (price > 0) {
             const transaction = await Transaction.create({ 
                 description: 'Reservation price', 
-                price: reservation.price.value, 
+                price: price, 
                 currency: reservation.price.currency,
                 total: {
-                    value: reservation.price.value,
+                    value: price,
                     currency: reservation.price.currency
                 },
                 quantity: 1
