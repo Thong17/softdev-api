@@ -2,36 +2,22 @@ const mongoose = require('mongoose')
 
 const schema = mongoose.Schema(
     {
-        description: {
-            type: Object,
-        },
-        value: {
+        ticket: {
             type: Number,
             require: true
         },
-        type: {
-            type: String,
-            require: true
+        payment: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Payment'
         },
-        isFixed: {
+        isCompleted: {
             type: Boolean,
             default: false
-        },
-        startAt: {
-            type: Date,
-        },
-        expireAt: {
-            type: Date,
-            default: () => new Date(+new Date() + 1*24*60*60*1000)
         },
         isDeleted: {
             type: Boolean,
             default: false
         },
-        products: [{
-            type: mongoose.Schema.ObjectId,
-            ref: 'Product'
-        }],
         createdBy: {
             type: mongoose.Schema.ObjectId,
             ref: 'User'
@@ -47,11 +33,11 @@ const schema = mongoose.Schema(
 
 schema.pre('save', async function (next) {
     try {
-        this.tags = `${JSON.stringify(this.description)}${this.value}${this.type}${this.startAt}${this.expireAt}`.replace(/ /g,'')
+        this.tags = `${this.ticket}`.replace(/ /g,'')
         next()
     } catch (err) {
         next(err)
     }
 })
 
-module.exports = mongoose.model('Promotion', schema)
+module.exports = mongoose.model('Queue', schema)

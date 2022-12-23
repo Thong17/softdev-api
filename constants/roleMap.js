@@ -1,5 +1,13 @@
 exports.privilege = {
     menu: {
+        function: {
+            route: 'menu',
+            action: 'function'
+        },
+        queue: {
+            route: 'menu',
+            action: 'queue'
+        },
         operation: {
             route: 'menu',
             action: 'operation'
@@ -99,7 +107,6 @@ exports.privilege = {
             action: 'role'
         },
     },
-    
     report: {
         sale: {
             route: 'report',
@@ -310,6 +317,24 @@ exports.privilege = {
         delete: {
             route: 'payment',
             action: 'delete'
+        },
+    },
+    queue: {
+        list: {
+            route: 'queue',
+            action: 'list'
+        },
+        create: {
+            route: 'queue',
+            action: 'create'
+        },
+        update: {
+            route: 'queue',
+            action: 'update'
+        },
+        cancel: {
+            route: 'queue',
+            action: 'cancel'
         },
     },
     reservation: {
