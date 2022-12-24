@@ -20,7 +20,7 @@ exports.index = async (req, res) => {
         }
     }
 
-    Queue.find({ isDeleted: false, ...query }, async (err, queues) => {
+    Queue.find({ isDeleted: false, isCompleted: false, ...query }, async (err, queues) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         const totalCount = await Queue.count({ isDisabled: false })
@@ -64,7 +64,7 @@ exports.call = async (req, res) => {
 
 exports.complete = async (req, res) => {
     try {
-        const queue = await Queue.findByIdAndUpdate(req.params.id, { isComplete: true })
+        const queue = await Queue.findByIdAndUpdate(req.params.id, { isCompleted: true })
         if (!queue) return response.failure(422, { msg: 'No queue updated!' }, res, err)
 
         response.success(200, { msg: 'Queue has updated successfully', data: queue }, res)
