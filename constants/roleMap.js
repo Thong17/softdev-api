@@ -328,6 +328,10 @@ exports.privilege = {
             route: 'queue',
             action: 'create'
         },
+        call: {
+            route: 'queue',
+            action: 'call'
+        },
         update: {
             route: 'queue',
             action: 'update'

@@ -58,13 +58,13 @@ exports.create = async (req, res) => {
     }
 }
 
-exports.update = async (req, res) => {
-    const body = req.body
-    const { error } = createQueueValidation.validate(body, { abortEarly: false })
-    if (error) return response.failure(422, extractJoiErrors(error), res)
+exports.call = async (req, res) => {
+    console.log('call');
+}
 
+exports.complete = async (req, res) => {
     try {
-        const queue = await Queue.findByIdAndUpdate(req.params.id, body)
+        const queue = await Queue.findByIdAndUpdate(req.params.id, { isComplete: true })
         if (!queue) return response.failure(422, { msg: 'No queue updated!' }, res, err)
 
         response.success(200, { msg: 'Queue has updated successfully', data: queue }, res)
