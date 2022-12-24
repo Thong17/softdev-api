@@ -5,12 +5,12 @@ const { extractJoiErrors } = require('../helpers/utils')
 const { createQueueValidation } = require('../middleware/validations/queueValidation')
 
 exports.index = async (req, res) => {
-    const limit = parseInt(req.query.limit) || 10
+    const limit = parseInt(req.query.limit) || 100
     const page = parseInt(req.query.page) || 0
     const search = req.query.search?.replace(/ /g,'')
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
-    const sort = req.query.sort || 'asc'
+    const sort = req.query.sort || 'desc'
 
     let filterObj = { [filter]: sort }
     let query = {}
@@ -20,14 +20,22 @@ exports.index = async (req, res) => {
         }
     }
 
-    Queue.find({ isDeleted: false, ...query }, async (err, categories) => {
+    Queue.find({ isDeleted: false, ...query }, async (err, queues) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         const totalCount = await Queue.count({ isDisabled: false })
-        return response.success(200, { data: categories, length: totalCount }, res)
+        return response.success(200, { data: queues, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
+        .populate('createdBy payment')
+}
+
+exports.detail = async (req, res) => {
+    Queue.findById(req.params.id, (err, queue) => {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        return response.success(200, { data: queue }, res)
+    }).select('payment ticket').populate({ path: 'payment', select: 'transactions', populate: { path: 'transactions', populate: 'product' } })
 }
 
 exports.create = async (req, res) => {
