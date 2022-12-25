@@ -37,7 +37,7 @@ exports.detail = async (req, res) => {
     Queue.findById(req.params.id, (err, queue) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: queue }, res)
-    }).select('payment ticket').populate({ path: 'payment', select: 'transactions', populate: { path: 'transactions', populate: 'product' } })
+    }).select('payment ticket').populate({ path: 'payment', select: 'transactions invoice', populate: { path: 'transactions', populate: 'product' } })
 }
 
 exports.create = async (req, res) => {
