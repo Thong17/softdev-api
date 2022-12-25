@@ -62,7 +62,9 @@ exports.create = async (req, res) => {
 
 exports.call = async (req, res) => {
     try {
-        const filePath = path.join(__dirname, '../static/audio/basic.m4a')
+        const id = req.params.id
+        const queue = await Queue.findById(id)
+        const filePath = path.join(__dirname, `../static/audio/${queue.ticket}.m4a`)
         await sound.play(filePath)
         response.success(200, { msg: 'Queue has called successfully' }, res)
       } catch (err) {
