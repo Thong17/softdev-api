@@ -1,3 +1,5 @@
+const sound = require("sound-play")
+const path = require("path")
 const Queue = require('../models/Queue')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
@@ -59,7 +61,13 @@ exports.create = async (req, res) => {
 }
 
 exports.call = async (req, res) => {
-    console.log('call');
+    try {
+        const filePath = path.join(__dirname, '../static/audio/basic.m4a')
+        await sound.play(filePath)
+        response.success(200, { msg: 'Queue has called successfully' }, res)
+      } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+      }
 }
 
 exports.complete = async (req, res) => {
