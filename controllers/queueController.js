@@ -12,7 +12,7 @@ exports.index = async (req, res) => {
     const search = req.query.search?.replace(/ /g,'')
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
-    const sort = req.query.sort || 'desc'
+    const sort = req.query.sort || 'asc'
 
     let filterObj = { [filter]: sort }
     let query = {}
@@ -48,7 +48,7 @@ exports.create = async (req, res) => {
     try {
         const latestQueue = await Queue.findOne().sort('-createdAt')
         const latestTicket = parseInt(latestQueue?.ticket) || 0
-        const ticket = latestTicket >= process.env.MAX_QUEUE_NUMBER ? 1 : latestTicket + 1
+        const ticket = latestTicket >= parseInt(process.env.MAX_QUEUE_NUMBER) ? 1 : latestTicket + 1
         Queue.create({...body, ticket, createdBy: req.user.id}, async (err, queue) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             
@@ -63,8 +63,14 @@ exports.create = async (req, res) => {
 exports.call = async (req, res) => {
     try {
         const id = req.params.id
-        const queue = await Queue.findById(id)
-        const filePath = path.join(__dirname, `../static/audio/${queue.ticket}.m4a`)
+        let filename = '../static/audio/default.m4a'
+        
+        if (process.env.QUEUE_SOUND !== 'default') {
+            const queue = await Queue.findById(id)
+            filename = `../static/audio/${queue.ticket}.m4a`
+        }
+
+        const filePath = path.join(__dirname, filename)
         await sound.play(filePath)
         response.success(200, { msg: 'Queue has called successfully' }, res)
       } catch (err) {
