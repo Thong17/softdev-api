@@ -149,10 +149,10 @@ exports.checkOut = async (req, res) => {
         reservation.status = 'completed'
         reservation.save()
 
-        const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } })
+        const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } }).populate({ path: 'reservations', match: { isCompleted: false }})
         for (let i = 0; i < structures.length; i++) {
             const structure = structures[i]
-            structure.status = 'vacant'
+            structure.status = structure.reservations.length > 1 ? 'reserved' : 'vacant'
             structure.save()
         }
 
