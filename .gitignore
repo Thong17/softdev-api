@@ -1,6 +1,5 @@
 .env
 node_modules
-package-lock.json
 
 # Ignore all file in uploads except default.jpg
 uploads/*
