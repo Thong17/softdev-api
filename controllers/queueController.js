@@ -1,5 +1,4 @@
-const { createAudio } = require('node-mp3-player')
-const Audio = createAudio()
+const player = require('play-sound')(opts = {})
 const path = require("path")
 const Queue = require('../models/Queue')
 const response = require('../helpers/response')
@@ -70,9 +69,10 @@ exports.call = async (req, res) => {
             const queue = await Queue.findById(id)
             filename = `../static/audio/${queue.ticket}.m4a`
         }
-        const queueSound = await Audio(path.join(__dirname, filename)) 
-        await queueSound.play()
-        response.success(200, { msg: 'Queue has called successfully' }, res)
+        player.play(path.join(__dirname, filename), (err) => {
+            if (err && !err.killed) return response.failure(500, { msg: err.message }, res, err)
+            response.success(200, { msg: 'Queue has called successfully' }, res)
+        })
       } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
       }
