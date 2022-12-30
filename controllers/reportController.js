@@ -138,14 +138,15 @@ exports.topProduct = async (req, res) => {
         $lt: moment().endOf(income).toDate(),
       },
       status: true,
-    }).select('transactions').populate({ path: 'transactions', populate: { path: 'product', select: 'name profile', populate: { path: 'profile', select: 'filename' } } })
+    }).select('transactions rate').populate({ path: 'transactions', populate: { path: 'product', select: 'name profile', populate: { path: 'profile', select: 'filename' } } })
     
     const listProduct = []
     payments.forEach(payment => {
+      const { buyRate } = payment.rate
       payment.transactions?.forEach(transaction => {
         if (!transaction.product) return
         const isInList = listProduct.some(item => item.id.equals(transaction.product._id))
-        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : payment.transaction.total.value / buyRate
+        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : transaction.total.value / buyRate
 
         if (!isInList) {
           listProduct.push({ id: transaction.product._id, name: transaction.product.name, picture: transaction.product.profile?.filename, value: transactionTotal })
@@ -194,14 +195,15 @@ exports.listProduct = async (req, res) => {
     const chartPayments = await Payment.find({
       createdAt: query,
       status: true,
-    }).select('transactions').populate({ path: 'transactions', populate: { path: 'product', select: 'name profile', populate: { path: 'profile', select: 'filename' } } })
+    }).select('transactions rate').populate({ path: 'transactions', populate: { path: 'product', select: 'name profile', populate: { path: 'profile', select: 'filename' } } })
     
     const listProductSale = []
     chartPayments.forEach(payment => {
+      const { buyRate } = payment.rate
       payment.transactions?.forEach(transaction => {
         if (!transaction.product) return
         const isInList = listProductSale.some(item => item.id.equals(transaction.product._id))
-        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : payment.transaction.total.value / buyRate
+        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : transaction.total.value / buyRate
 
         if (!isInList) {
           listProductSale.push({ id: transaction.product._id, name: transaction.product.name, value: transactionTotal })
@@ -232,14 +234,15 @@ exports.topStaff = async (req, res) => {
         $lt: moment().endOf(income).toDate(),
       },
       status: true,
-    }).select('transactions').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username profile', populate: { path: 'profile', populate: { path: 'photo', select: 'filename' } } } })
+    }).select('transactions rate').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username profile', populate: { path: 'profile', populate: { path: 'photo', select: 'filename' } } } })
     
     const listTopStaff = []
     payments.forEach(payment => {
+      const { buyRate } = payment.rate
       payment.transactions?.forEach(transaction => {
         if (!transaction.createdBy) return
         const isInList = listTopStaff.some(item => item.id.equals(transaction.createdBy._id))
-        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : payment.transaction.total.value / buyRate
+        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : transaction.total.value / buyRate
 
         if (!isInList) {
           listTopStaff.push({ id: transaction.createdBy._id, name: transaction.createdBy.username, picture: transaction.createdBy.profile?.photo, value: transactionTotal })
@@ -288,14 +291,15 @@ exports.listStaff = async (req, res) => {
     const chartPayments = await Payment.find({
       createdAt: query,
       status: true,
-    }).select('transactions').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username' } })
+    }).select('transactions rate').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username' } })
     
     const listStaff = []
     chartPayments.forEach(payment => {
+      const { buyRate } = payment.rate
       payment.transactions?.forEach(transaction => {
         if (!transaction.createdBy) return
         const isInList = listStaff.some(item => item.id.equals(transaction.createdBy._id))
-        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : payment.transaction.total.value / buyRate
+        const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : transaction.total.value / buyRate
 
         if (!isInList) {
           listStaff.push({ id: transaction.createdBy._id, name: transaction.createdBy.username, value: transactionTotal })
