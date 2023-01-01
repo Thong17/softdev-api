@@ -26,14 +26,15 @@ exports.index = async (req, res) => {
         }
     }
     
-    Payment.find({ isDeleted: false, ...query }, async (err, categories) => {
+    Payment.find({ ...query }, async (err, payments) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Payment.count({ isDisabled: false })
-        return response.success(200, { data: categories, length: totalCount }, res)
+        const totalCount = await Payment.count()
+        return response.success(200, { data: payments, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
+        .populate('createdBy')
 }
 
 exports.detail = async (req, res) => {

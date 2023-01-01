@@ -22,11 +22,11 @@ exports.index = async (req, res) => {
         }
     }
     
-    Transaction.find({ isDeleted: false, ...query }, async (err, categories) => {
+    Transaction.find({ isDeleted: false, ...query }, async (err, transactions) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Transaction.count({ isDisabled: false })
-        return response.success(200, { data: categories, length: totalCount }, res)
+        const totalCount = await Transaction.count({ isDeleted: false })
+        return response.success(200, { data: transactions, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
@@ -275,7 +275,7 @@ exports.remove = async (req, res) => {
         reverseProductStock(transaction?.stocks)
             .then(async ({ totalAllStock }) => {
                 try {
-                    await Transaction.findByIdAndDelete(id)
+                    await Transaction.findByIdAndUpdate(id, { isDeleted: true })
                     response.success(200, { msg: 'Transaction has reversed successfully', data: transaction, stockRemain: { totalAllStock, productId: transaction.product } }, res)
                 } catch (err) {
                     return response.failure(422, { msg: failureMsg.trouble }, res, err)

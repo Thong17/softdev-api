@@ -9,7 +9,7 @@ exports.clearPendingTransaction = () => {
                 pendingTransaction.forEach(transaction => {
                     reverseProductStock(transaction?.stocks)
                         .then(async () => {
-                            await Transaction.findByIdAndDelete(transaction._id)
+                            await Transaction.findByIdAndUpdate(transaction._id, { isDeleted: true })
                         })
                         .catch(err => console.error(err))
                 })
