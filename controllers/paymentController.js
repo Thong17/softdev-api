@@ -16,7 +16,7 @@ exports.index = async (req, res) => {
     const search = req.query.search?.replace(/ /g,'')
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
-    const sort = req.query.sort || 'asc'
+    const sort = req.query.sort || 'desc'
     
     let filterObj = { [filter]: sort }
     let query = {}
