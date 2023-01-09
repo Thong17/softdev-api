@@ -62,14 +62,6 @@ exports.privilege = {
             route: 'operation',
             action: 'reservation'
         },
-        transaction: {
-            route: 'operation',
-            action: 'transaction'
-        },
-        payment: {
-            route: 'operation',
-            action: 'payment'
-        },
         stock: {
             route: 'operation',
             action: 'stock'
@@ -104,7 +96,17 @@ exports.privilege = {
         },
         user: {
             route: 'admin',
-            action: 'role'
+            action: 'user'
+        },
+    },
+    function: {
+        queue: {
+            route: 'function',
+            action: 'queue'
+        },
+        loan: {
+            route: 'function',
+            action: 'loan'
         },
     },
     report: {
@@ -119,6 +121,14 @@ exports.privilege = {
         staff: {
             route: 'report',
             action: 'staff'
+        },
+        payment: {
+            route: 'report',
+            action: 'payment'
+        },
+        transaction: {
+            route: 'report',
+            action: 'transaction'
         },
     },
     user: {
@@ -338,6 +348,20 @@ exports.privilege = {
         },
         cancel: {
             route: 'queue',
+            action: 'cancel'
+        },
+    },
+    loan: {
+        list: {
+            route: 'loan',
+            action: 'list'
+        },
+        pay: {
+            route: 'loan',
+            action: 'pay'
+        },
+        cancel: {
+            route: 'loan',
             action: 'cancel'
         },
     },
