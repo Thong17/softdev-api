@@ -356,9 +356,9 @@ exports.privilege = {
             route: 'loan',
             action: 'list'
         },
-        pay: {
+        create: {
             route: 'loan',
-            action: 'pay'
+            action: 'create'
         },
         cancel: {
             route: 'loan',
