@@ -22,6 +22,10 @@ const schema = mongoose.Schema(
         prepayment: {
             type: Object,
         },
+        status: {
+            type: String,
+            default: 'PENDING'
+        },
         isDeleted: {
             type: Boolean,
             default: false
