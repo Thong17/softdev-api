@@ -2,6 +2,7 @@ const Joi = require('joi')
 
 const createLoanValidation = Joi.object({
   customer: Joi.string().required(),
+  payment: Joi.string().required(),
   attachments: Joi.any().optional(),
   duration: Joi.object({
     value: Joi.number(),
@@ -26,6 +27,11 @@ const createLoanValidation = Joi.object({
       value: Joi.number(),
       time: Joi.string(),
     }),
+  }),
+  totalPaid: Joi.object({
+    KHR: Joi.number(),
+    USD: Joi.number(),
+    total: Joi.number(),
   }),
 })
 

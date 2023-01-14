@@ -1,6 +1,10 @@
 const Loan = require('../models/Loan')
+const Payment = require('../models/Payment')
+const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
+const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram } = require('../helpers/utils')
+
 const multer = require('multer')
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -50,31 +54,49 @@ exports.detail = async (req, res) => {
 }
 
 exports.create = async (req, res) => {
-    uploadFiles(req, res, (err) => {
+    uploadFiles(req, res, async (err) => {
         if (err) return response.failure(422, { msg: err.message }, res, err)
-        const body = {}
-        Object.keys(req.body).forEach(item => {
-            if (item === 'attachment') return
-            body[item] = JSON.parse(req.body[item])
-        })
-        const files = req.files.map(file => ({ filename: file.filename }))
         try {
-            Loan.create({...body, attachments: files, createdBy: req.user.id}, (err, loan) => {
-                if (err) {
-                    switch (err.code) {
-                        case 11000:
-                            return response.failure(422, { msg: 'Loan already exists!' }, res, err)
-                        default:
-                            return response.failure(422, { msg: err.message }, res, err)
-                    }
-                }
+            const body = {}
+            Object.keys(req.body).forEach(item => {
+                if (item === 'attachment') return
+                body[item] = JSON.parse(req.body[item])
+            })
+            const files = req.files.map(file => ({ filename: file.filename }))
+            const payment = await Payment.findById(body?.payment).populate('drawer').populate('transactions')
+            if (payment.status) return response.failure(422, { msg: 'Payment has already checked out' }, res)
 
+            Loan.create({...body, attachments: files, createdBy: req.user.id}, async (err, loan) => {
+                if (err) return response.failure(422, { msg: err.message }, res, err)
                 if (!loan) return response.failure(422, { msg: 'No loan created!' }, res, err)
-                response.success(200, { msg: 'Loan has created successfully', data: loan }, res)
+                const paymentMethod = 'loan'
+                const data = await Payment.findByIdAndUpdate(body?.payment, { ...body, paymentMethod, status: true }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
+                if (data.customer) {
+                    const paymentPoint = payment.total.currency === 'USD' ? payment.total.value : payment.total.value / payment.rate.buyRate
+                    calculateCustomerPoint({ customerId: data.customer, paymentPoint })
+                }
+                checkoutTransaction({ transactions: data.transactions })
+                    .then((message) => console.info(message))
+                    .catch(err => console.error(err))
+
+                // Send message to Telegram
+                const storeConfig = await StoreSetting.findOne()
+                if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
+                    const text = `New Payment On ${moment(data.createdAt).format('YYYY-MM-DD')}
+                        🧾Invoice: ${data.invoice}
+                        💵Subtotal: ${currencyFormat(data.subtotal.BOTH)} USD
+                        💵Total: ${currencyFormat(data.total.value)} ${data.total.currency}
+                        👝Payment Method: ${paymentMethod}
+                        👱‍♂️By: ${req.user?.username}
+                        `
+                    sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+                        .catch(err => console.error(err))
+                }
+                
+                response.success(200, { msg: 'Loan has checked out successfully', data }, res)
             })
         } catch (err) {
             return response.failure(422, { msg: failureMsg.trouble }, res, err)
         }
     })
-    
 }

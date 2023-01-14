@@ -4,6 +4,8 @@ const { default: mongoose } = require('mongoose')
 const responseMsg = require('../constants/responseMsg')
 const ProductStock = require('../models/ProductStock')
 const Product = require('../models/Product')
+const Transaction = require('../models/Transaction')
+const Customer = require('../models/Customer')
 
 module.exports = utils = {
     encryptPassword: (plainPassword) => {
@@ -374,6 +376,31 @@ module.exports = utils = {
             )
             .then(res => resolve(res))
             .catch(err => reject(err))
+        })
+    },
+    checkoutTransaction: ({ transactions }) => {
+        return new Promise(async (resolve, reject) => {
+            try {
+                for (let i = 0; i < transactions.length; i++) {
+                    const transaction = transactions[i]
+                    await Transaction.findByIdAndUpdate(transaction, { status: true })
+                }
+                resolve({ message: `${transactions.length} ${transactions.length > 1 ? 'transactions' : 'transaction'} has been completed.` })
+            } catch (err) {
+                reject(err)
+            }
+        })
+    },
+    calculateCustomerPoint: ({ customerId, paymentPoint = 0 }) => {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const customer = await Customer.findById(customerId)
+                customer.point = customer.point + paymentPoint
+                customer.save()
+                resolve({ message: `${paymentPoint} ${paymentPoint > 1 ? 'points' : 'point'} has been added.` })
+            } catch (err) {
+                reject(err)
+            }
         })
     }
 }

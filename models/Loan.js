@@ -44,17 +44,38 @@ const schema = mongoose.Schema(
             type: String,
             default: 'PENDING'
         },
-        actualPaid: {
-            type: Array,
-            default: []
-        },
         totalPaid: {
-            type: Array,
-            default: []
+            type: Object,
+            default: {
+                KHR: 0,
+                USD: 0,
+                total: 0
+            }
+        },
+        totalLoan: {
+            type: Object,
+            default: {
+                value: 0,
+                currency: 'USD'
+            }
+        },
+        loanPaid: [{
+            type: mongoose.Schema.ObjectId,
+            ref: 'LoanPayment'
+        }],
+        actualPaid: {
+            type: Object,
+            default: {
+                value: 0,
+                currency: 'USD'
+            }
         },
         totalRemain: {
-            type: Array,
-            default: []
+            type: Object,
+            default: {
+                value: 0,
+                currency: 'USD'
+            }
         },
         isDeleted: {
             type: Boolean,
