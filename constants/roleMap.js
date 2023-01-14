@@ -356,9 +356,17 @@ exports.privilege = {
             route: 'loan',
             action: 'list'
         },
+        detail: {
+            route: 'loan',
+            action: 'detail'
+        },
         create: {
             route: 'loan',
             action: 'create'
+        },
+        update: {
+            route: 'loan',
+            action: 'update'
         },
         cancel: {
             route: 'loan',

@@ -3,7 +3,8 @@ const mongoose = require('mongoose')
 const schema = mongoose.Schema(
     {
         customer: {
-            type: String,
+            type: mongoose.Schema.ObjectId,
+            ref: 'Customer',
             require: true
         },
         attachments: {
@@ -55,8 +56,8 @@ const schema = mongoose.Schema(
         totalLoan: {
             type: Object,
             default: {
-                value: 0,
-                currency: 'USD'
+                USD: 0,
+                KHR: 0,
             }
         },
         loanPaid: [{
@@ -73,8 +74,8 @@ const schema = mongoose.Schema(
         totalRemain: {
             type: Object,
             default: {
-                value: 0,
-                currency: 'USD'
+                USD: 0,
+                KHR: 0,
             }
         },
         isDeleted: {
@@ -83,7 +84,8 @@ const schema = mongoose.Schema(
         },
         payment: {
             type: mongoose.Schema.ObjectId,
-            ref: 'Payment'
+            ref: 'Payment',
+            require: true
         },
         createdBy: {
             type: mongoose.Schema.ObjectId,

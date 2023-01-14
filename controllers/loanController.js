@@ -43,14 +43,14 @@ exports.index = async (req, res) => {
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
-        .populate('icon')
+        .populate('payment customer')
 }
 
 exports.detail = async (req, res) => {
     Loan.findById(req.params.id, (err, loan) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: loan }, res)
-    }).populate('icon')
+    }).populate('payment customer')
 }
 
 exports.create = async (req, res) => {
@@ -66,7 +66,7 @@ exports.create = async (req, res) => {
             const payment = await Payment.findById(body?.payment).populate('drawer').populate('transactions')
             if (payment.status) return response.failure(422, { msg: 'Payment has already checked out' }, res)
 
-            Loan.create({...body, attachments: files, createdBy: req.user.id}, async (err, loan) => {
+            Loan.create({...body, totalLoan: body.totalRemain, attachments: files, createdBy: req.user.id}, async (err, loan) => {
                 if (err) return response.failure(422, { msg: err.message }, res, err)
                 if (!loan) return response.failure(422, { msg: 'No loan created!' }, res, err)
                 const paymentMethod = 'loan'
