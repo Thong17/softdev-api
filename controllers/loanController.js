@@ -46,6 +46,19 @@ exports.index = async (req, res) => {
         .populate('payment customer')
 }
 
+exports.listRequest = async (req, res) => {
+    try {
+        const filter = req.query.filter || 'createdAt'
+        const sort = req.query.sort || 'desc'
+        let filterObj = { [filter]: sort }
+        
+        const loans = await Loan.find({ isDeleted: false, status: 'PENDING' }).sort(filterObj).populate('payment customer')
+        return response.success(200, { data: loans }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
 exports.detail = async (req, res) => {
     Loan.findById(req.params.id, (err, loan) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
