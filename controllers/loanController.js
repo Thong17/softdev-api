@@ -35,7 +35,7 @@ exports.index = async (req, res) => {
         }
     }
     
-    Loan.find({ isDeleted: false, ...query }, async (err, loans) => {
+    Loan.find({ isDeleted: false, status: 'APPROVED', ...query }, async (err, loans) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         const totalCount = await Loan.count({ isDeleted: false })
