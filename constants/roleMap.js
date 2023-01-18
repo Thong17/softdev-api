@@ -372,6 +372,18 @@ exports.privilege = {
             route: 'loan',
             action: 'cancel'
         },
+        approve: {
+            route: 'loan',
+            action: 'approve'
+        },
+        reject: {
+            route: 'loan',
+            action: 'reject'
+        },
+        payment: {
+            route: 'loan',
+            action: 'payment'
+        },
     },
     reservation: {
         list: {

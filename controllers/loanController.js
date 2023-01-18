@@ -66,6 +66,24 @@ exports.detail = async (req, res) => {
     }).populate('payment customer')
 }
 
+exports.reject = async (req, res) => {
+    try {
+        await Loan.findByIdAndUpdate(req.params.id, { status: 'REJECTED' })
+        return response.success(200, { msg: 'Loan has been rejected' }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.approve = async (req, res) => {
+    try {
+        await Loan.findByIdAndUpdate(req.params.id, { status: 'APPROVED' })
+        return response.success(200, { msg: 'Loan has been approved' }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
 exports.create = async (req, res) => {
     uploadFiles(req, res, async (err) => {
         if (err) return response.failure(422, { msg: err.message }, res, err)
