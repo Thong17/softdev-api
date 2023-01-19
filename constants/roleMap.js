@@ -66,10 +66,10 @@ exports.privilege = {
             route: 'operation',
             action: 'stock'
         },
-        promotion: {
+        loan: {
             route: 'operation',
-            action: 'promotion'
-        }
+            action: 'loan'
+        },
     },
     organize: {
         category: {
@@ -104,10 +104,10 @@ exports.privilege = {
             route: 'function',
             action: 'queue'
         },
-        loan: {
+        promotion: {
             route: 'function',
-            action: 'loan'
-        },
+            action: 'promotion'
+        }
     },
     report: {
         sale: {
