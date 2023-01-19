@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { index, listRequest, create, detail, reject, approve } = require('../../controllers/loanController')
+const { index, listRequest, create, detail, cancel, reject, approve } = require('../../controllers/loanController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -13,6 +13,10 @@ router.get('/listRequest', security.role(privilege.loan.list), (req, res) => {
 
 router.get('/detail/:id', security.role(privilege.loan.detail), (req, res) => {
     detail(req, res)
+})
+
+router.delete('/cancel/:id', security.role(privilege.loan.cancel), security.audit(), (req, res) => {
+    cancel(req, res)
 })
 
 router.put('/reject/:id', security.role(privilege.loan.reject), security.audit(), (req, res) => {

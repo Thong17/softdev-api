@@ -66,6 +66,15 @@ exports.detail = async (req, res) => {
     }).populate('payment customer')
 }
 
+exports.cancel = async (req, res) => {
+    try {
+        await Loan.findByIdAndUpdate(req.params.id, { isDeleted: true })
+        return response.success(200, { msg: 'Loan has been canceled' }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
 exports.reject = async (req, res) => {
     try {
         await Loan.findByIdAndUpdate(req.params.id, { status: 'REJECTED' })
