@@ -40,7 +40,7 @@ exports.detail = async (req, res) => {
     Payment.findById(req.params.id, (err, payment) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: payment }, res)
-    }).populate('createdBy').populate('customer', 'displayName point').populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } })
+    }).populate('createdBy').populate({ path: 'reservation', populate: 'structures' }).populate('customer', 'displayName point').populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } })
 }
 
 exports.create = async (req, res) => {
@@ -77,6 +77,7 @@ exports.create = async (req, res) => {
             let data = await payment.populate('customer')
             data = await payment.populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } })
             data = await payment.populate('createdBy', 'username')
+            data = await payment.populate({ path: 'reservation', populate: 'structures' })
             response.success(200, { msg: 'Payment has created successfully', data }, res)
         })
     } catch (err) {
