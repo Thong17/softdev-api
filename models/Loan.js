@@ -60,7 +60,7 @@ const schema = mongoose.Schema(
                 KHR: 0,
             }
         },
-        loanPaid: [{
+        loanPayments: [{
             type: mongoose.Schema.ObjectId,
             ref: 'LoanPayment'
         }],
