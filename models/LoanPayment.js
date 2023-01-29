@@ -2,11 +2,17 @@ const mongoose = require('mongoose')
 
 const schema = mongoose.Schema(
     {
+        loanTotal: {
+            type: Object,
+        },
         receiveCashes: {
             type: Array,
         },
         receiveTotal: {
             type: Object,
+        },
+        extraCashes: {
+            type: Array,
         },
         returnCashes: {
             type: Array,
@@ -23,7 +29,7 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'User'
         },
-        duaDate: {
+        dueDate: {
             type: Date
         },
         tags: {

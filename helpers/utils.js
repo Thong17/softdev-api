@@ -1,3 +1,4 @@
+const moment = require('moment')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const { default: mongoose } = require('mongoose')
@@ -6,6 +7,7 @@ const ProductStock = require('../models/ProductStock')
 const Product = require('../models/Product')
 const Transaction = require('../models/Transaction')
 const Customer = require('../models/Customer')
+const LoanPayment = require('../models/LoanPayment')
 
 module.exports = utils = {
     encryptPassword: (plainPassword) => {
@@ -402,5 +404,30 @@ module.exports = utils = {
                 reject(err)
             }
         })
-    }
+    },
+    generateLoanPayment: (loanInfo) => {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const { duration, totalRemain, createdBy } = loanInfo
+                if (!duration || !totalRemain) return reject(new Error('Unprocessable Entity'))
+                const loanId = mongoose.Types.ObjectId()
+                const loanItem = {
+                    loanTotal: { value: totalRemain.USD / duration.value, currency: 'USD' } // TO DO Add interest
+                }
+                const listPayment = []
+                const session = await LoanPayment.startSession()
+                await session.withTransaction(async () => {
+                    for (let i = 0; i < duration.value; i++) {
+                        const paymentTime = moment().add(i + 1, duration.time).format()
+                        const loanPayment = await LoanPayment.create({ ...loanItem, createdBy, loan: loanId, dueDate: paymentTime })
+                        listPayment.push(loanPayment._id)
+                    }
+                })
+                await session.endSession()
+                resolve({ listPayment, loanId })
+            } catch (err) {
+                reject(err)
+            }
+        })
+    },
 }

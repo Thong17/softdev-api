@@ -3,7 +3,7 @@ const Payment = require('../models/Payment')
 const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram } = require('../helpers/utils')
+const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram, generateLoanPayment } = require('../helpers/utils')
 
 const multer = require('multer')
 const storage = multer.diskStorage({
@@ -63,7 +63,7 @@ exports.detail = async (req, res) => {
     Loan.findById(req.params.id, (err, loan) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: loan }, res)
-    }).populate('payment customer')
+    }).populate('payment customer loanPayments')
 }
 
 exports.cancel = async (req, res) => {
@@ -106,35 +106,36 @@ exports.create = async (req, res) => {
             const payment = await Payment.findById(body?.payment).populate('drawer').populate('transactions')
             if (payment.status) return response.failure(422, { msg: 'Payment has already checked out' }, res)
 
-            Loan.create({...body, totalLoan: body.totalRemain, attachments: files, createdBy: req.user.id}, async (err, loan) => {
-                if (err) return response.failure(422, { msg: err.message }, res, err)
-                if (!loan) return response.failure(422, { msg: 'No loan created!' }, res, err)
-                const paymentMethod = 'loan'
-                const data = await Payment.findByIdAndUpdate(body?.payment, { ...body, paymentMethod, status: true }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
-                if (data.customer) {
-                    const paymentPoint = payment.total.currency === 'USD' ? payment.total.value : payment.total.value / payment.rate.buyRate
-                    calculateCustomerPoint({ customerId: data.customer, paymentPoint })
-                }
-                checkoutTransaction({ transactions: data.transactions })
-                    .then((message) => console.info(message))
+            const { listPayment, loanId } = await generateLoanPayment({...body, createdBy: req.user.id})
+            const loan = await Loan.create({_id: loanId, ...body, totalLoan: body.totalRemain, loanPayments: listPayment, attachments: files, createdBy: req.user.id})
+            if (!loan) return response.failure(422, { msg: 'No loan created!' }, res)
+            const paymentMethod = 'loan'
+            const data = await Payment.findByIdAndUpdate(body?.payment, { ...body, paymentMethod, status: true }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
+            
+            if (data.customer) {
+                const paymentPoint = payment.total.currency === 'USD' ? payment.total.value : payment.total.value / payment.rate.buyRate
+                calculateCustomerPoint({ customerId: data.customer, paymentPoint })
                     .catch(err => console.error(err))
+            }
+            checkoutTransaction({ transactions: data.transactions })
+                .then((message) => console.info(message))
+                .catch(err => console.error(err))
 
-                // Send message to Telegram
-                const storeConfig = await StoreSetting.findOne()
-                if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
-                    const text = `New Payment On ${moment(data.createdAt).format('YYYY-MM-DD')}
-                        🧾Invoice: ${data.invoice}
-                        💵Subtotal: ${currencyFormat(data.subtotal.BOTH)} USD
-                        💵Total: ${currencyFormat(data.total.value)} ${data.total.currency}
-                        👝Payment Method: ${paymentMethod}
-                        👱‍♂️By: ${req.user?.username}
-                        `
-                    sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
-                        .catch(err => console.error(err))
-                }
-                
-                response.success(200, { msg: 'Loan has checked out successfully', data }, res)
-            })
+            // Send message to Telegram
+            const storeConfig = await StoreSetting.findOne()
+            if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
+                const text = `New Payment On ${moment(data.createdAt).format('YYYY-MM-DD')}
+                    🧾Invoice: ${data.invoice}
+                    💵Subtotal: ${currencyFormat(data.subtotal.BOTH)} USD
+                    💵Total: ${currencyFormat(data.total.value)} ${data.total.currency}
+                    👝Payment Method: ${paymentMethod}
+                    👱‍♂️By: ${req.user?.username}
+                    `
+                sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+                    .catch(err => console.error(err))
+            }
+            
+            response.success(200, { msg: 'Loan has checked out successfully', data }, res)
         } catch (err) {
             return response.failure(422, { msg: failureMsg.trouble }, res, err)
         }
