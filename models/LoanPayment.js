@@ -2,7 +2,16 @@ const mongoose = require('mongoose')
 
 const schema = mongoose.Schema(
     {
-        loanTotal: {
+        totalAmount: {
+            type: Object,
+        },
+        principalAmount: {
+            type: Object,
+        },
+        principalBalance: {
+            type: Object,
+        },
+        interestAmount: {
             type: Object,
         },
         receiveCashes: {

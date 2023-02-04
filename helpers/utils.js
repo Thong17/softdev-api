@@ -408,18 +408,27 @@ module.exports = utils = {
     generateLoanPayment: (loanInfo) => {
         return new Promise(async (resolve, reject) => {
             try {
-                const { duration, totalRemain, createdBy } = loanInfo
+                const { duration, totalRemain, createdBy, interest } = loanInfo
                 if (!duration || !totalRemain) return reject(new Error('Unprocessable Entity'))
                 const loanId = mongoose.Types.ObjectId()
+
+                let principalBalance = totalRemain.USD
+                const amountPerMonthUSD = totalRemain.USD / duration.value
+                const interestPerMonthUSD = amountPerMonthUSD * interest.value / 100
+                const totalAmountUSD = amountPerMonthUSD + interestPerMonthUSD
+
                 const loanItem = {
-                    loanTotal: { value: totalRemain.USD / duration.value, currency: 'USD' } // TO DO Add interest
+                    totalAmount: { value: totalAmountUSD, currency: 'USD' },
+                    principalAmount: { value: amountPerMonthUSD, currency: 'USD' },
+                    interestAmount: { value: interestPerMonthUSD, currency: 'USD' },
                 }
                 const listPayment = []
                 const session = await LoanPayment.startSession()
                 await session.withTransaction(async () => {
                     for (let i = 0; i < duration.value; i++) {
+                        principalBalance -= amountPerMonthUSD
                         const paymentTime = moment().add(i + 1, duration.time).format()
-                        const loanPayment = await LoanPayment.create({ ...loanItem, createdBy, loan: loanId, dueDate: paymentTime })
+                        const loanPayment = await LoanPayment.create({ ...loanItem, createdBy, loan: loanId, dueDate: paymentTime, principalBalance: { value: principalBalance, currency: 'USD' } })
                         listPayment.push(loanPayment._id)
                     }
                 })
