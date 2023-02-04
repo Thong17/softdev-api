@@ -26,6 +26,10 @@ const schema = mongoose.Schema(
         returnCashes: {
             type: Array,
         },
+        isPaid: {
+            type: Boolean,
+            default: false
+        },
         isDeleted: {
             type: Boolean,
             default: false

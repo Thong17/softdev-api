@@ -412,23 +412,28 @@ module.exports = utils = {
                 if (!duration || !totalRemain) return reject(new Error('Unprocessable Entity'))
                 const loanId = mongoose.Types.ObjectId()
 
-                let principalBalance = totalRemain.USD
+                let totalPrincipalBalance = totalRemain.USD
                 const amountPerMonthUSD = totalRemain.USD / duration.value
-                const interestPerMonthUSD = amountPerMonthUSD * interest.value / 100
-                const totalAmountUSD = amountPerMonthUSD + interestPerMonthUSD
+                
 
                 const loanItem = {
-                    totalAmount: { value: totalAmountUSD, currency: 'USD' },
                     principalAmount: { value: amountPerMonthUSD, currency: 'USD' },
-                    interestAmount: { value: interestPerMonthUSD, currency: 'USD' },
                 }
                 const listPayment = []
                 const session = await LoanPayment.startSession()
                 await session.withTransaction(async () => {
                     for (let i = 0; i < duration.value; i++) {
-                        principalBalance -= amountPerMonthUSD
+                        const interestPerMonthUSD = totalPrincipalBalance * interest.value / 100
+                        const totalAmountUSD = amountPerMonthUSD + interestPerMonthUSD
+
+                        const interestAmount = { value: interestPerMonthUSD, currency: 'USD' }
+                        const totalAmount = { value: totalAmountUSD, currency: 'USD' }
+
+                        totalPrincipalBalance -= amountPerMonthUSD
+                        const principalBalance = { value: totalPrincipalBalance, currency: 'USD' }
+                        
                         const paymentTime = moment().add(i + 1, duration.time).format()
-                        const loanPayment = await LoanPayment.create({ ...loanItem, createdBy, loan: loanId, dueDate: paymentTime, principalBalance: { value: principalBalance, currency: 'USD' } })
+                        const loanPayment = await LoanPayment.create({ ...loanItem, createdBy, loan: loanId, dueDate: paymentTime, interestAmount, totalAmount, principalBalance })
                         listPayment.push(loanPayment._id)
                     }
                 })
