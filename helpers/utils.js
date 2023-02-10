@@ -430,7 +430,7 @@ module.exports = utils = {
                         const totalAmount = { value: totalAmountUSD, currency: 'USD' }
 
                         totalPrincipalBalance -= amountPerMonthUSD
-                        const principalBalance = { value: totalPrincipalBalance, currency: 'USD' }
+                        const principalBalance = { value: totalPrincipalBalance < 0 ? 0 : totalPrincipalBalance, currency: 'USD' }
                         
                         const paymentTime = moment().add(i + 1, duration.time).format()
                         const loanPayment = await LoanPayment.create({ ...loanItem, createdBy, loan: loanId, dueDate: paymentTime, interestAmount, totalAmount, principalBalance })
