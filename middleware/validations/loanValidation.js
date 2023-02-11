@@ -35,6 +35,16 @@ const createLoanValidation = Joi.object({
   }),
 })
 
+const checkoutLoanValidation = Joi.object({
+  receiveCashes: Joi.array().required(),
+  receiveTotal: Joi.object().required(),
+  total: Joi.object().required(),
+  remainTotal: Joi.object().required(),
+  customer: Joi.string().optional().allow(null),
+  paymentMethod: Joi.string().optional().allow(null)
+})
+
 module.exports = {
   createLoanValidation,
+  checkoutLoanValidation
 }

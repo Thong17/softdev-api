@@ -87,6 +87,9 @@ const schema = mongoose.Schema(
             ref: 'Payment',
             require: true
         },
+        paymentObj: {
+            type: Object,
+        },
         createdBy: {
             type: mongoose.Schema.ObjectId,
             ref: 'User'
