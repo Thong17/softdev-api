@@ -48,9 +48,8 @@ const schema = mongoose.Schema(
         totalPaid: {
             type: Object,
             default: {
-                KHR: 0,
-                USD: 0,
-                total: 0
+                value: 0,
+                currency: 'USD'
             }
         },
         totalLoan: {
@@ -60,10 +59,6 @@ const schema = mongoose.Schema(
                 KHR: 0,
             }
         },
-        loanPayments: [{
-            type: mongoose.Schema.ObjectId,
-            ref: 'LoanPayment'
-        }],
         actualPaid: {
             type: Object,
             default: {
@@ -78,6 +73,10 @@ const schema = mongoose.Schema(
                 KHR: 0,
             }
         },
+        loanPayments: [{
+            type: mongoose.Schema.ObjectId,
+            ref: 'LoanPayment'
+        }],
         isDeleted: {
             type: Boolean,
             default: false

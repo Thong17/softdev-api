@@ -4,6 +4,10 @@ const schema = mongoose.Schema(
     {
         totalAmount: {
             type: Object,
+            default: {
+                value: 0,
+                currency: 'USD'
+            }
         },
         principalAmount: {
             type: Object,

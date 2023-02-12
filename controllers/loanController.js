@@ -96,6 +96,15 @@ exports.approve = async (req, res) => {
     }
 }
 
+exports.approveAll = async (req, res) => {
+    try {
+        const loans = await Loan.updateMany({ status: 'PENDING' }, { status: 'APPROVED' })
+        return response.success(200, { msg: `${loans} ${loans.length > 1 ? 'loans' : 'loan'} has been approved` }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
 exports.create = async (req, res) => {
     uploadFiles(req, res, async (err) => {
         if (err) return response.failure(422, { msg: err.message }, res, err)
@@ -111,7 +120,16 @@ exports.create = async (req, res) => {
             if (body.totalRemain.USD <= 0) return response.failure(422, { msg: 'No balance to proceed loan' }, res)
 
             const { listPayment, loanId } = await generateLoanPayment({...body, createdBy: req.user.id})
-            const loan = await Loan.create({_id: loanId, ...body, totalLoan: body.totalRemain, loanPayments: listPayment, attachments: files, createdBy: req.user.id})
+
+            const loanBody = {
+                ...body, 
+                totalPaid: { value: body.totalPaid.total, currency: 'USD' }, 
+                totalLoan: body.totalRemain, 
+                loanPayments: listPayment, 
+                attachments: files, 
+                createdBy: req.user.id
+            }
+            const loan = await Loan.create({_id: loanId, ...loanBody})
             if (!loan) return response.failure(422, { msg: 'No loan created!' }, res)
             const paymentMethod = 'loan'
             const data = await Payment.findByIdAndUpdate(body?.payment, { ...body, paymentMethod, status: true }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
@@ -144,6 +162,65 @@ exports.create = async (req, res) => {
             return response.failure(422, { msg: failureMsg.trouble }, res, err)
         }
     })
+}
+
+exports.payment = async (req, res) => {
+    const body = req.body
+    const { error } = checkoutLoanValidation.validate(body, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        const id = req.params.id
+        const loanPayment = await LoanPayment.findById(id)
+        if (loanPayment.isPaid || loanPayment.isDeleted) return response.failure(422, { msg: 'Loan has already completed' }, res)
+
+        const drawer = req.user?.drawer
+        if (!drawer) return response.failure(422, { msg: 'No drawer opened' }, res)
+
+        calculateReturnCashes(drawer?.cashes, body.remainTotal, { sellRate: drawer.sellRate, buyRate: drawer.buyRate })
+            .then(async ({ cashes, returnCashes }) => {
+                await Drawer.findByIdAndUpdate(drawer?._id, { cashes })
+                const data = await LoanPayment.findByIdAndUpdate(id, { ...body, returnCashes, isPaid: true }, { new: true }).populate('createdBy', 'username')
+
+                const loan = await Loan.findById(data.loan)
+                const totalUSD = body.total.value
+
+                loan.actualPaid = {
+                    value: loan.actualPaid.value + data.principalAmount.value,
+                    currency: 'USD',
+                }
+                loan.totalPaid = {
+                    value: loan.totalPaid.value + totalUSD,
+                    currency: 'USD',
+                }
+
+                const totalRemain = loan.totalRemain.USD - data.principalAmount.value
+                loan.totalRemain = {
+                    USD: totalRemain,
+                    KHR: totalRemain * drawer.sellRate,
+                }
+                await loan.save()
+
+                // Send message to Telegram
+                const storeConfig = await StoreSetting.findOne()
+                if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
+                    const text = `Loan Payment On ${moment(data.createdAt).format('YYYY-MM-DD')}
+                        🧾Invoice: ${data.invoice}
+                        💵Subtotal: ${currencyFormat(data.subtotal.BOTH)} USD
+                        💵Total: ${currencyFormat(data.total.value)} ${data.total.currency}
+                        👝Payment Method: ${data.paymentMethod || 'cash'}
+                        👱‍♂️By: ${req.user?.username}
+                        `
+                    sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+                        .catch(err => console.error(err))
+                }
+                
+                response.success(200, { msg: 'Loan Payment has checked out successfully', data }, res)
+            })
+            .catch(err => response.failure(err.code, { msg: err.msg }, res, err))
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
 }
 
 exports.checkout = async (req, res) => {
