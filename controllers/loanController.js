@@ -242,7 +242,8 @@ exports.checkout = async (req, res) => {
                 const data = await Loan.findByIdAndUpdate(id, {
                         paymentObj: {
                             ...body,
-                            returnCashes
+                            returnCashes,
+                            status: true,
                         },
                         totalRemain: body.remainTotal,
                         status: 'CLEARED'
@@ -268,7 +269,6 @@ exports.checkout = async (req, res) => {
                         .catch(err => console.error(err))
                 }
                 const responseData = {
-                    status: true,
                     loanPayments: data.loanPayments,
                     ...data.paymentObj
                 }
