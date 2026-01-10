@@ -56,6 +56,10 @@ exports.privilege = {
             route: 'menu',
             action: 'product'
         },
+        loan: {
+            route: 'menu',
+            action: 'loan'
+        },
     },
     operation: {
         cashing: {
