@@ -7,6 +7,7 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram, generateLoanPayment, extractJoiErrors, calculateReturnCashes } = require('../helpers/utils')
 const { checkoutLoanValidation } = require('../middleware/validations/loanValidation')
+const { sendTelegram } = require('./utilityController')
 
 const multer = require('multer')
 const storage = multer.diskStorage({
@@ -38,7 +39,7 @@ exports.index = async (req, res) => {
         }
     }
     
-    Loan.find({ isDeleted: false, status: 'APPROVED', ...query }, async (err, loans) => {
+    Loan.find({ isDeleted: false, ...query }, async (err, loans) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         const totalCount = await Loan.count({ isDeleted: false })
@@ -89,7 +90,7 @@ exports.reject = async (req, res) => {
 
 exports.approve = async (req, res) => {
     try {
-        await Loan.findByIdAndUpdate(req.params.id, { status: 'APPROVED' })
+        await Loan.findByIdAndUpdate(req.params.id, { status: 'IN_PROGRESS' })
         return response.success(200, { msg: 'Loan has been approved' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -144,18 +145,8 @@ exports.create = async (req, res) => {
                 .catch(err => console.error(err))
 
             // Send message to Telegram
-            const storeConfig = await StoreSetting.findOne()
-            if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
-                const text = `New Payment On ${moment(data.createdAt).format('YYYY-MM-DD')}
-                    🧾Invoice: ${data.invoice}
-                    💵Subtotal: ${currencyFormat(data.subtotal.BOTH)} USD
-                    💵Total: ${currencyFormat(data.total.value)} ${data.total.currency}
-                    👝Payment Method: ${paymentMethod}
-                    👱‍♂️By: ${req.user?.username}
-                    `
-                sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
-                    .catch(err => console.error(err))
-            }
+            sendTelegram(data)
+                .catch(err => console.error(err))
             
             response.success(200, { msg: 'Loan has checked out successfully', data }, res)
         } catch (err) {
@@ -172,7 +163,10 @@ exports.payment = async (req, res) => {
     try {
         const id = req.params.id
         const loanPayment = await LoanPayment.findById(id)
-        if (loanPayment.isPaid || loanPayment.isDeleted) return response.failure(422, { msg: 'Loan has already completed' }, res)
+        const loanToBePaid = await LoanPayment.findOne({ loan: loanPayment.loan, isPaid: false }).sort({ dueDate: 1 })
+        if (loanToBePaid._id.toString() !== id) return response.failure(422, { msg: 'Please pay the earliest loan payment first' }, res)
+        if (loanPayment.isDeleted) return response.failure(422, { msg: 'Loan has already deleted' }, res)
+        if (loanPayment.isPaid) return response.failure(422, { msg: 'Loan has already completed' }, res)
 
         const drawer = req.user?.drawer
         if (!drawer) return response.failure(422, { msg: 'No drawer opened' }, res)
@@ -195,6 +189,9 @@ exports.payment = async (req, res) => {
                 }
 
                 const totalRemain = loan.totalRemain.USD - data.principalAmount.value
+                if (totalRemain <= 0) {
+                    loan.status = 'COMPLETED'
+                }
                 loan.totalRemain = {
                     USD: totalRemain,
                     KHR: totalRemain * drawer.sellRate,
