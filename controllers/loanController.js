@@ -8,6 +8,7 @@ const { failureMsg } = require('../constants/responseMsg')
 const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram, generateLoanPayment, extractJoiErrors, calculateReturnCashes } = require('../helpers/utils')
 const { checkoutLoanValidation } = require('../middleware/validations/loanValidation')
 const { sendTelegram } = require('./utilityController')
+const uuid = require('uuid').v4
 
 const multer = require('multer')
 const storage = multer.diskStorage({
@@ -41,13 +42,19 @@ exports.index = async (req, res) => {
     
     Loan.find({ isDeleted: false, ...query }, async (err, loans) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        const listLoans = loans.map(item => {
+            return {
+                ...item._doc,
+                dueDate: item.loanPayments && item.loanPayments.length > 0 ? item.loanPayments.find(lp => !lp.isPaid)?.dueDate : null
+            }
+        })
 
         const totalCount = await Loan.count({ isDeleted: false })
-        return response.success(200, { data: loans, length: totalCount }, res)
+        return response.success(200, { data: listLoans, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
-        .populate('payment customer')
+        .populate('payment customer loanPayments')
 }
 
 exports.listRequest = async (req, res) => {
@@ -115,7 +122,10 @@ exports.create = async (req, res) => {
                 if (item === 'attachment') return
                 body[item] = JSON.parse(req.body[item])
             })
-            const files = req.files.map(file => ({ filename: file.filename }))
+            const files = req.files.map(file => {
+                const id = uuid()
+                return { ...file, id, filename: file.filename }
+            })
             const payment = await Payment.findById(body?.payment).populate('drawer').populate('transactions')
             if (payment.status) return response.failure(422, { msg: 'Payment has already checked out' }, res)
             if (body.totalRemain.USD <= 0) return response.failure(422, { msg: 'No balance to proceed loan' }, res)
@@ -277,3 +287,37 @@ exports.checkout = async (req, res) => {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
+
+exports.uploadAttachment = async (req, res) => {
+    uploadFiles(req, res, async (err) => {
+        if (err) return response.failure(422, { msg: err.message }, res, err)
+        try {
+            const id = req.params.id
+            const files = req.files.map(file => {
+                const id = uuid()
+                return { ...file, id, filename: file.filename }
+            })
+            const loan = await Loan.findById(id)
+            loan.attachments = [ ...loan.attachments, ...files ]
+            loan.save()
+            response.success(200, { msg: 'Attachment uploaded successfully', data: loan }, res)
+        } catch (err) {
+            return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        }
+    })
+}
+
+exports.removeAttachment = async (req, res) => {
+    try {
+        const id = req.params.id
+        const fileId = req.body.fileId
+        const loan = await Loan.findById(id)
+        loan.attachments = loan.attachments.filter(file => file.id !== fileId)
+        loan.save()
+        response.success(200, { msg: 'Attachment removed successfully', data: loan }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+

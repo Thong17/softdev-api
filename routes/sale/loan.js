@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { index, listRequest, create, detail, cancel, reject, approve, checkout, approveAll, payment } = require('../../controllers/loanController')
+const { index, listRequest, create, detail, cancel, reject, approve, checkout, approveAll, payment, uploadAttachment, removeAttachment } = require('../../controllers/loanController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -41,6 +41,14 @@ router.put('/approveAll', security.role(privilege.loan.update), security.audit()
 
 router.put('/payment/:id', security.role(privilege.loan.update), security.audit(), (req, res) => {
     payment(req, res)
+})
+
+router.post('/uploadAttachment/:id', security.role(privilege.loan.update), security.audit(), (req, res) => {
+    uploadAttachment(req, res)
+})
+
+router.delete('/removeAttachment/:id', security.role(privilege.loan.update), security.audit(), (req, res) => {
+    removeAttachment(req, res)
 })
 
 module.exports = router
