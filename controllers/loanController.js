@@ -74,7 +74,7 @@ exports.detail = async (req, res) => {
     Loan.findById(req.params.id, (err, loan) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: loan }, res)
-    }).populate('payment customer loanPayments')
+    }).populate('customer loanPayments').populate({ path: 'payment', populate: { path: 'transactions' } })
 }
 
 exports.cancel = async (req, res) => {
