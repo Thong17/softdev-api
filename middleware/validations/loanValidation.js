@@ -44,7 +44,29 @@ const checkoutLoanValidation = Joi.object({
   paymentMethod: Joi.string().optional().allow(null)
 })
 
+const loanWriteOffValidation = Joi.object({
+  transactions: Joi.array()
+    .items(
+      Joi.object({
+        writeOffType: Joi.string().required(),
+        remainingCostCurrency: Joi.string().required(),
+        remainingCost: Joi.number().required(),
+        newPrice: Joi.number().required(),
+        newPriceCurrency: Joi.string().required(),
+        condition: Joi.string().optional(),
+        reason: Joi.string().optional(),
+        note: Joi.string().optional(),
+      })
+    )
+    .min(1)
+    .messages({
+      'array.min': 'At least one user is required',
+      'any.required': 'Transactions is required',
+    }),
+})
+
 module.exports = {
   createLoanValidation,
-  checkoutLoanValidation
+  checkoutLoanValidation,
+  loanWriteOffValidation
 }

@@ -6,11 +6,13 @@ const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram, generateLoanPayment, extractJoiErrors, calculateReturnCashes } = require('../helpers/utils')
-const { checkoutLoanValidation } = require('../middleware/validations/loanValidation')
+const { checkoutLoanValidation, loanWriteOffValidation } = require('../middleware/validations/loanValidation')
 const { sendTelegram } = require('./utilityController')
 const uuid = require('uuid').v4
 
 const multer = require('multer')
+const Transaction = require('../models/Transaction')
+const Product = require('../models/Product')
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
       cb(null, './uploads')
@@ -320,4 +322,45 @@ exports.removeAttachment = async (req, res) => {
     }
 }
 
+exports.writeOff = async (req, res) => {
+    try {
+        const body = req.body
+        const { error } = loanWriteOffValidation.validate(body, { abortEarly: false })
+        if (error) return response.failure(422, extractJoiErrors(error), res)
 
+        const id = req.params.id
+        const loan = await Loan.findById(id)
+        if (loan?.status === 'COMPLETED') return response.failure(422, { msg: 'Loan has already paid' }, res)
+
+        const transactions = body.transactions
+        transactions.forEach(async (transaction) => {
+            if (transaction.writeOffType === 'REPOSSESS') {
+                const loanTransaction = await Transaction.findById(transaction.id)
+                loanTransaction.status = 'REPOSSESSED'
+                await loanTransaction.save()
+
+                const product = loanTransaction.product
+                if (product) {
+                    const addedProduct = await Product.create({
+                        name: product.name,
+                        category: product.category,
+                        brand: product.brand,
+                        description: product.description,
+                        detail: product.detail,
+                        code: product.code,
+                        price: transaction.newPrice
+                    })
+                    const addedStock = await ProductStock.create({
+                        product: addedProduct._id,
+                        quantity: 1,
+                        cost: transaction.newCost
+                    })
+                    addedProduct.stocks.push(addedStock._id)
+                    await addedProduct.save()
+                }
+            }
+        });
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
