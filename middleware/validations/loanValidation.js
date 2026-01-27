@@ -48,6 +48,7 @@ const loanWriteOffValidation = Joi.object({
   transactions: Joi.array()
     .items(
       Joi.object({
+        id: Joi.string().required(),
         writeOffType: Joi.string().required(),
         remainingCostCurrency: Joi.string().required(),
         remainingCost: Joi.number().required(),

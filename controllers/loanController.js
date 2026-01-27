@@ -330,12 +330,14 @@ exports.writeOff = async (req, res) => {
 
         const id = req.params.id
         const loan = await Loan.findById(id)
+        if (!loan) return response.failure(422, { msg: 'No loan found' }, res)
         if (loan?.status === 'COMPLETED') return response.failure(422, { msg: 'Loan has already paid' }, res)
 
         const transactions = body.transactions
         transactions.forEach(async (transaction) => {
             if (transaction.writeOffType === 'REPOSSESS') {
                 const loanTransaction = await Transaction.findById(transaction.id)
+                if (!loanTransaction) return
                 loanTransaction.status = 'REPOSSESSED'
                 await loanTransaction.save()
 
