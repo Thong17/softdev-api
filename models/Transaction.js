@@ -25,6 +25,10 @@ const schema = mongoose.Schema(
             type: Boolean,
             default: false
         },
+        state: {
+            type: String,
+            default: 'PENDING'
+        },
         isDeleted: {
             type: Boolean,
             default: false

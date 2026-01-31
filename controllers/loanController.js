@@ -3,6 +3,8 @@ const LoanPayment = require('../models/LoanPayment')
 const Drawer = require('../models/Drawer')
 const Payment = require('../models/Payment')
 const StoreSetting = require('../models/StoreSetting')
+const ProductStock = require('../models/ProductStock')
+const TransactionClearance = require('../models/TransactionClearance')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram, generateLoanPayment, extractJoiErrors, calculateReturnCashes } = require('../helpers/utils')
@@ -335,33 +337,51 @@ exports.writeOff = async (req, res) => {
 
         const transactions = body.transactions
         transactions.forEach(async (transaction) => {
+            const loanTransaction = await Transaction.findById(transaction.id).populate('product')
+            if (!loanTransaction) return
             if (transaction.writeOffType === 'REPOSSESS') {
-                const loanTransaction = await Transaction.findById(transaction.id)
-                if (!loanTransaction) return
-                loanTransaction.status = 'REPOSSESSED'
+                loanTransaction.state = 'REPOSSESSED'
                 await loanTransaction.save()
 
                 const product = loanTransaction.product
                 if (product) {
                     const addedProduct = await Product.create({
-                        name: product.name,
+                        name: loanTransaction.product?.name,
                         category: product.category,
                         brand: product.brand,
-                        description: product.description,
+                        description: transaction.note,
                         detail: product.detail,
                         code: product.code,
-                        price: transaction.newPrice
+                        price: transaction.newPrice,
+                        currency: transaction.newPriceCurrency,
+                        isStock: true,
+                        createdBy: req.user.id,
                     })
                     const addedStock = await ProductStock.create({
                         product: addedProduct._id,
-                        quantity: 1,
-                        cost: transaction.newCost
+                        quantity: loanTransaction.quantity,
+                        cost: transaction.newCost,
+                        currency: transaction.newCostCurrency,
+                        createdBy: req.user.id,
                     })
                     addedProduct.stocks.push(addedStock._id)
                     await addedProduct.save()
                 }
+            } else if (transaction.writeOffType === 'CLEAR') {
+                loanTransaction.state = 'CLEARED'
+                await loanTransaction.save()
+                await TransactionClearance.create({
+                    amount: transaction.amount,
+                    currency: transaction.currency,
+                    note: transaction.note,
+                    transaction: loanTransaction._id,
+                    createdBy: req.user.id
+                })
             }
         });
+        loan.status = 'WRITTEN_OFF'
+        await loan.save()
+        return response.success(200, { msg: 'Loan write-off has been processed successfully' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }

@@ -47,17 +47,33 @@ const checkoutLoanValidation = Joi.object({
 const loanWriteOffValidation = Joi.object({
   transactions: Joi.array()
     .items(
-      Joi.object({
-        id: Joi.string().required(),
-        writeOffType: Joi.string().required(),
-        remainingCostCurrency: Joi.string().required(),
-        remainingCost: Joi.number().required(),
-        newPrice: Joi.number().required(),
-        newPriceCurrency: Joi.string().required(),
-        condition: Joi.string().optional(),
-        reason: Joi.string().optional(),
-        note: Joi.string().optional(),
-      })
+      Joi.alternatives().conditional(
+        Joi.object({
+          writeOffType: Joi.valid('REPOSSESS'),
+        }).unknown(),
+        {
+          then: Joi.object({
+            writeOffType: Joi.string().required(),
+            remainingCostCurrency: Joi.string().required(),
+            remainingCost: Joi.number().required(),
+            newPrice: Joi.number().required(),
+            newPriceCurrency: Joi.string().required(),
+            condition: Joi.string().required(),
+            reason: Joi.string().optional(),
+            note: Joi.string().optional(),
+            id: Joi.string().required()
+          }),
+          otherwise: Joi.object({
+            writeOffType: Joi.string().required(),
+            currency: Joi.string().required(),
+            amount: Joi.number().required(),
+            note: Joi.string().optional(),
+            id: Joi.string().required(),
+            condition: Joi.string().required(),
+            reason: Joi.string().optional(),
+          })
+        }
+      )
     )
     .min(1)
     .messages({
