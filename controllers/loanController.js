@@ -242,7 +242,7 @@ exports.checkout = async (req, res) => {
     try {
         const id = req.params.id
         const loan = await Loan.findById(id)
-        if (loan.status === 'COMPLETED') return response.failure(422, { msg: 'Loan has already paid' }, res)
+        if (loan.status !== 'IN_PROGRESS') return response.failure(422, { msg: 'Loan has already paid' }, res)
 
         const drawer = req.user?.drawer
         if (!drawer) return response.failure(422, { msg: 'No drawer opened' }, res)
@@ -360,8 +360,8 @@ exports.writeOff = async (req, res) => {
                     const addedStock = await ProductStock.create({
                         product: addedProduct._id,
                         quantity: loanTransaction.quantity,
-                        cost: transaction.newCost,
-                        currency: transaction.newCostCurrency,
+                        cost: transaction.remainingCost,
+                        currency: transaction.remainingCostCurrency,
                         createdBy: req.user.id,
                     })
                     addedProduct.stocks.push(addedStock._id)
@@ -381,6 +381,7 @@ exports.writeOff = async (req, res) => {
         });
         loan.status = 'WRITTEN_OFF'
         await loan.save()
+        await LoanPayment.updateMany({ loan: loan._id, isPaid: false }, { isClosed: true })
         return response.success(200, { msg: 'Loan write-off has been processed successfully' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)

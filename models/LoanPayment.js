@@ -34,6 +34,10 @@ const schema = mongoose.Schema(
             type: Boolean,
             default: false
         },
+        isClosed: {
+            type: Boolean,
+            default: false
+        },
         isDeleted: {
             type: Boolean,
             default: false
