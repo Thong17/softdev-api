@@ -8,6 +8,10 @@ exports.privilege = {
             route: 'menu',
             action: 'queue'
         },
+        promotion: {
+            route: 'menu',
+            action: 'promotion'
+        },
         operation: {
             route: 'menu',
             action: 'operation'
@@ -52,6 +56,10 @@ exports.privilege = {
             route: 'menu',
             action: 'product'
         },
+        loan: {
+            route: 'menu',
+            action: 'loan'
+        },
     },
     operation: {
         cashing: {
@@ -62,22 +70,14 @@ exports.privilege = {
             route: 'operation',
             action: 'reservation'
         },
-        transaction: {
-            route: 'operation',
-            action: 'transaction'
-        },
-        payment: {
-            route: 'operation',
-            action: 'payment'
-        },
         stock: {
             route: 'operation',
             action: 'stock'
         },
-        promotion: {
+        loan: {
             route: 'operation',
-            action: 'promotion'
-        }
+            action: 'loan'
+        },
     },
     organize: {
         category: {
@@ -104,8 +104,18 @@ exports.privilege = {
         },
         user: {
             route: 'admin',
-            action: 'role'
+            action: 'user'
         },
+    },
+    function: {
+        queue: {
+            route: 'function',
+            action: 'queue'
+        },
+        promotion: {
+            route: 'function',
+            action: 'promotion'
+        }
     },
     report: {
         sale: {
@@ -119,6 +129,14 @@ exports.privilege = {
         staff: {
             route: 'report',
             action: 'staff'
+        },
+        payment: {
+            route: 'report',
+            action: 'payment'
+        },
+        transaction: {
+            route: 'report',
+            action: 'transaction'
         },
     },
     user: {
@@ -339,6 +357,40 @@ exports.privilege = {
         cancel: {
             route: 'queue',
             action: 'cancel'
+        },
+    },
+    loan: {
+        list: {
+            route: 'loan',
+            action: 'list'
+        },
+        detail: {
+            route: 'loan',
+            action: 'detail'
+        },
+        create: {
+            route: 'loan',
+            action: 'create'
+        },
+        update: {
+            route: 'loan',
+            action: 'update'
+        },
+        cancel: {
+            route: 'loan',
+            action: 'cancel'
+        },
+        approve: {
+            route: 'loan',
+            action: 'approve'
+        },
+        reject: {
+            route: 'loan',
+            action: 'reject'
+        },
+        payment: {
+            route: 'loan',
+            action: 'payment'
         },
     },
     reservation: {

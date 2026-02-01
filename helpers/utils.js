@@ -1,9 +1,13 @@
+const moment = require('moment')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const { default: mongoose } = require('mongoose')
 const responseMsg = require('../constants/responseMsg')
 const ProductStock = require('../models/ProductStock')
 const Product = require('../models/Product')
+const Transaction = require('../models/Transaction')
+const Customer = require('../models/Customer')
+const LoanPayment = require('../models/LoanPayment')
 
 module.exports = utils = {
     encryptPassword: (plainPassword) => {
@@ -375,5 +379,69 @@ module.exports = utils = {
             .then(res => resolve(res))
             .catch(err => reject(err))
         })
-    }
+    },
+    checkoutTransaction: ({ transactions }) => {
+        return new Promise(async (resolve, reject) => {
+            try {
+                for (let i = 0; i < transactions.length; i++) {
+                    const transaction = transactions[i]
+                    await Transaction.findByIdAndUpdate(transaction, { status: true })
+                }
+                resolve({ message: `${transactions.length} ${transactions.length > 1 ? 'transactions' : 'transaction'} has been completed.` })
+            } catch (err) {
+                reject(err)
+            }
+        })
+    },
+    calculateCustomerPoint: ({ customerId, paymentPoint = 0 }) => {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const customer = await Customer.findById(customerId)
+                customer.point = customer.point + paymentPoint
+                customer.save()
+                resolve({ message: `${paymentPoint} ${paymentPoint > 1 ? 'points' : 'point'} has been added.` })
+            } catch (err) {
+                reject(err)
+            }
+        })
+    },
+    generateLoanPayment: (loanInfo) => {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const { duration, totalRemain, createdBy, interest } = loanInfo
+                if (!duration || !totalRemain) return reject(new Error('Unprocessable Entity'))
+                const loanId = mongoose.Types.ObjectId()
+
+                let totalPrincipalBalance = totalRemain.USD
+                const amountPerMonthUSD = totalRemain.USD / duration.value
+                
+
+                const loanItem = {
+                    principalAmount: { value: amountPerMonthUSD, currency: 'USD' },
+                }
+                const listPayment = []
+                const session = await LoanPayment.startSession()
+                await session.withTransaction(async () => {
+                    for (let i = 0; i < duration.value; i++) {
+                        const interestPerMonthUSD = totalPrincipalBalance * interest.value / 100
+                        const totalAmountUSD = amountPerMonthUSD + interestPerMonthUSD
+
+                        const interestAmount = { value: interestPerMonthUSD, currency: 'USD' }
+                        const totalAmount = { value: totalAmountUSD, currency: 'USD' }
+
+                        totalPrincipalBalance -= amountPerMonthUSD
+                        const principalBalance = { value: totalPrincipalBalance < 0 ? 0 : totalPrincipalBalance, currency: 'USD' }
+                        
+                        const paymentTime = moment().add(i + 1, duration.time).format()
+                        const loanPayment = await LoanPayment.create({ ...loanItem, createdBy, loan: loanId, dueDate: paymentTime, interestAmount, totalAmount, principalBalance })
+                        listPayment.push(loanPayment._id)
+                    }
+                })
+                await session.endSession()
+                resolve({ listPayment, loanId })
+            } catch (err) {
+                reject(err)
+            }
+        })
+    },
 }

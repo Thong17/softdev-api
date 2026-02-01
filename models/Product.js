@@ -15,6 +15,10 @@ const schema = mongoose.Schema(
             type: String,
             require: true
         },
+        condition: {
+            type: String,
+            default: 'NEW'
+        },
         code: {
             type: String,
             default: ''
