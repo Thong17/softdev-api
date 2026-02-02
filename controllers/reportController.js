@@ -57,7 +57,32 @@ exports.listSale = async (req, res) => {
             format = 'MMM YYYY'
             break
     }
-    listPayment.forEach(payment => {
+
+    const incomeLoanPayment = await LoanPayment.find({
+      paymentDate: query,
+      isPaid: true
+    }).select('totalAmount isPaid loan paymentDate')
+      .populate({ 
+        path: 'loan', 
+        populate: { 
+          path: 'payment', 
+          select: 'rate transactions',
+          populate: {
+            path: 'transactions',
+            select: 'stockCosts'
+          }
+        } 
+      })
+
+    listPayment.push(incomeLoanPayment.map(loanPayment => {
+        return {
+            total: loanPayment.totalAmount,
+            rate: loanPayment.loan.payment.rate,
+            createdAt: loanPayment.paymentDate
+        }
+    }))
+
+    listPayment.flat().forEach(payment => {
         const { buyRate } = payment.rate
         const isInList = listSale.some(item => moment(item.name).isSame(payment.createdAt, label))
         if (!isInList) {
