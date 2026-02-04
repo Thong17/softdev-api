@@ -44,7 +44,7 @@ exports.index = async (req, res) => {
         }
     }
     
-    Loan.find({ isDeleted: false, ...query }, async (err, loans) => {
+    Loan.find({ isDeleted: false, status: { $ne: 'PENDING' }, ...query }, async (err, loans) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         const listLoans = loans.map(item => {
             return {
@@ -188,7 +188,7 @@ exports.payment = async (req, res) => {
         calculateReturnCashes(drawer?.cashes, body.remainTotal, { sellRate: drawer.sellRate, buyRate: drawer.buyRate })
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(drawer?._id, { cashes })
-                const data = await LoanPayment.findByIdAndUpdate(id, { ...body, returnCashes, isPaid: true }, { new: true }).populate('createdBy', 'username')
+                const data = await LoanPayment.findByIdAndUpdate(id, { ...body, returnCashes, isPaid: true, paymentDate: new Date() }, { new: true }).populate('createdBy', 'username')
 
                 const loan = await Loan.findById(data.loan)
                 const totalUSD = body.total.value

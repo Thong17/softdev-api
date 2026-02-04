@@ -53,6 +53,9 @@ const schema = mongoose.Schema(
         dueDate: {
             type: Date
         },
+        paymentDate: {
+            type: Date
+        },
         tags: {
             type: String,
         },

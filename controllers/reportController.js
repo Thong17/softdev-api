@@ -2,6 +2,7 @@ const Payment = require('../models/Payment')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const moment = require('moment')
+const LoanPayment = require('../models/LoanPayment')
 
 exports.listSale = async (req, res) => {
   const chart = req.query._chartData || 'day'
@@ -32,6 +33,7 @@ exports.listSale = async (req, res) => {
     const listPayment = await Payment.find({
         createdAt: query,
         status: true,
+        paymentMethod: { $ne: 'loan' },
       }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     const listSale = []
 
@@ -55,7 +57,32 @@ exports.listSale = async (req, res) => {
             format = 'MMM YYYY'
             break
     }
-    listPayment.forEach(payment => {
+
+    const incomeLoanPayment = await LoanPayment.find({
+      paymentDate: query,
+      isPaid: true
+    }).select('totalAmount isPaid loan paymentDate')
+      .populate({ 
+        path: 'loan', 
+        populate: { 
+          path: 'payment', 
+          select: 'rate transactions',
+          populate: {
+            path: 'transactions',
+            select: 'stockCosts'
+          }
+        } 
+      })
+
+    listPayment.push(incomeLoanPayment.map(loanPayment => {
+        return {
+            total: loanPayment.totalAmount,
+            rate: loanPayment.loan.payment.rate,
+            createdAt: loanPayment.paymentDate
+        }
+    }))
+
+    listPayment.flat().forEach(payment => {
         const { buyRate } = payment.rate
         const isInList = listSale.some(item => moment(item.name).isSame(payment.createdAt, label))
         if (!isInList) {
@@ -88,6 +115,7 @@ exports.totalSale = async (req, res) => {
         $gte: moment().startOf(income).toDate(),
         $lt: moment().endOf(income).toDate(),
       },
+      paymentMethod: { $ne: 'loan' },
       status: true,
     }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     let totalIncome = 0
@@ -104,6 +132,7 @@ exports.totalSale = async (req, res) => {
         $gte: moment().startOf(profit).toDate(),
         $lt: moment().endOf(profit).toDate(),
       },
+      paymentMethod: { $ne: 'loan' },
       status: true,
     }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     let totalProfit = 0
@@ -119,6 +148,39 @@ exports.totalSale = async (req, res) => {
             })
         })
         totalProfit += paymentTotal - costTotal
+    })
+
+    const incomeLoanPayment = await LoanPayment.find({
+      paymentDate: {
+        $gte: moment().startOf(income).toDate(),
+        $lt: moment().endOf(income).toDate(),
+      },
+      isPaid: true
+    }).select('totalAmount isPaid loan')
+      .populate({ 
+        path: 'loan', 
+        populate: { 
+          path: 'payment', 
+          select: 'rate transactions',
+          populate: {
+            path: 'transactions',
+            select: 'stockCosts'
+          }
+        } 
+      })
+    incomeLoanPayment.forEach(loanPayment => {
+        const { buyRate } = loanPayment.loan.payment.rate
+        let loanPaymentTotal = loanPayment.totalAmount.value
+        if (loanPayment.totalAmount.currency !== 'USD') loanPaymentTotal /= buyRate
+        totalIncome += loanPaymentTotal
+
+        let loanCostTotal = loanPayment.loan.payment.transactions.reduce((acc, transaction) => {
+          const transactionCost = transaction.stockCosts.reduce((stockAcc, stock) => {
+            return stockAcc + (stock.currency !== 'USD' ? stock.cost / buyRate : stock.cost)
+          }, 0)
+          return acc + transactionCost
+        }, 0)
+        totalProfit += loanPaymentTotal - loanCostTotal / loanPayment.loan.loanPayments.length
     })
 
     return response.success(200, { data: { totalIncome, totalProfit } }, res)
