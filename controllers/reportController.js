@@ -3,6 +3,7 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const moment = require('moment')
 const LoanPayment = require('../models/LoanPayment')
+const TransactionClearance = require('../models/TransactionClearance')
 
 exports.listSale = async (req, res) => {
   const chart = req.query._chartData || 'day'
@@ -169,7 +170,7 @@ exports.totalSale = async (req, res) => {
         } 
       })
     incomeLoanPayment.forEach(loanPayment => {
-        const { buyRate } = loanPayment.loan.payment.rate
+        const buyRate = loanPayment.loan.payment?.rate?.buyRate
         let loanPaymentTotal = loanPayment.totalAmount.value
         if (loanPayment.totalAmount.currency !== 'USD') loanPaymentTotal /= buyRate
         totalIncome += loanPaymentTotal
@@ -181,6 +182,24 @@ exports.totalSale = async (req, res) => {
           return acc + transactionCost
         }, 0)
         totalProfit += loanPaymentTotal - loanCostTotal / loanPayment.loan.loanPayments.length
+    })
+
+    const transactionClearance = await TransactionClearance.find({
+      createdAt: {
+        $gte: moment().startOf(income).toDate(),
+        $lt: moment().endOf(income).toDate(),
+      },
+    }).select('transaction amount currency type').populate('transaction', 'stockCosts').populate({ path: 'loan', select: 'payment', populate: { path: 'payment', select: 'rate' } })
+
+    transactionClearance.forEach(clearance => {
+      const buyRate = clearance.loan?.payment?.rate?.buyRate
+      let clearanceAmount = clearance.amount
+      if (clearance.currency !== 'USD') clearanceAmount /= buyRate
+      const totalTransactionCost = clearance.transaction.stockCosts.reduce((acc, stock) => {
+        return acc + (stock.currency !== 'USD' ? stock.cost / buyRate : stock.cost)
+      }, 0)
+      totalIncome += clearanceAmount
+      totalProfit += clearanceAmount - totalTransactionCost
     })
 
     return response.success(200, { data: { totalIncome, totalProfit } }, res)

@@ -366,6 +366,16 @@ exports.writeOff = async (req, res) => {
                     })
                     addedProduct.stocks.push(addedStock._id)
                     await addedProduct.save()
+                    await TransactionClearance.create({
+                        amount: transaction.remainingCost,
+                        currency: transaction.remainingCostCurrency,
+                        note: transaction.note,
+                        transaction: loanTransaction._id,
+                        newStock: addedStock._id,
+                        createdBy: req.user.id,
+                        type: 'REPOSSESSION',
+                        loan: id
+                    })
                 }
             } else if (transaction.writeOffType === 'CLEAR') {
                 loanTransaction.state = 'CLEARED'
@@ -375,7 +385,9 @@ exports.writeOff = async (req, res) => {
                     currency: transaction.currency,
                     note: transaction.note,
                     transaction: loanTransaction._id,
-                    createdBy: req.user.id
+                    createdBy: req.user.id,
+                    type: 'CLEARANCE',
+                    loan: id
                 })
             }
         });
