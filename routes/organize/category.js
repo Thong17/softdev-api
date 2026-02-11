@@ -1,6 +1,5 @@
 const router = require('express').Router()
-const multer = require('multer')
-const upload = multer()
+const { memoryStorage } = require('../../configs/multer')
 const { index, create, update, toggleStatus, detail, disable, _import, _export, batch } = require('../../controllers/categoryController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
@@ -33,7 +32,7 @@ router.post('/excel/export', security.role(privilege.category.list), (req, res) 
     _export(req, res)
 })
 
-router.post('/excel/import', upload.single('excel'), (req, res) => {
+router.post('/excel/import', memoryStorage.single('excel'), (req, res) => {
     _import(req, res)
 })
 

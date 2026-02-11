@@ -9,7 +9,7 @@ const moment = require('moment/moment')
 
 exports.uploadImageController = (req, res) => {
     const files = req.files.map(file => {
-        return { filename: file.filename }
+        return { filename: file.objectName }
     })
     try {
         Image.insertMany(files, (err, image) => {
@@ -27,7 +27,7 @@ exports.uploadImageController = (req, res) => {
 
 exports.uploadIconController = (req, res) => {
     try {
-        Icon.create({ filename: req.file.filename }, (err, image) => {
+        Icon.create({ filename: req.file.objectName }, (err, image) => {
             if (err) {
                 return response.failure(422, { msg: err.message }, res, err)
             }
@@ -42,7 +42,7 @@ exports.uploadIconController = (req, res) => {
 
 exports.uploadPictureController = (req, res) => {
     try {
-        Picture.create({ filename: req.file.filename }, (err, image) => {
+        Picture.create({ filename: req.file.objectName }, (err, image) => {
             if (err) {
                 return response.failure(422, { msg: err.message }, res, err)
             }

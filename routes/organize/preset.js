@@ -1,6 +1,5 @@
 const router = require('express').Router()
-const multer = require('multer')
-const upload = multer()
+const { memoryStorage } = require('../../configs/multer')
 const { index, create, save, detail, disable, _import, batch } = require('../../controllers/presetController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
@@ -25,7 +24,7 @@ router.delete('/delete/:id', security.role(privilege.preset.delete), security.au
     disable(req, res)
 })
 
-router.post('/excel/import', upload.single('excel'), (req, res) => {
+router.post('/excel/import', memoryStorage.single('excel'), (req, res) => {
     _import(req, res)
 })
 
