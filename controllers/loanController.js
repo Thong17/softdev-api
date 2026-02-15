@@ -93,6 +93,7 @@ exports.cancel = async (req, res) => {
 exports.reject = async (req, res) => {
     try {
         await Loan.findByIdAndUpdate(req.params.id, { status: 'REJECTED' })
+        await LoanPayment.updateMany({ loan: req.params.id }, { isClosed: true })
         return response.success(200, { msg: 'Loan has been rejected' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -147,14 +148,14 @@ exports.create = async (req, res) => {
             const loan = await Loan.create({_id: loanId, ...loanBody})
             if (!loan) return response.failure(422, { msg: 'No loan created!' }, res)
             const paymentMethod = 'loan'
-            const data = await Payment.findByIdAndUpdate(body?.payment, { ...body, paymentMethod, status: true }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
+            const data = await Payment.findByIdAndUpdate(body?.payment, { ...body, paymentMethod, status: true, state: 'IN_REVIEW' }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
             
             if (data.customer) {
                 const paymentPoint = payment.total.currency === 'USD' ? payment.total.value : payment.total.value / payment.rate.buyRate
                 calculateCustomerPoint({ customerId: data.customer, paymentPoint })
                     .catch(err => console.error(err))
             }
-            checkoutTransaction({ transactions: data.transactions })
+            checkoutTransaction({ transactions: data.transactions, state: 'IN_REVIEW' })
                 .then((message) => console.info(message))
                 .catch(err => console.error(err))
 

@@ -1,5 +1,6 @@
 const router = require('express').Router()
 const { minioClient } = require('../configs/multer')
+const response = require('../helpers/response')
 
 router.get('/uploads/:filename', async (req, res) => {
     try {
@@ -13,7 +14,7 @@ router.get('/uploads/:filename', async (req, res) => {
         res.set('Content-Type', mimetype)
         stream.pipe(res)
     } catch (error) {
-        console.error(error)
+        response.failure(422, { msg: error.message }, res, error)
     }
 })
 

@@ -125,11 +125,11 @@ exports.checkout = async (req, res) => {
         calculateReturnCashes(payment?.drawer?.cashes, body.remainTotal, payment.rate)
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(payment?.drawer?._id, { cashes })
-                const data = await Payment.findByIdAndUpdate(id, { ...body, returnCashes, status: true }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
+                const data = await Payment.findByIdAndUpdate(id, { ...body, returnCashes, status: true, state: 'COMPLETED' }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
                 
                 for (let i = 0; i < data.transactions.length; i++) {
                     const transaction = data.transactions[i]
-                    await Transaction.findByIdAndUpdate(transaction, { status: true })
+                    await Transaction.findByIdAndUpdate(transaction, { status: true, state: 'COMPLETED' })
                 }
 
                 if (data.reservation) await Reservation.findByIdAndUpdate(data.reservation, { isCompleted: true })

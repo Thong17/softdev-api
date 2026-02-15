@@ -380,12 +380,12 @@ module.exports = utils = {
             .catch(err => reject(err))
         })
     },
-    checkoutTransaction: ({ transactions }) => {
+    checkoutTransaction: ({ transactions, status = true, state = 'COMPLETED' }) => {
         return new Promise(async (resolve, reject) => {
             try {
                 for (let i = 0; i < transactions.length; i++) {
                     const transaction = transactions[i]
-                    await Transaction.findByIdAndUpdate(transaction, { status: true })
+                    await Transaction.findByIdAndUpdate(transaction, { status, state })
                 }
                 resolve({ message: `${transactions.length} ${transactions.length > 1 ? 'transactions' : 'transaction'} has been completed.` })
             } catch (err) {
