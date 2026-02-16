@@ -1,6 +1,5 @@
 const router = require('express').Router()
-const multer = require('multer')
-const upload = multer()
+const { memoryStorage } = require('../../configs/multer')
 const { index, create, stock, update, increaseQuantity, decreaseQuantity, detail, remove, reverseAll, _import, batch } = require('../../controllers/transactionController')
 const security = require('../../middleware/security')
 const middleware = require('../../middleware/function')
@@ -42,7 +41,7 @@ router.delete('/reverseAll', security.role(privilege.transaction.delete), middle
     reverseAll(req, res)
 })
 
-router.post('/excel/import', upload.single('excel'), (req, res) => {
+router.post('/excel/import', memoryStorage.single('excel'), (req, res) => {
     _import(req, res)
 })
 

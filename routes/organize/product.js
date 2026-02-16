@@ -1,6 +1,5 @@
 const router = require('express').Router()
-const multer = require('multer')
-const upload = multer()
+const { memoryStorage } = require('../../configs/multer')
 const { index, create, update, detail, disable, enableStock, _import, _export, batch, createProperty, updateProperty, reorderProperty, disableProperty, createOption, updateOption, toggleDefault, disableOption, detailOption, detailProperty, createColor, updateColor, disableColor, detailColor, createCustomerOption, detailCustomerOption, updateCustomerOption, disableCustomerOption } = require('../../controllers/productController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
@@ -33,7 +32,7 @@ router.post('/excel/export', security.role(privilege.product.list), (req, res) =
     _export(req, res)
 })
 
-router.post('/excel/import', security.role(privilege.product.create), security.audit(), upload.single('excel'), (req, res) => {
+router.post('/excel/import', security.role(privilege.product.create), security.audit(), memoryStorage.single('excel'), (req, res) => {
     _import(req, res)
 })
 

@@ -16,7 +16,7 @@ exports.index = async (req, res) => {
     const search = req.query.search?.replace(/ /g,'')
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
-    const sort = req.query.sort || 'asc'
+    const sort = req.query.sort || 'desc'
     
     let filterObj = { [filter]: sort }
     let query = {}
@@ -26,14 +26,15 @@ exports.index = async (req, res) => {
         }
     }
     
-    Payment.find({ isDeleted: false, ...query }, async (err, categories) => {
+    Payment.find({ ...query }, async (err, payments) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Payment.count({ isDisabled: false })
-        return response.success(200, { data: categories, length: totalCount }, res)
+        const totalCount = await Payment.count()
+        return response.success(200, { data: payments, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
+        .populate('createdBy')
 }
 
 exports.detail = async (req, res) => {
@@ -125,11 +126,11 @@ exports.checkout = async (req, res) => {
         calculateReturnCashes(payment?.drawer?.cashes, body.remainTotal, payment.rate)
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(payment?.drawer?._id, { cashes })
-                const data = await Payment.findByIdAndUpdate(id, { ...body, returnCashes, status: true }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
+                const data = await Payment.findByIdAndUpdate(id, { ...body, returnCashes, status: true, state: 'COMPLETED' }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
                 
                 for (let i = 0; i < data.transactions.length; i++) {
                     const transaction = data.transactions[i]
-                    await Transaction.findByIdAndUpdate(transaction, { status: true })
+                    await Transaction.findByIdAndUpdate(transaction, { status: true, state: 'COMPLETED' })
                 }
 
                 if (data.reservation) await Reservation.findByIdAndUpdate(data.reservation, { isCompleted: true })

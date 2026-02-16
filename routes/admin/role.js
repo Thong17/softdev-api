@@ -1,5 +1,4 @@
-const multer = require('multer')
-const upload = multer()
+const { memoryStorage } = require('../../configs/multer')
 const router = require('express').Router()
 const { index, detail, create, disable, update, batch, _import, getPrivilege, getPreRole } = require('../../controllers/roleController')
 const security = require('../../middleware/security')
@@ -33,7 +32,7 @@ router.get('/preRole', (req, res) => {
     getPreRole(req, res)
 }) 
 
-router.post('/excel/import', upload.single('excel'), (req, res) => {
+router.post('/excel/import', memoryStorage.single('excel'), (req, res) => {
     _import(req, res)
 })
 

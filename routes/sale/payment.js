@@ -1,6 +1,5 @@
 const router = require('express').Router()
-const multer = require('multer')
-const upload = multer()
+const { memoryStorage } = require('../../configs/multer')
 const { index, create, checkout, update, detail, _import, batch } = require('../../controllers/paymentController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
@@ -25,7 +24,7 @@ router.put('/checkout/:id', security.role(privilege.payment.update), security.au
     checkout(req, res)
 })
 
-router.post('/excel/import', upload.single('excel'), (req, res) => {
+router.post('/excel/import', memoryStorage.single('excel'), (req, res) => {
     _import(req, res)
 })
 

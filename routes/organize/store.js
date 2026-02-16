@@ -1,6 +1,5 @@
 const router = require('express').Router()
-const multer = require('multer')
-const upload = multer()
+const { memoryStorage } = require('../../configs/multer')
 const { index, create, update, detail, disable, _import, batch, floors, listTransfer, structures, layout, updateLayout, createFloor, updateFloor, disableFloor, createTransfer, updateTransfer, deleteTransfer, updateTelegramSetting, getTelegramSetting } = require('../../controllers/storeController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
@@ -69,7 +68,7 @@ router.get('/layout', (req, res) => {
     layout(req, res)
 })
 
-router.post('/excel/import', upload.single('excel'), (req, res) => {
+router.post('/excel/import', memoryStorage.single('excel'), (req, res) => {
     _import(req, res)
 })
 

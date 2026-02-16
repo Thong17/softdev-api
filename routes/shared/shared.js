@@ -1,4 +1,5 @@
 const router = require('express').Router()
+const { minioStorage } = require('../../configs/multer')
 const { list: roleList } = require('../../controllers/roleController')
 const { list: productList } = require('../../controllers/productController')
 const { list: customerList } = require('../../controllers/customerController')
@@ -9,31 +10,10 @@ const { info: productInfo, listCode } = require('../../controllers/productContro
 const { listStructure: structureList } = require('../../controllers/storeController')
 const response = require('../../helpers/response')
 const { uploadImageController, uploadIconController, uploadPictureController, structureCapacity } = require('../../controllers/sharedController')
-const multer = require('multer')
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, './uploads')
-  },
-  filename: function (req, file, cb) {
-    cb(null, `${Date.now()}_${file.originalname}`)
-  },
-})
-
-const uploadImage = multer({
-  storage,
-  limits: { fileSize: 10 * 1000 * 1000 },
-}).array('images', 10) 
-
-const uploadIcon = multer({
-  storage,
-  limits: { fileSize: 0.5 * 1000 * 1000 },
-}).single('icon')
-
-const uploadPicture = multer({
-  storage,
-  limits: { fileSize: 0.5 * 1000 * 1000 },
-}).single('picture')
+const uploadImage = minioStorage.array('images', 10) 
+const uploadIcon = minioStorage.single('icon')
+const uploadPicture = minioStorage.single('picture')
 
 router.get('/product/info/:id', (req, res) => {
   productInfo(req, res)
