@@ -7,7 +7,7 @@ const ProductStock = require('../models/ProductStock')
 const TransactionClearance = require('../models/TransactionClearance')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram, generateLoanPayment, extractJoiErrors, calculateReturnCashes } = require('../helpers/utils')
+const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram, generateLoanPayment, extractJoiErrors, calculateReturnCashes, reverseProductStock } = require('../helpers/utils')
 const { checkoutLoanValidation, loanWriteOffValidation } = require('../middleware/validations/loanValidation')
 const { sendTelegram } = require('./utilityController')
 const uuid = require('uuid').v4
@@ -92,8 +92,11 @@ exports.cancel = async (req, res) => {
 
 exports.reject = async (req, res) => {
     try {
-        await Loan.findByIdAndUpdate(req.params.id, { status: 'REJECTED' })
+        const load = await Loan.findByIdAndUpdate(req.params.id, { status: 'REJECTED' })
         await LoanPayment.updateMany({ loan: req.params.id }, { isClosed: true })
+        const payment = await Payment.findByIdAndUpdate(load.payment, { state: 'REJECTED' }).populate('transactions')
+        await checkoutTransaction({ transactions: payment.transactions, state: 'REJECTED' })
+        await reverseProductStock(payment.transactions?.flatMap(transaction => transaction.stocks))
         return response.success(200, { msg: 'Loan has been rejected' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
