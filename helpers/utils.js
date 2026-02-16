@@ -412,8 +412,12 @@ module.exports = utils = {
                 if (!duration || !totalRemain) return reject(new Error('Unprocessable Entity'))
                 const loanId = mongoose.Types.ObjectId()
 
+                let durationTime
+                if (duration.time === 'year') durationTime = duration.value * 12
+                else durationTime = duration.value
+
                 let totalPrincipalBalance = totalRemain.USD
-                const amountPerMonthUSD = totalRemain.USD / duration.value
+                const amountPerMonthUSD = totalRemain.USD / durationTime
                 
 
                 const loanItem = {
@@ -422,7 +426,7 @@ module.exports = utils = {
                 const listPayment = []
                 const session = await LoanPayment.startSession()
                 await session.withTransaction(async () => {
-                    for (let i = 0; i < duration.value; i++) {
+                    for (let i = 0; i < durationTime; i++) {
                         const interestPerMonthUSD = totalPrincipalBalance * interest.value / 100
                         const totalAmountUSD = amountPerMonthUSD + interestPerMonthUSD
 
