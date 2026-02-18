@@ -7,7 +7,7 @@ const ProductStock = require('../models/ProductStock')
 const TransactionClearance = require('../models/TransactionClearance')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram, generateLoanPayment, extractJoiErrors, calculateReturnCashes, reverseProductStock } = require('../helpers/utils')
+const { checkoutTransaction, calculateCustomerPoint, sendMessageTelegram, generateLoanPayment, extractJoiErrors, calculateReturnCashes, reverseProductStock, generateLoanPreview } = require('../helpers/utils')
 const { checkoutLoanValidation, loanWriteOffValidation } = require('../middleware/validations/loanValidation')
 const { sendTelegram } = require('./utilityController')
 const uuid = require('uuid').v4
@@ -439,4 +439,10 @@ exports.writeOff = async (req, res) => {
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
+}
+
+exports.preview = (req, res) => {
+    const body = req.body
+    const listPayment = generateLoanPreview(body)
+    return response.success(200, { data: listPayment }, res)
 }

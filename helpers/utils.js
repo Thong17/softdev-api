@@ -448,4 +448,37 @@ module.exports = utils = {
             }
         })
     },
+
+    generateLoanPreview: (loanInfo) => {
+        const { duration, totalRemain, createdBy, interest } = loanInfo
+        if (!duration || !totalRemain) return reject(new Error('Unprocessable Entity'))
+        const loanId = mongoose.Types.ObjectId()
+
+        let durationTime
+        if (duration.time === 'year') durationTime = duration.value * 12
+        else durationTime = duration.value
+
+        let totalPrincipalBalance = totalRemain.USD
+        const amountPerMonthUSD = totalRemain.USD / durationTime
+        
+
+        const loanItem = {
+            principalAmount: { value: amountPerMonthUSD, currency: 'USD' },
+        }
+        const listPayment = []
+        for (let i = 0; i < durationTime; i++) {
+            const interestPerMonthUSD = totalPrincipalBalance * interest.value / 100
+            const totalAmountUSD = amountPerMonthUSD + interestPerMonthUSD
+
+            const interestAmount = { value: interestPerMonthUSD, currency: 'USD' }
+            const totalAmount = { value: totalAmountUSD, currency: 'USD' }
+
+            totalPrincipalBalance -= amountPerMonthUSD
+            const principalBalance = { value: Math.max(totalPrincipalBalance, 0), currency: 'USD' }
+            
+            const paymentTime = moment().add(i + 1, duration.time).format()
+            listPayment.push({ ...loanItem, createdBy, loan: loanId, dueDate: paymentTime, interestAmount, totalAmount, principalBalance })
+        }
+        return listPayment
+    },
 }
