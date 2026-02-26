@@ -88,8 +88,8 @@ exports.update = async (req, res) => {
     const body = req.body
     const { error } = createCustomerValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
-
     try {
+        body.tags = `${body.displayName}${body.fullName}${body.contact}${body.address}`.replace(/ /g,'')
         Customer.findByIdAndUpdate(req.params.id, body, (err, customer) => {
             if (err) {
                 switch (err.code) {
