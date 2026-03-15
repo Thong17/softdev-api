@@ -8,6 +8,7 @@ const { list: categoryList } = require('../../controllers/categoryController')
 const { list: presetCashList } = require('../../controllers/presetController')
 const { info: productInfo, listCode } = require('../../controllers/productController')
 const { listStructure: structureList } = require('../../controllers/storeController')
+const { list: notificationList, count: notificationCount } = require('../../controllers/notificationController')
 const response = require('../../helpers/response')
 const { uploadImageController, uploadIconController, uploadPictureController, structureCapacity } = require('../../controllers/sharedController')
 
@@ -74,6 +75,14 @@ router.post('/upload/picture', (req, res) => {
     if (err) return response.failure(422, { msg: err.message }, res, err)
     uploadPictureController(req, res)
   })
+})
+
+router.get('/product/notification/list', (req, res) => {
+  notificationList(req, res)
+})
+
+router.get('/product/notification/count', (req, res) => {
+  notificationCount(req, res)
 })
 
 module.exports = router
