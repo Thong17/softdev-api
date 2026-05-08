@@ -9,6 +9,7 @@ const { createPaymentValidation, checkoutPaymentValidation } = require('../middl
 const Reservation = require('../models/Reservation')
 const Customer = require('../models/Customer')
 const moment = require('moment')
+const { telegramReceiptTemplate } = require('./utilityController')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
@@ -34,7 +35,7 @@ exports.index = async (req, res) => {
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
-        .populate('createdBy')
+        .populate('createdBy transactions')
 }
 
 exports.detail = async (req, res) => {
@@ -144,13 +145,7 @@ exports.checkout = async (req, res) => {
                 // Send message to Telegram
                 const storeConfig = await StoreSetting.findOne()
                 if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
-                    const text = `New Payment On ${moment(data.createdAt).format('YYYY-MM-DD')}
-                        🧾Invoice: ${data.invoice}
-                        💵Subtotal: ${currencyFormat(data.subtotal.BOTH)} USD
-                        💵Total: ${currencyFormat(data.total.value)} ${data.total.currency}
-                        👝Payment Method: ${data.paymentMethod || 'cash'}
-                        👱‍♂️By: ${req.user?.username}
-                        `
+                    const text = telegramReceiptTemplate(data)
                     sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
                         .catch(err => console.error(err))
                 }
