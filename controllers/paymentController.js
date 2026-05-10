@@ -49,7 +49,7 @@ exports.index = async (req, res) => {
     Payment.find({ ...query }, async (err, payments) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Payment.count()
+        const totalCount = await Payment.count({ ...query })
         return response.success(200, { data: payments, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
