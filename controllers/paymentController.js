@@ -18,12 +18,31 @@ exports.index = async (req, res) => {
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
     const sort = req.query.sort || 'desc'
+    const fromDate = req.query.fromDate
+    const toDate = req.query.toDate
     
     let filterObj = { [filter]: sort }
     let query = {}
     if (search) {
         query[field] = {
             $regex: new RegExp(search, 'i')
+        }
+    }
+    
+    // Add date filtering if fromDate and/or toDate are provided
+    if (fromDate || toDate) {
+        query.createdAt = {}
+        if (fromDate) {
+            const fromDateObj = moment(fromDate, 'YYYY-MM-DD').startOf('day').toDate()
+            if (moment(fromDateObj).isValid()) {
+                query.createdAt.$gte = fromDateObj
+            }
+        }
+        if (toDate) {
+            const toDateObj = moment(toDate, 'YYYY-MM-DD').endOf('day').toDate()
+            if (moment(toDateObj).isValid()) {
+                query.createdAt.$lte = toDateObj
+            }
         }
     }
     
@@ -35,7 +54,7 @@ exports.index = async (req, res) => {
     })
         .skip(page * limit).limit(limit)
         .sort(filterObj)
-        .populate('createdBy transactions')
+        .populate('createdBy')
 }
 
 exports.detail = async (req, res) => {
