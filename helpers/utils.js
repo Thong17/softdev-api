@@ -373,7 +373,8 @@ module.exports = utils = {
             axios.post(`${TELEGRAM_API_URL}${token}/sendMessage`, 
                 { 
                     chat_id: chatId,
-                    text
+                    text,
+                    parse_mode: 'Markdown'
                 }
             )
             .then(res => resolve(res))
