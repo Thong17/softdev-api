@@ -37,10 +37,10 @@ exports.telegramReceiptTemplate = async (data) => {
                 return `${num}  ${desc}  ${qty}  ${price}`;
             },
         );
-        const footerSep = '────────────────────────────────';
+        const footerSep = '───────────────────────────────';
         const subtotalLine = `Subtotal:              ${subtotalStr.padStart(8)}`;
         const totalLine = `Total:                 ${totalStr.padStart(8)}`;
-        const paymentLine = `Payment:               ${paymentStr}`;
+        const paymentLine = `Payment:               ${paymentStr.padStart(8)}`;
         return [header, separator, ...rows, footerSep, subtotalLine, totalLine, paymentLine].join('\n');
     })();
 
