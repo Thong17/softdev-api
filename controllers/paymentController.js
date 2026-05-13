@@ -164,7 +164,7 @@ exports.checkout = async (req, res) => {
                 // Send message to Telegram
                 const storeConfig = await StoreSetting.findOne()
                 if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
-                    const text = telegramReceiptTemplate(data)
+                    const text = await telegramReceiptTemplate(data)
                     sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
                         .catch(err => console.error(err))
                 }
