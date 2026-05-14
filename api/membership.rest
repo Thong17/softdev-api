@@ -1,0 +1,106 @@
+### Membership Management API
+
+# Get all memberships
+GET http://localhost:3000/organize/membership
+Authorization: Bearer {{token}}
+
+###
+
+# Get membership detail
+GET http://localhost:3000/organize/membership/detail/:id
+Authorization: Bearer {{token}}
+
+###
+
+# Create new membership
+POST http://localhost:3000/organize/membership/create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Gold Membership",
+  "description": "Premium membership with exclusive discounts",
+  "discounts": [
+    {
+      "type": "product",
+      "target": "product_id_here",
+      "discountType": "percentage",
+      "value": 15
+    },
+    {
+      "type": "category",
+      "target": "category_id_here",
+      "discountType": "percentage",
+      "value": 10
+    },
+    {
+      "type": "brand",
+      "target": "brand_id_here",
+      "discountType": "fixed",
+      "value": 50
+    }
+  ],
+  "startAt": "2026-05-14T00:00:00.000Z",
+  "expireAt": "2027-05-14T00:00:00.000Z",
+  "note": "Valid for 1 year from start date"
+}
+
+###
+
+# Update membership
+PUT http://localhost:3000/organize/membership/update/:id
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Gold Membership Updated",
+  "description": "Updated premium membership",
+  "discounts": [
+    {
+      "type": "product",
+      "target": "product_id_here",
+      "discountType": "percentage",
+      "value": 20
+    }
+  ],
+  "startAt": "2026-05-14T00:00:00.000Z",
+  "expireAt": "2027-05-14T00:00:00.000Z",
+  "note": "Updated note"
+}
+
+###
+
+# Delete membership (soft delete)
+DELETE http://localhost:3000/organize/membership/disable/:id
+Authorization: Bearer {{token}}
+
+###
+
+# Get best discount for a product (compares membership vs promotion)
+GET http://localhost:3000/organize/membership/discount/best/:productId/:customerId
+
+###
+
+# Get all applicable discounts for a customer
+GET http://localhost:3000/organize/membership/discount/customer/:customerId
+Authorization: Bearer {{token}}
+
+###
+
+# Assign membership to customer
+POST http://localhost:3000/organize/membership/assign
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerId": "customer_id_here",
+  "membershipId": "membership_id_here"
+}
+
+###
+
+# Remove membership from customer
+DELETE http://localhost:3000/organize/membership/customer/:customerId
+Authorization: Bearer {{token}}
+
+###

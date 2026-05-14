@@ -99,6 +99,10 @@ exports.privilege = {
         store: {
             route: 'organize',
             action: 'store'
+        },
+        membership: {
+            route: 'organize',
+            action: 'membership'
         }
     },
     admin: {
@@ -460,6 +464,28 @@ exports.privilege = {
         },
         delete: {
             route: 'preset',
+            action: 'delete'
+        },
+    },
+    membership: {
+        list: {
+            route: 'membership',
+            action: 'list'
+        },
+        detail: {
+            route: 'membership',
+            action: 'detail'
+        },
+        create: {
+            route: 'membership',
+            action: 'create'
+        },
+        update: {
+            route: 'membership',
+            action: 'update'
+        },
+        delete: {
+            route: 'membership',
             action: 'delete'
         },
     },

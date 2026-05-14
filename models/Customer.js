@@ -37,6 +37,11 @@ const schema = mongoose.Schema(
             type: Boolean,
             default: false
         },
+        membership: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Membership',
+            default: null
+        },
         createdBy: {
             type: mongoose.Schema.ObjectId,
             ref: 'User'
