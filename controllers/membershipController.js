@@ -59,8 +59,11 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     // Validate discount targets exist
-    if (body.discounts && body.discounts.length > 0) {
-        for (const discount of body.discounts) {
+    const discountsToValidate = body.discounts && typeof body.discounts === 'object'
+        ? Object.values(body.discounts)
+        : []
+    if (discountsToValidate.length > 0) {
+        for (const discount of discountsToValidate) {
             let Model
             switch (discount.type) {
                 case 'product':
@@ -73,9 +76,12 @@ exports.create = async (req, res) => {
                     Model = require('../models/Brand')
                     break
             }
-            const target = await Model.findById(discount.target)
-            if (!target) {
-                return response.failure(422, { msg: `${discount.type} with ID ${discount.target} not found` }, res)
+            const targetIds = Array.isArray(discount.target) ? discount.target : [discount.target]
+            for (const targetId of targetIds) {
+                const target = await Model.findById(targetId)
+                if (!target) {
+                    return response.failure(422, { msg: `${discount.type} with ID ${targetId} not found` }, res)
+                }
             }
         }
     }
@@ -111,8 +117,11 @@ exports.update = async (req, res) => {
         if (!membership) return response.failure(404, { msg: 'No membership updated!' }, res, err)
 
         // Validate discount targets exist
-        if (body.discounts && body.discounts.length > 0) {
-            for (const discount of body.discounts) {
+        const discountsToValidate = body.discounts && typeof body.discounts === 'object'
+            ? Object.values(body.discounts)
+            : []
+        if (discountsToValidate.length > 0) {
+            for (const discount of discountsToValidate) {
                 let Model
                 switch (discount.type) {
                     case 'product':
@@ -125,9 +134,12 @@ exports.update = async (req, res) => {
                         Model = require('../models/Brand')
                         break
                 }
-                const target = await Model.findById(discount.target)
-                if (!target) {
-                    return response.failure(422, { msg: `${discount.type} with ID ${discount.target} not found` }, res)
+                const targetIds = Array.isArray(discount.target) ? discount.target : [discount.target]
+                for (const targetId of targetIds) {
+                    const target = await Model.findById(targetId)
+                    if (!target) {
+                        return response.failure(422, { msg: `${discount.type} with ID ${targetId} not found` }, res)
+                    }
                 }
             }
         }
@@ -203,18 +215,23 @@ exports.getBestDiscount = async (req, res) => {
         // Check membership discounts
         if (customerMembership && customerMembership.isActive && !customerMembership.isDeleted) {
             if (customerMembership.startAt <= now && customerMembership.expireAt >= now) {
-                for (const discount of customerMembership.discounts) {
+                const membershipDiscounts = customerMembership.discounts && typeof customerMembership.discounts === 'object'
+                    ? Object.values(customerMembership.discounts)
+                    : []
+
+                for (const discount of membershipDiscounts) {
                     let applies = false
+                    const targetDocs = Array.isArray(discount.target) ? discount.target : [discount.target]
 
                     switch (discount.type) {
                         case 'product':
-                            applies = discount.target._id.toString() === productId
+                            applies = targetDocs.some(t => t._id.toString() === productId)
                             break
                         case 'category':
-                            applies = product.category && discount.target._id.toString() === product.category._id.toString()
+                            applies = product.category && targetDocs.some(t => t._id.toString() === product.category._id.toString())
                             break
                         case 'brand':
-                            applies = product.brand && discount.target._id.toString() === product.brand._id.toString()
+                            applies = product.brand && targetDocs.some(t => t._id.toString() === product.brand._id.toString())
                             break
                     }
 

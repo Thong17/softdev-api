@@ -6,11 +6,11 @@ const discountSchema = mongoose.Schema({
         enum: ['product', 'category', 'brand'],
         required: true
     },
-    target: {
+    target: [{
         type: mongoose.Schema.ObjectId,
         required: true,
-        refPath: 'discounts.type'
-    },
+        refPath: 'type'
+    }],
     discountType: {
         type: String,
         enum: ['percentage', 'fixed'],
@@ -30,7 +30,11 @@ const schema = mongoose.Schema(
             type: Object,
             required: true
         },
-        discounts: [discountSchema],
+        discounts: {
+            type: Map,
+            of: discountSchema,
+            default: {}
+        },
         startAt: {
             type: Date,
             required: true
@@ -69,7 +73,8 @@ schema.index({ isActive: 1, startAt: 1, expireAt: 1, isDeleted: 1 })
 
 schema.pre('save', async function (next) {
     try {
-        this.tags = `${JSON.stringify(this.description)}${JSON.stringify(this.discounts)}`.replace(/ /g, '')
+        const discounts = this.discounts instanceof Map ? Object.fromEntries(this.discounts) : this.discounts
+        this.tags = `${JSON.stringify(this.description)}${JSON.stringify(discounts)}`.replace(/ /g, '')
         next()
     } catch (err) {
         next(err)
