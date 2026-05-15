@@ -8,8 +8,7 @@ const discountSchema = Joi.object({
 })
 
 const createMembershipValidation = Joi.object({
-    name: Joi.string().required().trim(),
-    description: Joi.string().optional(),
+    description: Joi.object().required(),
     discounts: Joi.array().items(discountSchema).min(1).required(),
     startAt: Joi.date().required(),
     expireAt: Joi.date().required().greater(Joi.ref('startAt')),

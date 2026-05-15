@@ -26,14 +26,9 @@ const discountSchema = mongoose.Schema({
 
 const schema = mongoose.Schema(
     {
-        name: {
-            type: String,
-            required: true,
-            trim: true
-        },
         description: {
-            type: String,
-            default: ''
+            type: Object,
+            required: true
         },
         discounts: [discountSchema],
         startAt: {
@@ -74,7 +69,7 @@ schema.index({ isActive: 1, startAt: 1, expireAt: 1, isDeleted: 1 })
 
 schema.pre('save', async function (next) {
     try {
-        this.tags = `${this.name}${this.description}${JSON.stringify(this.discounts)}`.replace(/ /g, '')
+        this.tags = `${JSON.stringify(this.description)}${JSON.stringify(this.discounts)}`.replace(/ /g, '')
         next()
     } catch (err) {
         next(err)
