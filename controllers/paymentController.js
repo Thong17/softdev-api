@@ -96,7 +96,7 @@ exports.create = async (req, res) => {
             if (!payment) return response.failure(422, { msg: 'No payment created!' }, res, err)
 
             let data = await payment.populate('customer')
-            data = await payment.populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } })
+            data = await payment.populate({ path: 'transactions', populate: [{ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } }, { path: 'options', populate: 'property' }] })
             data = await payment.populate('createdBy', 'username')
             data = await payment.populate({ path: 'reservation', populate: 'structures' })
             response.success(200, { msg: 'Payment has created successfully', data }, res)
@@ -125,7 +125,7 @@ exports.update = async (req, res) => {
         data.transactions = listTransactions
         data.save()
         data = await data.populate('customer')
-        data = await data.populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } })
+        data = await data.populate({ path: 'transactions', populate: [{ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } }, { path: 'options', populate: 'property' }] })
         data = await data.populate('createdBy', 'username')
         response.success(200, { msg: 'Payment has updated successfully', data }, res)
     } catch (err) {
@@ -146,7 +146,9 @@ exports.checkout = async (req, res) => {
         calculateReturnCashes(payment?.drawer?.cashes, body.remainTotal, payment.rate)
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(payment?.drawer?._id, { cashes })
-                const data = await Payment.findByIdAndUpdate(id, { ...body, returnCashes, status: true, state: 'COMPLETED' }, { new: true }).populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } }).populate('customer').populate('createdBy', 'username')
+                const data = await Payment.findByIdAndUpdate(id, { ...body, returnCashes, status: true, state: 'COMPLETED' }, { new: true })
+                    .populate({ path: 'transactions', populate: [{ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } }, { path: 'options', populate: 'property' }] })
+                    .populate('customer').populate('createdBy', 'username')
                 
                 for (let i = 0; i < data.transactions.length; i++) {
                     const transaction = data.transactions[i]
