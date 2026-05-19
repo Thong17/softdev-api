@@ -3,7 +3,7 @@ const Payment = require('../models/Payment')
 const { default: mongoose } = require('mongoose')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, calculatePaymentTotal, readExcel } = require('../helpers/utils')
+const { extractJoiErrors, calculatePaymentTotal, readExcel, generateInvoice } = require('../helpers/utils')
 const { createReservationValidation } = require('../middleware/validations/reservationValidation')
 const StoreStructure = require('../models/StoreStructure')
 const Transaction = require('../models/Transaction')
@@ -117,8 +117,7 @@ exports.checkIn = async (req, res) => {
         }
         // End
         
-        const countPayment = await Payment.count()
-        const invoice = 'INV' + countPayment.toString().padStart(5, '0')
+        const invoice = await generateInvoice(Payment)
         const payment = await Payment.create({ ...paymentBody, ...dataObj, invoice, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, reservation: reservation._id, rate: { buyRate, sellRate } })
 
         reservation.status = 'occupied'

@@ -61,6 +61,25 @@ module.exports = utils = {
         if (!date1 && !date2) return false
         return date1 > date2
     },
+    generateInvoice: async (PaymentModel, date = new Date()) => {
+        const prefix = (process.env.INVOICE_PREFIX || 'INV').toUpperCase()
+        const resetPeriod = (process.env.INVOICE_RESET_PERIOD || 'monthly').toLowerCase()
+        const now = moment(date)
+        let dateSegment = now.format('YYYY')
+
+        if (resetPeriod === 'monthly') {
+            dateSegment += now.format('MM')
+        } else if (resetPeriod === 'daily') {
+            dateSegment += now.format('MMDD')
+        } else if (resetPeriod === 'weekly') {
+            dateSegment += `W${now.isoWeek().toString().padStart(2, '0')}`
+        }
+
+        const base = `${prefix}${dateSegment}-`
+        const count = await PaymentModel.countDocuments({ invoice: { $regex: `^${base}` } })
+        const serial = (count + 1).toString().padStart(process.env.INVOICE_PAD_START || 5, '0')
+        return `${base}${serial}`
+    },
     currencyFormat: (amount) => {
         if (!amount) return 
         return (amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')

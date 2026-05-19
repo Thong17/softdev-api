@@ -4,7 +4,7 @@ const Transaction = require('../models/Transaction')
 const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes, sendMessageTelegram, currencyFormat } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes, sendMessageTelegram, currencyFormat, generateInvoice } = require('../helpers/utils')
 const { createPaymentValidation, checkoutPaymentValidation } = require('../middleware/validations/paymentValidation')
 const Reservation = require('../models/Reservation')
 const Customer = require('../models/Customer')
@@ -72,8 +72,7 @@ exports.create = async (req, res) => {
     if (!req.user.drawer) return response.failure(422, { msg: 'Open drawer first!' }, res)
 
     try {
-        const countPayment = await Payment.count()
-        const invoice = 'INV' + countPayment.toString().padStart(5, '0')
+        const invoice = await generateInvoice(Payment)
         const buyRate = req.user.drawer.buyRate
         const sellRate = req.user.drawer.sellRate
 
@@ -96,7 +95,7 @@ exports.create = async (req, res) => {
             if (!payment) return response.failure(422, { msg: 'No payment created!' }, res, err)
 
             let data = await payment.populate('customer')
-            data = await payment.populate({ path: 'transactions', populate: [{ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } }, { path: 'options', populate: 'property' }] })
+            data = await payment.populate({ path: 'transactions', populate: [{ path: 'product', select: 'profile name', populate: { path: 'profile', select: 'filename' } }, { path: 'options', populate: 'property' }] })
             data = await payment.populate('createdBy', 'username')
             data = await payment.populate({ path: 'reservation', populate: 'structures' })
             response.success(200, { msg: 'Payment has created successfully', data }, res)
