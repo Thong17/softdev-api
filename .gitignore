@@ -4,3 +4,4 @@ node_modules
 # Ignore all file in uploads except default.jpg
 uploads/*
 !uploads/default.png
+static/private/*
