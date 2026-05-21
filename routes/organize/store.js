@@ -1,6 +1,6 @@
 const router = require('express').Router()
 const { memoryStorage } = require('../../configs/multer')
-const { index, create, update, detail, disable, _import, batch, floors, listTransfer, structures, layout, updateLayout, createFloor, updateFloor, disableFloor, createTransfer, updateTransfer, deleteTransfer, updateTelegramSetting, getTelegramSetting } = require('../../controllers/storeController')
+const { index, create, update, detail, disable, _import, batch, floors, listTransfer, structures, layout, updateLayout, createFloor, updateFloor, disableFloor, createTransfer, updateTransfer, deleteTransfer, updateStoreSetting: updateTelegramSetting, getStoreSetting: getTelegramSetting } = require('../../controllers/storeController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 

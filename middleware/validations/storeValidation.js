@@ -26,6 +26,9 @@ const updateTelegramSettingValidation = Joi.object({
     telegramAPIKey: Joi.string().required(),
     telegramChatID: Joi.string().required(),
     telegramPrivilege: Joi.object().required(),
+    thermalPrinterName: Joi.string().optional(),
+    receiptPrinterName: Joi.string().optional(),
+    receiptPrinterCharPerLine: Joi.number().optional(),
 })
 
 module.exports = {

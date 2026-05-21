@@ -305,18 +305,18 @@ exports.batch = async (req, res) => {
     }
 }
 
-exports.getTelegramSetting = async (req, res) => {
+exports.getStoreSetting = async (req, res) => {
     try {
         const setting = await StoreSetting.findOne()
         if (!setting) return response.success(200, { data: await StoreSetting.create({}) }, res)
 
-        return response.success(200, { data: { telegramAPIKey: setting.telegramAPIKey, telegramChatID: setting.telegramChatID, telegramPrivilege: setting.telegramPrivilege } }, res)
+        return response.success(200, { data: { telegramAPIKey: setting.telegramAPIKey, telegramChatID: setting.telegramChatID, telegramPrivilege: setting.telegramPrivilege, thermalPrinterName: setting.thermalPrinterName, receiptPrinterName: setting.receiptPrinterName, receiptPrinterCharPerLine: setting.receiptPrinterCharPerLine } }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
 
-exports.updateTelegramSetting = async (req, res) => {
+exports.updateStoreSetting = async (req, res) => {
     const body = req.body
     const { error } = updateTelegramSettingValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)

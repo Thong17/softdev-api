@@ -18,6 +18,18 @@ const schema = mongoose.Schema(
                 SENT_AFTER_CLOSE_DRAWER: false,
             }
         },
+        thermalPrinterName: {
+            type: String,
+            default: 'Gprinter GP-2270T'
+        },
+        receiptPrinterName: {
+            type: String,
+            default: 'POS80 Printer'
+        },
+        receiptPrinterCharPerLine: {
+            type: Number,
+            default: 48
+        }
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
