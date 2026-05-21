@@ -63,13 +63,21 @@ exports.role = (role) => {
 
 exports.audit = () => {
     const Activity = require('../../models/Activity')
-    return async (req, res, next) => {
+    return (req, res, next) => {
         const user = req.user
-        try {
-            await Activity.create({ endpoint: req.originalUrl, method: req.method, body: req.body, createdBy: user.id })
-            next()
-        } catch (err) {
-            console.error(err)
-        }
+        res.on('finish', async () => {
+            try {
+                await Activity.create({
+                    endpoint: req.originalUrl,
+                    method: req.method,
+                    status: res.statusCode,
+                    body: req.body,
+                    createdBy: user?.id
+                })
+            } catch (err) {
+                console.error(err)
+            }
+        })
+        next()
     }
 }
