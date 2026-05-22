@@ -6,5 +6,5 @@ uploads/*
 !uploads/default.png
 static/private/*
 
-.env.production
-.env.dev
+.env.*
+!.env.example
