@@ -76,11 +76,12 @@ exports.open = async (req, res) => {
                         totalCashKHR += cash.total
                     }
                 })
-                const text = `✅Open Drawer On ${moment(drawer.createdAt).format('YYYY-MM-DD')}
+                const text = `✅Open Drawer
+                    📍Time: ${moment(drawer.createdAt).utcOffset(7).format('YYYY/MM/DD hh:mm A')}
                     💵Buy Rate: ${currencyFormat(drawer.buyRate)}
                     💵Sell Rate: ${currencyFormat(drawer.sellRate)}
-                    💰Total USD: ${currencyFormat(totalCashUSD)} USD
-                    💰Total KHR: ${currencyFormat(totalCashKHR)} KHR
+                    💰Total USD: ${currencyFormat(totalCashUSD) ?? 0} USD
+                    💰Total KHR: ${currencyFormat(totalCashKHR) ?? 0} KHR
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
@@ -100,7 +101,7 @@ exports.save = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Drawer.findByIdAndUpdate(req.params.id, body, async (err, drawer) => {
+        Drawer.findByIdAndUpdate(req.params.id, body, { new: true }, async (err, drawer) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!drawer) return response.failure(422, { msg: 'No drawer updated!' }, res, err)
 
@@ -117,11 +118,12 @@ exports.save = async (req, res) => {
                         totalCashKHR += totalRemain
                     }
                 })
-                const text = `❕Update Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD')}
+                const text = `❕Update Drawer
+                    📍Time: ${moment(drawer.updatedAt).utcOffset(7).format('YYYY/MM/DD hh:mm A')}
                     💵Buy Rate: ${currencyFormat(drawer.buyRate)}
                     💵Sell Rate: ${currencyFormat(drawer.sellRate)}
-                    💰Total USD: ${currencyFormat(totalCashUSD)} USD
-                    💰Total KHR: ${currencyFormat(totalCashKHR)} KHR
+                    💰Total USD: ${currencyFormat(totalCashUSD) ?? 0} USD
+                    💰Total KHR: ${currencyFormat(totalCashKHR) ?? 0} KHR
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
@@ -155,11 +157,12 @@ exports.close = async (req, res) => {
                         totalCashKHR += totalRemain
                     }
                 })
-                const text = `⛔️Close Drawer On ${moment(drawer.endedAt).format('YYYY-MM-DD')}
+                const text = `⛔️Close Drawer
+                    📍Time: ${moment(drawer.endedAt).utcOffset(7).format('YYYY/MM/DD hh:mm A')}
                     💵Buy Rate: ${currencyFormat(drawer.buyRate)}
                     💵Sell Rate: ${currencyFormat(drawer.sellRate)}
-                    💰Total USD: ${currencyFormat(totalCashUSD)} USD
-                    💰Total KHR: ${currencyFormat(totalCashKHR)} KHR
+                    💰Total USD: ${currencyFormat(totalCashUSD) ?? 0} USD
+                    💰Total KHR: ${currencyFormat(totalCashKHR) ?? 0} KHR
                     👱‍♂️By: ${req.user?.username}
                     `
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
