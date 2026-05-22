@@ -23,15 +23,15 @@ const transferValidation = Joi.object({
 })
 
 const updateTelegramSettingValidation = Joi.object({
-    telegramAPIKey: Joi.string().required(),
-    telegramChatID: Joi.string().required(),
-    telegramPrivilege: Joi.object().required(),
-    thermalPrinterName: Joi.string().optional(),
-    receiptPrinterName: Joi.string().optional(),
-    receiptPrinterCharPerLine: Joi.number().optional(),
-    thermalPrinterWidth: Joi.number().optional(),
-    thermalPrinterHeight: Joi.number().optional(),
-    thermalPrinterGap: Joi.number().optional(),
+    telegramAPIKey: Joi.string().optional().allow(''),
+    telegramChatID: Joi.string().optional().allow(''),
+    telegramPrivilege: Joi.object().optional(),
+    thermalPrinterName: Joi.string().optional().allow(''),
+    receiptPrinterName: Joi.string().optional().allow(''),
+    receiptPrinterCharPerLine: Joi.number().optional().allow(''),
+    thermalPrinterWidth: Joi.number().optional().allow(''),
+    thermalPrinterHeight: Joi.number().optional().allow(''),
+    thermalPrinterGap: Joi.number().optional().allow(''),
 })
 
 module.exports = {

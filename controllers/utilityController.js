@@ -7,6 +7,63 @@ const moment = require('moment')
 const { sendMessageTelegram } = require('../helpers/utils')
 const { currencyFormat } = require('../helpers/utils')
 const mongoose = require('mongoose')
+const { exec } = require('node:child_process')
+const path = require('node:path')
+const fs = require('node:fs')
+
+exports.dumpMongoDB = async (req, res) => {
+    try {
+        const backupRoot = process.env.MONGO_BACKUP_PATH
+        const mongoDumpPath = process.env.MONGO_DUMP_PATH
+
+        /* create backup folder if not exists */
+        if (!fs.existsSync(backupRoot)) {
+            fs.mkdirSync(backupRoot, { recursive: true })
+        }
+
+        /* timestamp folder */
+        const timestamp = new Date()
+            .toISOString()
+            .replace(/:/g, '-')
+
+        const backupPath = path.join(backupRoot, timestamp)
+
+        /* mongodb uri */
+        const mongoUri = process.env.DATABASE_URL
+
+        /* mongo_dump command */
+        const command = `${mongoDumpPath} --uri="${mongoUri}" --out="${backupPath}"`
+
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                console.error(error)
+
+                return response.failure(
+                    500,
+                    { msg: 'Mongo dump failed', error: error.message },
+                    res
+                )
+            }
+
+            response.success(
+                200,
+                {
+                    msg: 'MongoDB backup completed',
+                    backupPath
+                },
+                res
+            )
+        })
+    } catch (err) {
+        console.error(err)
+
+        response.failure(
+            500,
+            { msg: err.message },
+            res
+        )
+    }
+}
 
 exports.sendTelegram = async (data) => {
     // Send message to Telegram
