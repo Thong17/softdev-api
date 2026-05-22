@@ -22,6 +22,18 @@ const schema = mongoose.Schema(
             type: String,
             default: 'Gprinter GP-2270T'
         },
+        thermalPrinterWidth: {
+            type: Number,
+            default: 52
+        },
+        thermalPrinterHeight: {
+            type: Number,
+            default: 126
+        },
+        thermalPrinterGap: {
+            type: Number,
+            default: 2
+        },
         receiptPrinterName: {
             type: String,
             default: 'POS80 Printer'
