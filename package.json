@@ -4,7 +4,7 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "start": "node start app.js",
+    "start": "node app.js",
     "dev": "nodemon app.js",
     "dockerBuild": "docker build -t thonggee/softdev-api:janyard .",
     "dockerPush": "docker push thonggee/softdev-api:janyard"
