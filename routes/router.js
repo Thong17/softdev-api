@@ -29,5 +29,6 @@ router.use('/function', require('./function'))
 router.use('/user', require('./user'))
 router.use('/report', require('./report'))
 router.use('/dashboard', require('./dashboard'))
+router.use('/utility', require('./utility'))
 
 module.exports = router

@@ -1,8 +1,12 @@
 const StoreSetting = require('../models/StoreSetting')
+const Payment = require('../models/Payment')
+const Transaction = require('../models/Transaction')
+const response = require('../helpers/response')
 const Store = require('../models/Store')
 const moment = require('moment')
 const { sendMessageTelegram } = require('../helpers/utils')
 const { currencyFormat } = require('../helpers/utils')
+const mongoose = require('mongoose')
 
 exports.sendTelegram = async (data) => {
     // Send message to Telegram
@@ -59,4 +63,90 @@ ${itemsList}
 `.trim();
 
     return message
+}
+
+exports.clearTransactionAndPayment = async (req, res) => {
+    try {
+        let query = {}
+
+        if (req.body.fromDate) {
+            const fromDate = new Date(req.body.fromDate)
+            query.createdAt = { ...query.createdAt, $gt: fromDate }
+        }
+
+        if (req.body.toDate) {
+            const toDate = new Date(req.body.toDate)
+            query.createdAt = { ...query.createdAt, $lt: toDate }
+        }
+
+        const payments = await Payment.find(query).lean()
+
+        if (payments.length === 0) {
+            return response.failure(
+                404,
+                { msg: 'No payments found to be deleted!' },
+                res
+            )
+        }
+
+        /* get all transaction ids from payments */
+        const transactionIds = payments.flatMap(
+            p => p.transactions || []
+        )
+
+        const transactions = await Transaction.find({
+            _id: { $in: transactionIds }
+        }).lean()
+
+        const paymentBakCollection =
+            mongoose.connection.collection('payment_bak')
+
+        const transactionBakCollection =
+            mongoose.connection.collection('transaction_bak')
+
+        /* backup payments */
+        if (payments.length > 0) {
+            await paymentBakCollection.insertMany(
+                payments.map(p => ({
+                    ...p,
+                    originalId: p._id,
+                    deletedAt: new Date()
+                }))
+            )
+        }
+
+        /* backup transactions */
+        if (transactions.length > 0) {
+            await transactionBakCollection.insertMany(
+                transactions.map(t => ({
+                    ...t,
+                    originalId: t._id,
+                    deletedAt: new Date()
+                }))
+            )
+        }
+
+
+        /* delete transactions */
+        await Transaction.deleteMany({
+            _id: { $in: transactionIds }
+        })
+
+        /* delete payments */
+        await Payment.deleteMany({
+            _id: { $in: payments.map(p => p._id) }
+        })
+
+        response.success(
+            200,
+            {
+                paymentsDeleted: payments.length,
+                transactionsDeleted: transactions.length
+            },
+            res
+        )
+    } catch (err) {
+        console.error(err)
+        response.failure(500, { msg: err.message }, res)
+    }
 }

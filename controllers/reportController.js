@@ -53,9 +53,13 @@ exports.listSale = async (req, res) => {
             label = 'week'
             format = 'Do MMM YYYY'
             break
-        default:
+        case 'year':
             label = 'month'
             format = 'MMM YYYY'
+            break
+        default:
+            label = 'day'
+            format = 'MMM Do'
             break
     }
 
