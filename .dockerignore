@@ -3,3 +3,4 @@ node_modules
 Dockerfile
 uploads/*
 !uploads/default.png
+static/private/*
