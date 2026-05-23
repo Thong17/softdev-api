@@ -32,6 +32,8 @@ const updateTelegramSettingValidation = Joi.object({
     thermalPrinterWidth: Joi.number().optional().allow(''),
     thermalPrinterHeight: Joi.number().optional().allow(''),
     thermalPrinterGap: Joi.number().optional().allow(''),
+    storePrinterName: Joi.string().optional().allow(''),
+    storePrinterCharPerLine: Joi.number().optional().allow(''),
 })
 
 module.exports = {
