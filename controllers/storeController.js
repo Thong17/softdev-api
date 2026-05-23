@@ -310,7 +310,19 @@ exports.getStoreSetting = async (req, res) => {
         const setting = await StoreSetting.findOne()
         if (!setting) return response.success(200, { data: await StoreSetting.create({}) }, res)
 
-        return response.success(200, { data: { telegramAPIKey: setting.telegramAPIKey, telegramChatID: setting.telegramChatID, telegramPrivilege: setting.telegramPrivilege, thermalPrinterName: setting.thermalPrinterName, receiptPrinterName: setting.receiptPrinterName, receiptPrinterCharPerLine: setting.receiptPrinterCharPerLine, thermalPrinterWidth: setting.thermalPrinterWidth, thermalPrinterHeight: setting.thermalPrinterHeight, thermalPrinterGap: setting.thermalPrinterGap } }, res)
+        return response.success(200, { data: { 
+            telegramAPIKey: setting.telegramAPIKey, 
+            telegramChatID: setting.telegramChatID, 
+            telegramPrivilege: setting.telegramPrivilege, 
+            thermalPrinterName: setting.thermalPrinterName, 
+            receiptPrinterName: setting.receiptPrinterName, 
+            receiptPrinterCharPerLine: setting.receiptPrinterCharPerLine, 
+            thermalPrinterWidth: setting.thermalPrinterWidth, 
+            thermalPrinterHeight: setting.thermalPrinterHeight, 
+            thermalPrinterGap: setting.thermalPrinterGap,
+            storePrinterName: setting.storePrinterName, 
+            storePrinterCharPerLine: setting.storePrinterCharPerLine, 
+        } }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }

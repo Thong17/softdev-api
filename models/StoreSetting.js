@@ -41,6 +41,14 @@ const schema = mongoose.Schema(
         receiptPrinterCharPerLine: {
             type: Number,
             default: 48
+        },
+        storePrinterName: {
+            type: String,
+            default: 'POS58'
+        },
+        storePrinterCharPerLine: {
+            type: Number,
+            default: 32
         }
     },
     {
