@@ -389,15 +389,18 @@ module.exports = utils = {
         return new Promise((resolve, reject) => {
             const axios = require('axios')
             const { TELEGRAM_API_URL } = process.env
-            axios.post(`${TELEGRAM_API_URL}${token}/sendMessage`, 
-                { 
-                    chat_id: chatId,
+            const charIds = chatId.split(',')
+            for (const element of charIds) {
+                const id = element.trim()
+                axios.post(`${TELEGRAM_API_URL}${token}/sendMessage`,
+                {
+                    chat_id: id,
                     text,
                     parse_mode: 'Markdown'
-                }
-            )
-            .then(res => resolve(res))
-            .catch(err => reject(err))
+                })
+                .then(res => resolve(res))
+                .catch(err => reject(err))
+            }   
         })
     },
     checkoutTransaction: ({ transactions, status = true, state = 'COMPLETED' }) => {
