@@ -95,7 +95,7 @@ exports.create = async (req, res) => {
             if (!payment) return response.failure(422, { msg: 'No payment created!' }, res, err)
 
             let data = await payment.populate('customer')
-            data = await payment.populate({ path: 'transactions', populate: [{ path: 'product', select: 'profile name', populate: { path: 'profile', select: 'filename' } }, { path: 'options', populate: 'property' }] })
+            data = await payment.populate({ path: 'transactions', populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
             data = await payment.populate('createdBy', 'username')
             data = await payment.populate({ path: 'reservation', populate: 'structures' })
             response.success(200, { msg: 'Payment has created successfully', data }, res)
