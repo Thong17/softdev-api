@@ -1,6 +1,6 @@
 const router = require('express').Router()
 const { memoryStorage } = require('../../configs/multer')
-const { index, create, update, toggleStatus, detail, disable, _import, _export, batch } = require('../../controllers/categoryController')
+const { index, create, update, toggleStatus, toggleThermalPrinting, detail, disable, _import, _export, batch } = require('../../controllers/categoryController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -22,6 +22,10 @@ router.put('/update/:id', security.role(privilege.category.update), security.aud
 
 router.put('/toggleStatus/:id', security.role(privilege.category.update), security.audit(), (req, res) => {
     toggleStatus(req, res)
+})
+
+router.put('/toggleThermalPrinting/:id', security.role(privilege.category.update), security.audit(), (req, res) => {
+    toggleThermalPrinting(req, res)
 })
 
 router.delete('/disable/:id', security.role(privilege.category.delete), security.audit(), (req, res) => {

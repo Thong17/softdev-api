@@ -15,6 +15,10 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Icon'
         },
+        hasThermalPrinting:{
+            type: Boolean,
+            default: true
+        },
         description: {
             type: String,
             default: ''
