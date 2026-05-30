@@ -136,6 +136,14 @@ exports.clearTransactionAndPayment = async (req, res) => {
             query.createdAt = { ...query.createdAt, $lt: toDate }
         }
 
+        if (req.body.ids) {
+            query._id = { $in: req.body.ids }
+        }
+
+        if (req.body.id) {
+            query._id = req.body.id
+        }
+
         const payments = await Payment.find(query).lean()
 
         if (payments.length === 0) {
