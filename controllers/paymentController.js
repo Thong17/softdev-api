@@ -61,7 +61,7 @@ exports.detail = async (req, res) => {
     Payment.findById(req.params.id, (err, payment) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: payment }, res)
-    }).populate('createdBy').populate({ path: 'reservation', populate: 'structures' }).populate('customer', 'displayName point').populate({ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } } })
+    }).populate('createdBy').populate({ path: 'reservation', populate: 'structures' }).populate('customer', 'displayName point').populate({ path: 'transactions', populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
 }
 
 exports.create = async (req, res) => {
