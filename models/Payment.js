@@ -83,6 +83,10 @@ const schema = mongoose.Schema(
         tags: {
             type: String,
         },
+        table: {
+            type: String,
+            default: ''
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
