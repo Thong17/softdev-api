@@ -60,6 +60,10 @@ exports.privilege = {
             route: 'menu',
             action: 'loan'
         },
+        payment: {
+            route: 'menu',
+            action: 'payment'
+        },
         store: {
             route: 'menu',
             action: 'store'
@@ -81,6 +85,10 @@ exports.privilege = {
         loan: {
             route: 'operation',
             action: 'loan'
+        },
+        payment: {
+            route: 'operation',
+            action: 'payment'
         },
     },
     organize: {

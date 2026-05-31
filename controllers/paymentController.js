@@ -20,6 +20,7 @@ exports.index = async (req, res) => {
     const sort = req.query.sort || 'desc'
     const fromDate = req.query.fromDate
     const toDate = req.query.toDate
+    const state = req.query.state
     
     let filterObj = { [filter]: sort }
     let query = {}
@@ -27,6 +28,10 @@ exports.index = async (req, res) => {
         query[field] = {
             $regex: new RegExp(search, 'i')
         }
+    }
+
+    if (state) {
+        query.state = state
     }
     
     // Add date filtering if fromDate and/or toDate are provided
