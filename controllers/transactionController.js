@@ -77,7 +77,7 @@ exports.create = async (req, res) => {
             }
 
             if (!transaction) return response.failure(422, { msg: 'No transaction created!' }, res, err)
-            const data = await transaction.populate({ path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' } })
+            const data = await transaction.populate([{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }])
             response.success(200, { msg: 'Transaction has created successfully', data, stockRemain }, res)
         })
     } catch (err) {
