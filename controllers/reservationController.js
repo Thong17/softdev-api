@@ -47,7 +47,7 @@ exports.detail = async (req, res) => {
     Reservation.findById(req.params.id, (err, reservation) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: reservation }, res)
-    }).populate({ path: 'payment', populate: [{ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' }}}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }, { path: 'reservation', populate: 'structures' }] }).populate('customer', 'displayName point').populate('structures')
+    }).populate({ path: 'payment', populate: [{ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }]}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }, { path: 'reservation', populate: 'structures' }] }).populate('customer', 'displayName point').populate('structures')
 }
 
 exports.create = async (req, res) => {
@@ -132,7 +132,7 @@ exports.checkIn = async (req, res) => {
             structure.save()
         }
 
-        const data = await reservation.populate([{ path: 'payment', populate: [{ path: 'transactions' }, { path: 'createdBy' }] }, { path: 'customer', select: 'displayName point' }, { path: 'structures' }])
+        const data = await reservation.populate([{ path: 'payment', populate: [{ path: 'transactions', match: { isDeleted: false } }, { path: 'createdBy' }] }, { path: 'customer', select: 'displayName point' }, { path: 'structures' }])
         response.success(200, { msg: 'Reservation has checked in successfully', data }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -155,7 +155,7 @@ exports.checkOut = async (req, res) => {
             structure.save()
         }
 
-        const data = await reservation.populate([{ path: 'payment', populate: [{ path: 'transactions', populate: { path: 'product', select: 'profile', populate: { path: 'profile', select: 'filename' }}}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] }, { path: 'structures' }])
+        const data = await reservation.populate([{ path: 'payment', populate: [{ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }]}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }] }, { path: 'structures' }])
         response.success(200, { msg: 'Reservation has checked out successfully', data }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
