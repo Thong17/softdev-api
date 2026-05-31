@@ -142,10 +142,10 @@ module.exports = utils = {
 
         let totalExchange = 0
         if (discountObj.type === 'USD') {
-            totalExchange = discountObj.value * sellRate
+            totalExchange = discountObj.value * buyRate
             totalObj.total = totalObj.total - totalExchange
         } else {
-            totalExchange = discountObj.value / buyRate
+            totalExchange = discountObj.value / sellRate
             totalObj.total = totalObj.total - totalExchange
         }
         return totalObj
