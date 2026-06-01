@@ -93,12 +93,14 @@ exports.telegramReceiptTemplate = async (data) => {
         const separator = '───  ───────────────────  ───  ────────';
         const rows = data.transactions.map(
             (item, index) => {
+                const currencySymbol = item.total.currency === 'USD' ? '$' : '៛';
+                const currencyPad = item.total.currency === 'USD' ? 2 : 0;
                 const num = `${index + 1}.`.padEnd(4);
                 const desc = item.description.length > 18 
                     ? (item.description.substring(0, 16) + '..').padEnd(19)
                     : item.description.padEnd(19);
                 const qty = `x${item.quantity}`.padStart(3);
-                const price = `$${item.total?.value?.toFixed(2)}`.padStart(8);
+                const price = `${currencySymbol}${item.total?.value?.toFixed(currencyPad)}`.padStart(8);
                 return `${num}  ${desc}  ${qty}  ${price}`;
             },
         );
