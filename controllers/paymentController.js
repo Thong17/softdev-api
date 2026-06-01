@@ -20,6 +20,7 @@ exports.index = async (req, res) => {
     const sort = req.query.sort || 'desc'
     const fromDate = req.query.fromDate
     const toDate = req.query.toDate
+    const state = req.query.state
     
     let filterObj = { [filter]: sort }
     let query = {}
@@ -27,6 +28,10 @@ exports.index = async (req, res) => {
         query[field] = {
             $regex: new RegExp(search, 'i')
         }
+    }
+
+    if (state) {
+        query.state = state
     }
     
     // Add date filtering if fromDate and/or toDate are provided
@@ -61,7 +66,7 @@ exports.detail = async (req, res) => {
     Payment.findById(req.params.id, (err, payment) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: payment }, res)
-    }).populate('createdBy').populate({ path: 'reservation', populate: 'structures' }).populate('customer', 'displayName point').populate({ path: 'transactions', populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
+    }).populate('createdBy').populate({ path: 'reservation', populate: 'structures' }).populate('customer', 'displayName point').populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
 }
 
 exports.create = async (req, res) => {

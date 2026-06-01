@@ -36,9 +36,6 @@ const schema = mongoose.Schema(
             type: String,
             default: 'cash'
         },
-        rate: {
-            type: Object,
-        },
         status: {
             type: Boolean,
             default: false
@@ -47,31 +44,10 @@ const schema = mongoose.Schema(
             type: String,
             default: 'PENDING'
         },
-        discounts: {
-            type: Array,
-        },
-        vouchers: {
-            type: Array,
-        },
-        services: {
-            type: Array,
-        },
-        drawer: {
+        payments: [{
             type: mongoose.Schema.ObjectId,
-            ref: 'Drawer'
-        },
-        customer: {
-            type: mongoose.Schema.ObjectId,
-            ref: 'Customer'
-        },
-        reservation: {
-            type: mongoose.Schema.ObjectId,
-            ref: 'Reservation'
-        },
-        groupPayment: {
-            type: mongoose.Schema.ObjectId,
-            ref: 'GroupPayment'
-        },
+            ref: 'Payment'
+        }],
         transactions: [{
             type: mongoose.Schema.ObjectId,
             ref: 'Transaction'
@@ -82,10 +58,6 @@ const schema = mongoose.Schema(
         },
         tags: {
             type: String,
-        },
-        table: {
-            type: String,
-            default: ''
         },
     },
     {
@@ -102,4 +74,4 @@ schema.pre('save', async function (next) {
     }
 })
 
-module.exports = mongoose.model('Payment', schema)
+module.exports = mongoose.model('GroupPayment', schema)
