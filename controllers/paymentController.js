@@ -214,3 +214,13 @@ exports.batch = async (req, res) => {
     }
 }
 
+exports.groupPayment = async (req, res) => {
+    try {
+        const { paymentIds } = req.body
+        const payments = await Payment.find({ _id: { $in: paymentIds } }).populate('customer').populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] }).populate('createdBy', 'username').populate({ path: 'reservation', populate: 'structures' })
+        response.success(200, { data: payments }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }   
+}
+

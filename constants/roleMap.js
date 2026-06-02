@@ -348,6 +348,10 @@ exports.privilege = {
             route: 'payment',
             action: 'delete'
         },
+        merge: {
+            route: 'payment',
+            action: 'merge'
+        },
     },
     queue: {
         list: {

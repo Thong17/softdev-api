@@ -1,6 +1,6 @@
 const router = require('express').Router()
 const { memoryStorage } = require('../../configs/multer')
-const { index, create, checkout, update, detail, _import, batch } = require('../../controllers/paymentController')
+const { index, create, checkout, update, detail, _import, batch, groupPayment } = require('../../controllers/paymentController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -30,6 +30,10 @@ router.post('/excel/import', memoryStorage.single('excel'), (req, res) => {
 
 router.post('/batch', security.audit(), (req, res) => {
     batch(req, res)
+})
+
+router.post('/group-payment', security.role(privilege.payment.merge), security.audit(), (req, res) => {
+    groupPayment(req, res)
 })
 
 module.exports = router
