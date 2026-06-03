@@ -40,6 +40,9 @@ const schema = mongoose.Schema(
             type: Boolean,
             default: false
         },
+        rate: {
+            type: Object,
+        },
         state: {
             type: String,
             default: 'PENDING'

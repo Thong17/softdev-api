@@ -5,11 +5,13 @@ const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes, sendMessageTelegram, currencyFormat, generateInvoice } = require('../helpers/utils')
+const utils = require('../helpers/utils')
 const { createPaymentValidation, checkoutPaymentValidation } = require('../middleware/validations/paymentValidation')
 const Reservation = require('../models/Reservation')
 const Customer = require('../models/Customer')
 const moment = require('moment')
 const { telegramReceiptTemplate } = require('./utilityController')
+const GroupPayment = require('../models/GroupPayment')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
@@ -222,5 +224,111 @@ exports.groupPayment = async (req, res) => {
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }   
+}
+
+exports.groupCheckout = async (req, res) => {
+    const { checkoutFields, paymentIds } = req.body
+
+    if (!checkoutFields) return response.failure(422, { msg: 'checkoutFields is required' }, res)
+    if (!Array.isArray(paymentIds) || paymentIds.length === 0) return response.failure(422, { msg: 'paymentIds must be a non-empty array' }, res)
+
+    const { error } = checkoutPaymentValidation.validate(checkoutFields, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        // load payments
+        const payments = await Payment.find({ _id: { $in: paymentIds } }).populate('drawer').populate({ path: 'transactions', match: { isDeleted: false }})
+
+        // ensure none already checked out
+        const already = payments.find(p => p.status)
+        if (already) return response.failure(422, { msg: 'One or more payments have already checked out' }, res)
+
+        // create group payment record
+        const invoice = await generateInvoice(GroupPayment)
+        // determine group rate (prefer checkoutFields.rate, fallback to first payment rate)
+        const groupRate = checkoutFields.rate || (payments[0] && payments[0].rate)
+
+        // aggregate total in USD using groupRate
+        let totalUSD = 0
+        for (const p of payments) {
+            if (!p.total) continue
+            if (p.total.currency === 'USD') totalUSD += p.total.value
+            else totalUSD += p.total.value / (groupRate.sellRate || 4000)
+        }
+
+        const groupBody = {
+            invoice,
+            total: { value: totalUSD, currency: 'USD' },
+            rate: groupRate,
+            payments: paymentIds,
+            remainTotal: checkoutFields.remainTotal,
+            receiveCashes: checkoutFields.receiveCashes,
+            receiveTotal: checkoutFields.receiveTotal,
+            paymentMethod: checkoutFields.paymentMethod || 'cash',
+            createdBy: req.user.id
+        }
+
+        const group = await GroupPayment.create(groupBody)
+
+        // maintain drawer cashes map
+        const drawerCashesMap = {}
+        const updatedPayments = []
+
+        for (const p of payments) {
+            const id = p._id.toString()
+            const drawerId = p?.drawer?._id?.toString()
+            const currentCashes = drawerCashesMap[drawerId] || p?.drawer?.cashes || []
+
+            // calculate return cashes for this payment using group remainTotal and groupRate
+            // eslint-disable-next-line no-await-in-loop
+            const { cashes, returnCashes } = await calculateReturnCashes(currentCashes, checkoutFields.remainTotal, groupRate)
+            drawerCashesMap[drawerId] = cashes
+
+            const updateBody = { ...checkoutFields, returnCashes, status: true, state: 'COMPLETED', groupPayment: group._id }
+
+            // eslint-disable-next-line no-await-in-loop
+            let data = await Payment.findByIdAndUpdate(id, updateBody, { new: true })
+                .populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
+                .populate('customer').populate('createdBy', 'username')
+
+            // mark transactions completed
+            // eslint-disable-next-line no-await-in-loop
+            await utils.checkoutTransaction({ transactions: data.transactions })
+
+            if (data.reservation) await Reservation.findByIdAndUpdate(data.reservation, { isCompleted: true })
+            if (data.customer) {
+                const paymentPoint = data.total.currency === 'USD' ? data.total.value : data.total.value / data.rate.buyRate
+                // eslint-disable-next-line no-await-in-loop
+                await utils.calculateCustomerPoint({ customerId: data.customer, paymentPoint })
+            }
+
+            // send telegram per payment if enabled
+            const storeConfig = await StoreSetting.findOne()
+            if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
+                const text = await telegramReceiptTemplate(data)
+                sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+                    .catch(err => console.error(err))
+            }
+
+            updatedPayments.push(data)
+        }
+
+        // persist drawer cashes updates
+        const drawerIds = Object.keys(drawerCashesMap)
+        for (const dId of drawerIds) {
+            // eslint-disable-next-line no-await-in-loop
+            await Drawer.findByIdAndUpdate(dId, { cashes: drawerCashesMap[dId] })
+        }
+
+        // update group status
+        group.status = true
+        group.state = 'COMPLETED'
+        group.transactions = updatedPayments.flatMap(p => p.transactions || [])
+        await group.save()
+
+        response.success(200, { msg: 'Group checkout completed successfully', data: updatedPayments, group }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
 }
 
