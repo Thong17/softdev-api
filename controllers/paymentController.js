@@ -328,7 +328,7 @@ exports.groupCheckout = async (req, res) => {
 
         response.success(200, { msg: 'Group checkout completed successfully', data: updatedPayments, group }, res)
     } catch (err) {
-        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        return response.failure(422, { msg: err?.msg ?? failureMsg.trouble }, res, err)
     }
 }
 
