@@ -47,6 +47,10 @@ const schema = mongoose.Schema(
             type: String,
             default: 'PENDING'
         },
+        drawer: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Drawer'
+        },
         payments: [{
             type: mongoose.Schema.ObjectId,
             ref: 'Payment'

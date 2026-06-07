@@ -61,8 +61,8 @@ module.exports = utils = {
         if (!date1 && !date2) return false
         return date1 > date2
     },
-    generateInvoice: async (PaymentModel, date = new Date()) => {
-        const prefix = (process.env.INVOICE_PREFIX || 'INV').toUpperCase()
+    generateInvoice: async (PaymentModel, date = new Date(), prefixKey = null) => {
+        const prefix = (prefixKey || process.env.INVOICE_PREFIX || 'INV').toUpperCase()
         const resetPeriod = (process.env.INVOICE_RESET_PERIOD || 'monthly').toLowerCase()
         const now = moment(date)
         let dateSegment = now.format('YYYY')

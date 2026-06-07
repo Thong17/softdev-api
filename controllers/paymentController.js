@@ -220,7 +220,34 @@ exports.groupPayment = async (req, res) => {
     try {
         const { paymentIds } = req.body
         const payments = await Payment.find({ _id: { $in: paymentIds } }).populate('customer').populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] }).populate('createdBy', 'username').populate({ path: 'reservation', populate: 'structures' })
-        response.success(200, { data: payments }, res)
+        // determine group rate (prefer checkoutFields.rate, fallback to first payment rate)
+        const buyRate = req.user.drawer.buyRate
+        const sellRate = req.user.drawer.sellRate
+        const groupRate = { buyRate, sellRate }
+
+        // aggregate total in USD using groupRate
+        let totalUSD = 0
+        let subtotalUSD = 0
+        let subtotalKHR = 0
+        let subtotalBOTH = 0
+        for (const p of payments) {
+            subtotalKHR += p.subtotal.KHR
+            subtotalUSD += p.subtotal.USD
+            subtotalBOTH += p.subtotal.BOTH
+            if (!p.total) continue
+            if (p.total.currency === 'USD') totalUSD += p.total.value
+            else totalUSD += p.total.value / (groupRate.sellRate || 4000)
+        }
+
+        const groupBody = {
+            invoice: null,
+            total: { value: totalUSD, currency: 'USD' },
+            subtotal: { USD: subtotalUSD, KHR: subtotalKHR, BOTH: subtotalBOTH },
+            rate: groupRate,
+            payments: paymentIds,
+            createdBy: req.user
+        }
+        response.success(200, { data: payments, group: groupBody }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }   
@@ -244,47 +271,54 @@ exports.groupCheckout = async (req, res) => {
         if (already) return response.failure(422, { msg: 'One or more payments have already checked out' }, res)
 
         // create group payment record
-        const invoice = await generateInvoice(GroupPayment)
+        const invoice = await generateInvoice(GroupPayment, new Date(), 'GRP')
         // determine group rate (prefer checkoutFields.rate, fallback to first payment rate)
-        const groupRate = checkoutFields.rate || (payments[0] && payments[0].rate)
+        const buyRate = req.user.drawer.buyRate
+        const sellRate = req.user.drawer.sellRate
+        const groupRate = { buyRate, sellRate }
 
         // aggregate total in USD using groupRate
         let totalUSD = 0
+        let subtotalUSD = 0
+        let subtotalKHR = 0
+        let subtotalBOTH = 0
         for (const p of payments) {
+            subtotalKHR += p.subtotal.KHR
+            subtotalUSD += p.subtotal.USD
+            subtotalBOTH += p.subtotal.BOTH
             if (!p.total) continue
             if (p.total.currency === 'USD') totalUSD += p.total.value
             else totalUSD += p.total.value / (groupRate.sellRate || 4000)
         }
 
+        const { cashes, returnCashes } = await calculateReturnCashes(req.user.drawer?.cashes || [], checkoutFields.remainTotal, groupRate)
+
         const groupBody = {
             invoice,
             total: { value: totalUSD, currency: 'USD' },
+            subtotal: { USD: subtotalUSD, KHR: subtotalKHR, BOTH: subtotalBOTH },
             rate: groupRate,
             payments: paymentIds,
             remainTotal: checkoutFields.remainTotal,
             receiveCashes: checkoutFields.receiveCashes,
             receiveTotal: checkoutFields.receiveTotal,
+            returnCashes,
             paymentMethod: checkoutFields.paymentMethod || 'cash',
-            createdBy: req.user.id
+            createdBy: req.user.id,
+            drawer: req.user.drawer?._id,
         }
 
         const group = await GroupPayment.create(groupBody)
 
         // maintain drawer cashes map
-        const drawerCashesMap = {}
         const updatedPayments = []
 
         for (const p of payments) {
             const id = p._id.toString()
-            const drawerId = p?.drawer?._id?.toString()
-            const currentCashes = drawerCashesMap[drawerId] || p?.drawer?.cashes || []
 
             // calculate return cashes for this payment using group remainTotal and groupRate
             // eslint-disable-next-line no-await-in-loop
-            const { cashes, returnCashes } = await calculateReturnCashes(currentCashes, checkoutFields.remainTotal, groupRate)
-            drawerCashesMap[drawerId] = cashes
-
-            const updateBody = { ...checkoutFields, returnCashes, status: true, state: 'COMPLETED', groupPayment: group._id }
+            const updateBody = { ...checkoutFields, status: true, state: 'COMPLETED', groupPayment: group._id }
 
             // eslint-disable-next-line no-await-in-loop
             let data = await Payment.findByIdAndUpdate(id, updateBody, { new: true })
@@ -313,18 +347,13 @@ exports.groupCheckout = async (req, res) => {
             updatedPayments.push(data)
         }
 
-        // persist drawer cashes updates
-        const drawerIds = Object.keys(drawerCashesMap)
-        for (const dId of drawerIds) {
-            // eslint-disable-next-line no-await-in-loop
-            await Drawer.findByIdAndUpdate(dId, { cashes: drawerCashesMap[dId] })
-        }
-
         // update group status
         group.status = true
         group.state = 'COMPLETED'
         group.transactions = updatedPayments.flatMap(p => p.transactions || [])
         await group.save()
+
+        await Drawer.findByIdAndUpdate(group?.drawer?._id, { cashes })
 
         response.success(200, { msg: 'Group checkout completed successfully', data: updatedPayments, group }, res)
     } catch (err) {
