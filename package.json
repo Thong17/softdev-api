@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "dockerBuild": "docker build -t thonggee/softdev-api:janyard-v1.0.2 .",
-    "dockerPush": "docker push thonggee/softdev-api:janyard-v1.0.2"
+    "dockerBuild": "docker build -t thonggee/softdev-api:janyard-v1.0.3 .",
+    "dockerPush": "docker push thonggee/softdev-api:janyard-v1.0.3"
   },
   "repository": {
     "type": "git",
