@@ -24,7 +24,10 @@ router.get('/uploads/:filename', async (req, res) => {
 
         try {
             const stream = await minioClient.getObject(bucketName, filename)
-            res.set('Content-Type', mimetype)
+            res.set({
+                'Content-Type': mimetype,
+                'Cache-Control': 'public, max-age=31536000, immutable',
+            })
             return stream.pipe(res)
         } catch (err) {
             const defaultImagePath = path.join(process.cwd(), 'uploads', 'default.png')

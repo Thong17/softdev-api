@@ -40,9 +40,16 @@ const schema = mongoose.Schema(
             type: Boolean,
             default: false
         },
+        rate: {
+            type: Object,
+        },
         state: {
             type: String,
             default: 'PENDING'
+        },
+        drawer: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Drawer'
         },
         payments: [{
             type: mongoose.Schema.ObjectId,

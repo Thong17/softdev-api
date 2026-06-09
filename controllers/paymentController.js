@@ -5,11 +5,13 @@ const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel, calculatePaymentTotal, calculateReturnCashes, sendMessageTelegram, currencyFormat, generateInvoice } = require('../helpers/utils')
+const utils = require('../helpers/utils')
 const { createPaymentValidation, checkoutPaymentValidation } = require('../middleware/validations/paymentValidation')
 const Reservation = require('../models/Reservation')
 const Customer = require('../models/Customer')
 const moment = require('moment')
 const { telegramReceiptTemplate } = require('./utilityController')
+const GroupPayment = require('../models/GroupPayment')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
@@ -211,6 +213,151 @@ exports.batch = async (req, res) => {
             })
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res)
+    }
+}
+
+exports.groupPayment = async (req, res) => {
+    try {
+        const { paymentIds } = req.body
+        const payments = await Payment.find({ _id: { $in: paymentIds } }).populate('customer').populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] }).populate('createdBy', 'username').populate({ path: 'reservation', populate: 'structures' })
+        // determine group rate (prefer checkoutFields.rate, fallback to first payment rate)
+        const buyRate = req.user.drawer.buyRate
+        const sellRate = req.user.drawer.sellRate
+        const groupRate = { buyRate, sellRate }
+
+        // aggregate total in USD using groupRate
+        let totalUSD = 0
+        let subtotalUSD = 0
+        let subtotalKHR = 0
+        let subtotalBOTH = 0
+        for (const p of payments) {
+            subtotalKHR += p.subtotal.KHR
+            subtotalUSD += p.subtotal.USD
+            subtotalBOTH += p.subtotal.BOTH
+            if (!p.total) continue
+            if (p.total.currency === 'USD') totalUSD += p.total.value
+            else totalUSD += p.total.value / (groupRate.sellRate || 4000)
+        }
+
+        const groupBody = {
+            invoice: null,
+            total: { value: totalUSD, currency: 'USD' },
+            subtotal: { USD: subtotalUSD, KHR: subtotalKHR, BOTH: subtotalBOTH },
+            rate: groupRate,
+            payments: paymentIds,
+            createdBy: req.user
+        }
+        response.success(200, { data: payments, group: groupBody }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }   
+}
+
+exports.groupCheckout = async (req, res) => {
+    const { checkoutFields, paymentIds } = req.body
+
+    if (!checkoutFields) return response.failure(422, { msg: 'checkoutFields is required' }, res)
+    if (!Array.isArray(paymentIds) || paymentIds.length === 0) return response.failure(422, { msg: 'paymentIds must be a non-empty array' }, res)
+
+    const { error } = checkoutPaymentValidation.validate(checkoutFields, { abortEarly: false })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+
+    try {
+        // load payments
+        const payments = await Payment.find({ _id: { $in: paymentIds } }).populate('drawer').populate({ path: 'transactions', match: { isDeleted: false }})
+
+        // ensure none already checked out
+        const already = payments.find(p => p.status)
+        if (already) return response.failure(422, { msg: 'One or more payments have already checked out' }, res)
+
+        // create group payment record
+        const invoice = await generateInvoice(GroupPayment, new Date(), 'GRP')
+        // determine group rate (prefer checkoutFields.rate, fallback to first payment rate)
+        const buyRate = req.user.drawer.buyRate
+        const sellRate = req.user.drawer.sellRate
+        const groupRate = { buyRate, sellRate }
+
+        // aggregate total in USD using groupRate
+        let totalUSD = 0
+        let subtotalUSD = 0
+        let subtotalKHR = 0
+        let subtotalBOTH = 0
+        for (const p of payments) {
+            subtotalKHR += p.subtotal.KHR
+            subtotalUSD += p.subtotal.USD
+            subtotalBOTH += p.subtotal.BOTH
+            if (!p.total) continue
+            if (p.total.currency === 'USD') totalUSD += p.total.value
+            else totalUSD += p.total.value / (groupRate.sellRate || 4000)
+        }
+
+        const { cashes, returnCashes } = await calculateReturnCashes(req.user.drawer?.cashes || [], checkoutFields.remainTotal, groupRate)
+
+        const groupBody = {
+            invoice,
+            total: { value: totalUSD, currency: 'USD' },
+            subtotal: { USD: subtotalUSD, KHR: subtotalKHR, BOTH: subtotalBOTH },
+            rate: groupRate,
+            payments: paymentIds,
+            remainTotal: checkoutFields.remainTotal,
+            receiveCashes: checkoutFields.receiveCashes,
+            receiveTotal: checkoutFields.receiveTotal,
+            returnCashes,
+            paymentMethod: checkoutFields.paymentMethod || 'cash',
+            createdBy: req.user.id,
+            drawer: req.user.drawer?._id,
+        }
+
+        const group = await GroupPayment.create(groupBody)
+
+        // maintain drawer cashes map
+        const updatedPayments = []
+
+        for (const p of payments) {
+            const id = p._id.toString()
+
+            // calculate return cashes for this payment using group remainTotal and groupRate
+            // eslint-disable-next-line no-await-in-loop
+            const updateBody = { ...checkoutFields, status: true, state: 'COMPLETED', groupPayment: group._id }
+
+            // eslint-disable-next-line no-await-in-loop
+            let data = await Payment.findByIdAndUpdate(id, updateBody, { new: true })
+                .populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
+                .populate('customer').populate('createdBy', 'username')
+
+            // mark transactions completed
+            // eslint-disable-next-line no-await-in-loop
+            await utils.checkoutTransaction({ transactions: data.transactions })
+
+            if (data.reservation) await Reservation.findByIdAndUpdate(data.reservation, { isCompleted: true })
+            if (data.customer) {
+                const paymentPoint = data.total.currency === 'USD' ? data.total.value : data.total.value / data.rate.buyRate
+                // eslint-disable-next-line no-await-in-loop
+                await utils.calculateCustomerPoint({ customerId: data.customer, paymentPoint })
+            }
+
+            // send telegram per payment if enabled
+            const storeConfig = await StoreSetting.findOne()
+            if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
+                const text = await telegramReceiptTemplate(data)
+                sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
+                    .catch(err => console.error(err))
+            }
+
+            updatedPayments.push(data)
+        }
+
+        // update group status
+        group.status = true
+        group.state = 'COMPLETED'
+        group.transactions = updatedPayments.flatMap(p => p.transactions || [])
+        await group.save()
+
+        await Drawer.findByIdAndUpdate(group?.drawer?._id, { cashes })
+
+        response.success(200, { msg: 'Group checkout completed successfully', data: updatedPayments, group, createdBy: req.user }, res)
+    } catch (err) {
+        return response.failure(422, { msg: err?.msg ?? failureMsg.trouble }, res, err)
     }
 }
 
