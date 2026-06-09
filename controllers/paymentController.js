@@ -355,7 +355,7 @@ exports.groupCheckout = async (req, res) => {
 
         await Drawer.findByIdAndUpdate(group?.drawer?._id, { cashes })
 
-        response.success(200, { msg: 'Group checkout completed successfully', data: updatedPayments, group }, res)
+        response.success(200, { msg: 'Group checkout completed successfully', data: updatedPayments, group, createdBy: req.user }, res)
     } catch (err) {
         return response.failure(422, { msg: err?.msg ?? failureMsg.trouble }, res, err)
     }

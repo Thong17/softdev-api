@@ -6,28 +6,23 @@ const LoanPayment = require('../models/LoanPayment')
 const TransactionClearance = require('../models/TransactionClearance')
 
 exports.listSale = async (req, res) => {
-  const chart = req.query._chartData || 'day'
-  let query = {}
-  if (chart === 'range') {
-    const fromDate = moment(req.query.fromDate)
-    const toDate = moment(req.query.toDate)
-    if (fromDate.isValid() && toDate.isValid()) {
-      query = {
-        $gte: fromDate.toDate(),
-        $lt: toDate.toDate(),
-      }
-    } else {
-      query = {
-        $gte: moment().toDate(),
-        $lt: moment().toDate(),
-      }
-    }
-  } else {
-    query = {
-      $gte: moment().startOf(chart).toDate(),
-      $lt: moment().endOf(chart).toDate(),
-    }
+  const rawChart = req.query._chartData || 'hourly'
+  const qFrom = req.query.fromDate
+  const qTo = req.query.toDate
+
+  // map incoming chart terms to moment units / grouping behavior
+  const unitMap = {
+    hourly: 'hour',
+    daily: 'day',
+    weekly: 'week',
+    monthly: 'month',
+    yearly: 'year',
   }
+
+  const fromMoment = qFrom ? moment(qFrom) : moment()
+  const toMoment = qTo ? moment(qTo) : moment()
+
+  const query = { $gte: fromMoment.startOf('day').toDate(), $lt: toMoment.endOf('day').toDate() }
 
   try {
     // List Sale
@@ -38,30 +33,16 @@ exports.listSale = async (req, res) => {
       }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     const listSale = []
 
-    let label = ''
-    let format = ''
-    switch (chart) {
-        case 'day':
-            label = 'hour'
-            format = '[Today] ha'
-            break
-        case 'week':
-            label = 'day'
-            format = 'MMM Do'
-            break
-        case 'month':
-            label = 'week'
-            format = 'Do MMM YYYY'
-            break
-        case 'year':
-            label = 'month'
-            format = 'MMM YYYY'
-            break
-        default:
-            label = 'day'
-            format = 'MMM Do'
-            break
+    // determine grouping label and format based on requested chart
+    const label = Object.prototype.hasOwnProperty.call(unitMap, rawChart) ? unitMap[rawChart] : 'day'
+    const formatMap = {
+      hourly: 'Do ha',
+      daily: 'MMM Do',
+      weekly: 'MMM Do',
+      monthly: 'Do MMM YYYY',
+      yearly: 'MMM YYYY',
     }
+    const format = formatMap[rawChart] || 'MMM Do'
 
     const incomeLoanPayment = await LoanPayment.find({
       paymentDate: query,
@@ -79,28 +60,34 @@ exports.listSale = async (req, res) => {
         } 
       })
 
-    listPayment.push(incomeLoanPayment.map(loanPayment => {
-        return {
-            total: loanPayment.totalAmount,
-            rate: loanPayment.loan.payment.rate,
-            createdAt: loanPayment.paymentDate
-        }
-    }))
+    listPayment.push(incomeLoanPayment.map(loanPayment => ({
+      total: loanPayment.totalAmount,
+      rate: loanPayment.loan.payment.rate,
+      createdAt: loanPayment.paymentDate
+    })))
 
+    // normalize payments and group according to label (or emit each item when label === null)
     listPayment.flat().forEach(payment => {
-        const { buyRate } = payment.rate
-        const isInList = listSale.some(item => moment(item.name).isSame(payment.createdAt, label))
-        if (!isInList) {
-            listSale.push({ name: payment.createdAt, value: payment.total.value, format })
-        } else {
-            listSale.map(item => {
-                if (moment(item.name).isSame(payment.createdAt, label)) {
-                    let totalPayment = payment.total.value
-                    if (payment.total.currency !== 'USD') totalPayment /= buyRate
-                    item.value = item.value + totalPayment
-                } else return item
-            })
-        }
+      const buyRate = payment.rate?.buyRate || 1
+      let totalPayment = payment.total?.value || 0
+      if (payment.total?.currency && payment.total.currency !== 'USD') totalPayment /= buyRate
+
+      if (!label) {
+        // item mode: push each payment as its own entry
+        listSale.push({ name: payment.createdAt, value: totalPayment, format })
+        return
+      }
+
+      const isInList = listSale.some(item => moment(item.name).isSame(payment.createdAt, label))
+      if (!isInList) {
+        listSale.push({ name: payment.createdAt, value: totalPayment, format })
+      } else {
+        listSale.forEach(item => {
+          if (moment(item.name).isSame(payment.createdAt, label)) {
+            item.value = item.value + totalPayment
+          }
+        })
+      }
     })
 
     return response.success(200, { data: listSale }, res)
