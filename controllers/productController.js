@@ -532,6 +532,94 @@ exports.disableProperty = async (req, res) => {
     }
 }
 
+exports.listProperty = async (req, res) => {
+    try {
+        const properties = await ProductProperty.find({ isDeleted: false })
+            .populate('product', 'name')
+            .populate('options')
+            .sort({ order: 1 })
+
+        const grouped = {}
+
+        properties.forEach(prop => {
+            const productId = prop.product?._id ?? 'unassigned'
+            const productName = prop.product?.name || null
+
+            if (!grouped[productId]) {
+                grouped[productId] = {
+                    _id: productId,
+                    product_name: productName,
+                    properties: []
+                }
+            }
+
+            grouped[productId].properties.push(prop)
+        })
+
+        return response.success(200, { data: Object.values(grouped) }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.clonePropertyOption = async (req, res) => {
+    try {
+        const options = Array.isArray(req.body) ? req.body : (req.body.options || [])
+        const productId = req.params.id || req.query.id || req.query.productId || req.body.productId
+
+        if (!productId) return response.failure(422, { msg: 'Target product id is required' }, res)
+        if (!options?.length) return response.failure(422, { msg: 'No options to clone' }, res)
+
+        const clonedPropertyMap = {}
+        const createdOptions = []
+
+        for (const item of options) {
+            const sourcePropertyId = item.property
+            if (!sourcePropertyId) continue
+
+            // create (or reuse) cloned property for this source property
+            let targetPropertyId = clonedPropertyMap[sourcePropertyId]
+            if (!targetPropertyId) {
+                const sourceProp = await ProductProperty.findById(sourcePropertyId)
+                if (!sourceProp) continue
+
+                const newPropData = {
+                    name: sourceProp.name,
+                    order: sourceProp.order || 0,
+                    choice: sourceProp.choice,
+                    isRequire: sourceProp.isRequire,
+                    description: sourceProp.description,
+                    product: productId,
+                    options: []
+                }
+
+                const newProp = await ProductProperty.create(newPropData)
+                targetPropertyId = newProp._id
+                clonedPropertyMap[sourcePropertyId] = targetPropertyId
+            }
+
+            // create option under the cloned property
+            const optionData = {
+                name: item.name || {},
+                price: item.price || 0,
+                currency: item.currency || 'USD',
+                profile: item.profile || null,
+                description: item.description || '',
+                isDefault: !!item.isDefault,
+                property: targetPropertyId,
+                product: productId
+            }
+
+            const newOption = await ProductOption.create(optionData)
+            createdOptions.push(newOption)
+        }
+
+        return response.success(200, { msg: `${createdOptions.length} items cloned`, data: createdOptions }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
 // CRUD Product Option
 exports.createOption = async (req, res) => {
     const body = req.body

@@ -1,6 +1,6 @@
 const router = require('express').Router()
 const { memoryStorage } = require('../../configs/multer')
-const { index, create, update, detail, disable, enableStock, _import, _export, batch, createProperty, updateProperty, reorderProperty, disableProperty, createOption, updateOption, toggleDefault, disableOption, detailOption, detailProperty, createColor, updateColor, disableColor, detailColor, createCustomerOption, detailCustomerOption, updateCustomerOption, disableCustomerOption } = require('../../controllers/productController')
+const { index, create, update, detail, disable, enableStock, _import, _export, batch, createProperty, updateProperty, reorderProperty, disableProperty, createOption, updateOption, toggleDefault, disableOption, detailOption, detailProperty, createColor, updateColor, disableColor, detailColor, createCustomerOption, detailCustomerOption, updateCustomerOption, disableCustomerOption, listProperty, clonePropertyOption } = require('../../controllers/productController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -110,6 +110,14 @@ router.put('/customer/update/:id', security.role(privilege.product.update), secu
 
 router.delete('/customer/disable/:id', security.role(privilege.product.delete), security.audit(), (req, res) => {
     disableCustomerOption(req, res)
+})
+
+router.get('/property/list', security.role(privilege.product.list), (req, res) => {
+    listProperty(req, res)
+})
+
+router.put('/property/clone/:id', security.role(privilege.product.update), (req, res) => {
+    clonePropertyOption(req, res)
 })
 
 module.exports = router
