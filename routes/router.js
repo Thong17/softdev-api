@@ -60,5 +60,6 @@ router.use('/user', require('./user'))
 router.use('/report', require('./report'))
 router.use('/dashboard', require('./dashboard'))
 router.use('/utility', require('./utility'))
+router.use('/alert', require('./alert'))
 
 module.exports = router
