@@ -11,10 +11,27 @@ const CustomerOption = require('../models/CustomerOption')
 
 exports.stock = async (req, res) => {
     const product = req.query.productId
-    ProductStock.find({ isDeleted: false, product }, (err, stocks) => {
-        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        return response.success(200, { data: stocks }, res)
-    }).populate('color').populate('options')
+    try {
+        ProductStock.find({ isDeleted: false, product }).populate('color').populate('options').exec((err, stocks) => {
+            if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+
+            // Sort so that items with quantity === 0 appear last,
+            // and within those groups sort by created date (newest first).
+            stocks.sort((a, b) => {
+                const aZero = !a.quantity || a.quantity === 0
+                const bZero = !b.quantity || b.quantity === 0
+                if (aZero !== bZero) return aZero ? 1 : -1
+
+                const aDate = a.createdAt ? new Date(a.createdAt) : (a._id && a._id.getTimestamp ? a._id.getTimestamp() : new Date())
+                const bDate = b.createdAt ? new Date(b.createdAt) : (b._id && b._id.getTimestamp ? b._id.getTimestamp() : new Date())
+                return bDate - aDate
+            })
+
+            return response.success(200, { data: stocks }, res)
+        })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
 }
 
 exports.product = async (req, res) => {

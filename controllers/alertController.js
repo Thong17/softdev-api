@@ -9,6 +9,7 @@ exports.getNotification = async (req, res) => {
     try {
         const candidates = await ProductStock.find({
             alertAt: { $gt: 0 },
+            quantity: { $gt: 0 },
             expireAt: { $exists: true, $ne: null }
         })
             .populate({ path: 'product', populate: { path: 'images' } })
@@ -24,7 +25,7 @@ exports.getNotification = async (req, res) => {
             return now >= alertThreshold
         })
 
-        return response.success(200, { data: notifications }, res)
+        return response.success(200, { data: notifications?.map(item => ({...item._doc, type: 'stock'})) }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
