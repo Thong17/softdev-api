@@ -51,6 +51,33 @@ exports.self = (req, res, next) => {
     next()
 }
 
+exports.scopeTenant = async (req, res, next) => {
+    try {
+        const companyId = req.headers['x-company-id'] || req.query.company || req.body?.company || null
+        const storeId = req.headers['x-store-id'] || req.query.store || req.body?.store || null
+
+        req.tenant = {
+            companyId,
+            storeId,
+        }
+
+        if (!companyId && !storeId) return next()
+
+        const UserStoreAccess = require('../../models/UserStoreAccess')
+        const access = await UserStoreAccess.findOne({
+            user: req.user?.id,
+            company: companyId,
+            store: storeId,
+            isDeleted: false,
+        })
+
+        if (!access) return response.failure(403, { msg: 'You do not have access to this company/store scope.' }, res)
+        next()
+    } catch (err) {
+        return response.failure(422, { msg: err.message }, res, err)
+    }
+}
+
 exports.role = (role) => {
     return (req, res, next) => {
         const user = req.user

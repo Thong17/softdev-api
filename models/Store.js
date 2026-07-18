@@ -2,6 +2,10 @@ const mongoose = require('mongoose')
 
 const schema = mongoose.Schema(
     {
+        company: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Company'
+        },
         name: {
             type: String,
             default: 'SoftDev'
