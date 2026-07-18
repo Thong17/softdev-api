@@ -31,6 +31,14 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'User'
         },
+        company: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Company'
+        },
+        store: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Store'
+        },
         products: [{
             type: mongoose.Schema.ObjectId,
             ref: 'Product'

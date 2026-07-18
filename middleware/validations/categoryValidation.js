@@ -1,6 +1,8 @@
 const Joi = require('joi')
 
 const createCategoryValidation = Joi.object({
+    company: Joi.string().optional().allow(''),
+    store: Joi.string().optional().allow(''),
     name: Joi.object().required(),
     status: Joi.boolean().optional(),
     icon: Joi.any().optional(),

@@ -1,6 +1,8 @@
 const Joi = require('joi')
 
 const createLoanValidation = Joi.object({
+  company: Joi.string().optional().allow(''),
+  store: Joi.string().optional().allow(''),
   customer: Joi.string().required(),
   payment: Joi.string().required(),
   attachments: Joi.any().optional(),

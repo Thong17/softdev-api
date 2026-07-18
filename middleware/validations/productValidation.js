@@ -1,6 +1,8 @@
 const Joi = require('joi')
 
 const createProductValidation = Joi.object({
+    company: Joi.string().optional().allow(''),
+    store: Joi.string().optional().allow(''),
     name: Joi.object().required(),
     price: Joi.number().required(),
     currency: Joi.string().required(),

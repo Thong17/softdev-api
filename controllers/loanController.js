@@ -36,9 +36,13 @@ exports.index = async (req, res) => {
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
     const sort = req.query.sort || 'desc'
+    const scope = {
+        company: req.tenant?.companyId || req.body?.company || req.query?.company,
+        store: req.tenant?.storeId || req.body?.store || req.query?.store,
+    }
     
     let filterObj = { [filter]: sort }
-    let query = {}
+    let query = { ...scope }
     if (search) {
         query[field] = {
             $regex: new RegExp(search, 'i')
@@ -66,9 +70,13 @@ exports.listRequest = async (req, res) => {
     try {
         const filter = req.query.filter || 'createdAt'
         const sort = req.query.sort || 'desc'
+        const scope = {
+            company: req.tenant?.companyId || req.body?.company || req.query?.company,
+            store: req.tenant?.storeId || req.body?.store || req.query?.store,
+        }
         let filterObj = { [filter]: sort }
         
-        const loans = await Loan.find({ isDeleted: false, status: 'PENDING' }).sort(filterObj).populate('payment customer')
+        const loans = await Loan.find({ isDeleted: false, status: 'PENDING', ...scope }).sort(filterObj).populate('payment customer')
         return response.success(200, { data: loans }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -183,6 +191,8 @@ exports.create = async (req, res) => {
                 totalLoan: body.totalRemain, 
                 loanPayments: listPayment, 
                 attachments: files, 
+                company: req.tenant?.companyId || body.company,
+                store: req.tenant?.storeId || body.store,
                 createdBy: req.user.id
             }
             const loan = await Loan.create({_id: loanId, ...loanBody})

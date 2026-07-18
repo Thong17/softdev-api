@@ -23,9 +23,13 @@ exports.index = async (req, res) => {
     const fromDate = req.query.fromDate
     const toDate = req.query.toDate
     const state = req.query.state
+    const scope = {
+        company: req.tenant?.companyId || req.body?.company || req.query?.company,
+        store: req.tenant?.storeId || req.body?.store || req.query?.store,
+    }
     
     let filterObj = { [filter]: sort }
-    let query = {}
+    let query = { ...scope }
     if (search) {
         query[field] = {
             $regex: new RegExp(search, 'i')
@@ -93,6 +97,8 @@ exports.create = async (req, res) => {
             rate,
             invoice,
             drawer: req.user.drawer?._id,
+            company: req.tenant?.companyId || body.company,
+            store: req.tenant?.storeId || body.store,
             createdBy: req.user.id,
             customer: body.customer
         }

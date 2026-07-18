@@ -14,9 +14,13 @@ exports.index = async (req, res) => {
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
     const sort = req.query.sort || 'asc'
+    const scope = {
+        company: req.tenant?.companyId || req.body?.company || req.query?.company,
+        store: req.tenant?.storeId || req.body?.store || req.query?.store,
+    }
     
     let filterObj = { [filter]: sort }
-    let query = {}
+    let query = { ...scope }
     if (search) {
         query[field] = {
             $regex: new RegExp(search, 'i')
@@ -53,7 +57,12 @@ exports.open = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Drawer.create({ ...body, user: req.user._id }, async (err, drawer) => {
+        Drawer.create({
+            ...body,
+            company: req.tenant?.companyId || body.company,
+            store: req.tenant?.storeId || body.store,
+            user: req.user._id,
+        }, async (err, drawer) => {
             if (err) {
                 switch (err.code) {
                     case 11000:

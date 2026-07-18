@@ -10,6 +10,14 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Payment'
         },
+        company: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Company'
+        },
+        store: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Store'
+        },
         isCompleted: {
             type: Boolean,
             default: false

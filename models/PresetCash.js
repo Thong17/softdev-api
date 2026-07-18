@@ -9,6 +9,10 @@ const schema = mongoose.Schema(
         cashes: {
             type: Array,
         },
+        company: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Company'
+        },
         store: {
             type: mongoose.Schema.ObjectId,
             ref: 'Store'

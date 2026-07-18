@@ -27,6 +27,14 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'ProductStock'
         },
+        company: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Company'
+        },
+        store: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Store'
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }

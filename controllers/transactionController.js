@@ -13,9 +13,13 @@ exports.index = async (req, res) => {
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
     const sort = req.query.sort || 'desc'
+    const scope = {
+        company: req.tenant?.companyId || req.body?.company || req.query?.company,
+        store: req.tenant?.storeId || req.body?.store || req.query?.store,
+    }
     
     let filterObj = { [filter]: sort }
-    let query = {}
+    let query = { ...scope }
     if (search) {
         query[field] = {
             $regex: new RegExp(search, 'i')
@@ -66,7 +70,15 @@ exports.create = async (req, res) => {
             }
         }
 
-        Transaction.create({ ...body, _id: transactionId, stocks: orderStocks, stockCosts, createdBy: req.user.id }, async (err, transaction) => {
+        Transaction.create({
+            ...body,
+            _id: transactionId,
+            stocks: orderStocks,
+            stockCosts,
+            company: req.tenant?.companyId || body.company,
+            store: req.tenant?.storeId || body.store,
+            createdBy: req.user.id,
+        }, async (err, transaction) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -111,7 +123,14 @@ exports.stock = async (req, res) => {
             }
         }
 
-        Transaction.create({ ...transactionBody, stocks: orderStocks, stockCosts, createdBy: req.user.id }, async (err, transaction) => {
+        Transaction.create({
+            ...transactionBody,
+            stocks: orderStocks,
+            stockCosts,
+            company: req.tenant?.companyId || transactionBody.company,
+            store: req.tenant?.storeId || transactionBody.store,
+            createdBy: req.user.id,
+        }, async (err, transaction) => {
             if (err) {
                 switch (err.code) {
                     case 11000:

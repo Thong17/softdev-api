@@ -13,9 +13,13 @@ exports.index = async (req, res) => {
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
     const sort = req.query.sort || 'asc'
+    const scope = {
+        company: req.tenant?.companyId || req.body?.company || req.query?.company,
+        store: req.tenant?.storeId || req.body?.store || req.query?.store,
+    }
 
     let filterObj = { [filter]: sort }
-    let query = {}
+    let query = { ...scope }
     if (search) {
         query[field] = {
             $regex: new RegExp(search, 'i')
@@ -49,7 +53,13 @@ exports.create = async (req, res) => {
         const latestQueue = await Queue.findOne().sort('-createdAt')
         const latestTicket = parseInt(latestQueue?.ticket) || 0
         const ticket = latestTicket >= parseInt(process.env.MAX_QUEUE_NUMBER) ? 1 : latestTicket + 1
-        Queue.create({...body, ticket, createdBy: req.user.id}, async (err, queue) => {
+        Queue.create({
+            ...body,
+            ticket,
+            company: req.tenant?.companyId || body.company,
+            store: req.tenant?.storeId || body.store,
+            createdBy: req.user.id,
+        }, async (err, queue) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             
             if (!queue) return response.failure(422, { msg: 'No queue created!' }, res, err)

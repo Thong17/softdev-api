@@ -12,9 +12,13 @@ exports.index = async (req, res) => {
     const field = req.query.field || 'tags'
     const filter = req.query.filter || 'createdAt'
     const sort = req.query.sort || 'asc'
+    const scope = {
+        company: req.tenant?.companyId || req.body?.company || req.query?.company,
+        store: req.tenant?.storeId || req.body?.store || req.query?.store,
+    }
 
     let filterObj = { [filter]: sort }
-    let query = {}
+    let query = { ...scope }
     if (search) {
         query[field] = {
             $regex: new RegExp(search, 'i')
@@ -44,7 +48,12 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Promotion.create({...body, createdBy: req.user.id}, async (err, promotion) => {
+        Promotion.create({
+            ...body,
+            company: req.tenant?.companyId || body.company,
+            store: req.tenant?.storeId || body.store,
+            createdBy: req.user.id,
+        }, async (err, promotion) => {
             if (err) {
                 switch (err.code) {
                     case 11000:

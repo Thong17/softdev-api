@@ -5,14 +5,24 @@ const cron = require('node-cron')
 const ProductStock = require('../models/ProductStock')
 
 exports.list = async (req, res) => {
-    Notification.find({ isRead: false }, (err, notifications) => {
+    const scope = {
+        company: req.tenant?.companyId || req.body?.company || req.query?.company,
+        store: req.tenant?.storeId || req.body?.store || req.query?.store,
+    }
+
+    Notification.find({ isRead: false, ...scope }, (err, notifications) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: notifications }, res)
     }).select('title description type isRead isPopup stock').populate('stock')
 }
 
 exports.count = async (req, res) => {
-    Notification.count({ isRead: false }, (err, count) => {
+    const scope = {
+        company: req.tenant?.companyId || req.body?.company || req.query?.company,
+        store: req.tenant?.storeId || req.body?.store || req.query?.store,
+    }
+
+    Notification.count({ isRead: false, ...scope }, (err, count) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: count }, res)
     })
