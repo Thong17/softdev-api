@@ -68,6 +68,10 @@ exports.privilege = {
             route: 'menu',
             action: 'store'
         },
+        company: {
+            route: 'menu',
+            action: 'company'
+        },
     },
     operation: {
         cashing: {
@@ -258,6 +262,28 @@ exports.privilege = {
         },
         delete: {
             route: 'store',
+            action: 'delete'
+        },
+    },
+    company: {
+        list: {
+            route: 'company',
+            action: 'list'
+        },
+        detail: {
+            route: 'company',
+            action: 'detail'
+        },
+        create: {
+            route: 'company',
+            action: 'create'
+        },
+        update: {
+            route: 'company',
+            action: 'update'
+        },
+        delete: {
+            route: 'company',
             action: 'delete'
         },
     },

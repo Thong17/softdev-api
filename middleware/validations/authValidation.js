@@ -6,7 +6,13 @@ const loginValidation = Joi.object({
 
     password: Joi.string()
         .min(3)
-        .required()
+        .required(),
+
+    company: Joi.string()
+        .optional(),
+
+    store: Joi.string()
+        .optional()
 })
 
 const registerValidation = Joi.object({

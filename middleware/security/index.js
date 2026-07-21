@@ -62,6 +62,7 @@ exports.scopeTenant = async (req, res, next) => {
         }
 
         if (!companyId && !storeId) return next()
+        if (req.user?.isDefault) return next()
 
         const UserStoreAccess = require('../../models/UserStoreAccess')
         const access = await UserStoreAccess.findOne({
