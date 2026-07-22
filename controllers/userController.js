@@ -3,7 +3,7 @@ const Config = require('../models/Config')
 const User = require('../models/User')
 const Profile = require('../models/Profile')
 const { failureMsg } = require('../constants/responseMsg')
-const { extractJoiErrors, readExcel, encryptPassword, comparePassword, validatePassword } = require('../helpers/utils')
+const { extractJoiErrors, readExcel, encryptPassword, comparePassword, validatePassword, generateSecurePassword } = require('../helpers/utils')
 const { createUserValidation, updateUserValidation } = require('../middleware/validations/userValidation')
 
 exports.index = (req, res) => {
@@ -49,12 +49,12 @@ exports.passwordUpdate = async (req, res) => {
     try {
         const { current_password, new_password } = req.body
         const id = req.params.id
-        const user = await User.findById(id)
+        const user = await User.findById(id).select('+password')
         comparePassword(current_password, user.password)
             .then(async isMatch => {
                 if (!isMatch) return response.failure(422, { msg: 'Password is incorrect' }, res)
                 const password = await encryptPassword(new_password)
-                await User.findByIdAndUpdate(id, { password })
+                await User.findByIdAndUpdate(id, { password, mustChangePassword: false })
                 return response.success(200, { msg: 'Password has updated successfully' }, res)
             })
             .catch(err => {
@@ -168,15 +168,21 @@ exports._import = async (req, res) => {
 exports.batch = async (req, res) => {
     try {
         const users = req.body
-        const password = await encryptPassword('default')
+        const credentials = []
 
-        users.forEach(user => {
-            user.password = password
-        })
+        for (const user of users) {
+            const plainPassword = generateSecurePassword()
+            user.password = await encryptPassword(plainPassword)
+            user.mustChangePassword = true
+            credentials.push({ username: user.username, password: plainPassword })
+        }
 
         User.insertMany(users)
             .then(data => {
-                response.success(200, { msg: `${data.length} ${data.length > 1 ? 'users' : 'user'} has been inserted` }, res)
+                response.success(200, {
+                    msg: `${data.length} ${data.length > 1 ? 'users' : 'user'} has been inserted`,
+                    credentials
+                }, res)
             })
             .catch(err => {
                 return response.failure(422, { msg: err.message }, res)
@@ -196,7 +202,8 @@ exports.profile = (req, res) => {
         language: req.user?.config?.language,
         favorites: req.user?.favorites,
         drawer: req.user?.drawer,
-        isDefault: req.user?.isDefault
+        isDefault: req.user?.isDefault,
+        mustChangePassword: req.user?.mustChangePassword
     }
     return response.success(200, { user }, res)
 }

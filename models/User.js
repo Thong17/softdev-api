@@ -19,6 +19,7 @@ const schema = mongoose.Schema(
         password: {
             type: String,
             required: [true, 'Password is required!'],
+            select: false,
             minlength: [7, 'Password must be at least 7 characters!'],
             validate: {
                 validator: (password) => {
@@ -78,12 +79,22 @@ const schema = mongoose.Schema(
             type: Boolean,
             default: false
         },
+        mustChangePassword: {
+            type: Boolean,
+            default: false
+        },
         tags: {
             type: String,
         },
     },
     {
-        timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
+        timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' },
+        toJSON: {
+            transform: (doc, ret) => {
+                delete ret.password
+                return ret
+            }
+        }
     }
 )
 
@@ -122,6 +133,7 @@ schema.post('insertMany', async function(users) {
 
 schema.statics.authenticate = function (username, password, cb) {
     this.findOne({ username, isDisabled: { $ne: true } })
+        .select('+password')
         .populate('role')
         .populate({ path: 'profile', populate: { path: 'photo' } })
         .populate('config')

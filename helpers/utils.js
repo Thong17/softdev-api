@@ -9,6 +9,8 @@ const Transaction = require('../models/Transaction')
 const Customer = require('../models/Customer')
 const LoanPayment = require('../models/LoanPayment')
 
+const SENSITIVE_FIELDS = ['password', 'confirm_password', 'current_password', 'new_password']
+
 module.exports = utils = {
     encryptPassword: (plainPassword) => {
         return bcrypt.hash(plainPassword, 10)
@@ -19,6 +21,34 @@ module.exports = utils = {
     validatePassword: (password) => {
         let passwordComplexity = new RegExp('(?=.*[a-z])(?=.*[0-9])(?=.{7,})')
         return passwordComplexity.test(password)
+    },
+    generateSecurePassword: (length = 14) => {
+        const crypto = require('crypto')
+        const lower = 'abcdefghijklmnopqrstuvwxyz'
+        const upper = lower.toUpperCase()
+        const digits = '0123456789'
+        const all = lower + upper + digits
+        const pick = (charset) => charset[crypto.randomInt(charset.length)]
+
+        const chars = [pick(lower), pick(upper), pick(digits)]
+        for (let i = chars.length; i < length; i++) chars.push(pick(all))
+
+        for (let i = chars.length - 1; i > 0; i--) {
+            const j = crypto.randomInt(i + 1)
+            ;[chars[i], chars[j]] = [chars[j], chars[i]]
+        }
+        return chars.join('')
+    },
+    redactSensitiveFields: (data) => {
+        if (Array.isArray(data)) return data.map(utils.redactSensitiveFields)
+        if (data && typeof data === 'object') {
+            const clone = {}
+            Object.keys(data).forEach(key => {
+                clone[key] = SENSITIVE_FIELDS.includes(key) ? '[REDACTED]' : utils.redactSensitiveFields(data[key])
+            })
+            return clone
+        }
+        return data
     },
     extractJoiErrors: (error) => {
         const messages = []

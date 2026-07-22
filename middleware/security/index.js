@@ -1,5 +1,5 @@
 const response = require('../../helpers/response')
-const { createHash, verifyToken, issueToken } = require('../../helpers/utils')
+const { createHash, verifyToken, issueToken, redactSensitiveFields } = require('../../helpers/utils')
 
 exports.hash = (req, res, next) => {
     const token = req.headers['x-access-token'] || ''
@@ -29,6 +29,13 @@ exports.auth = (req, res, next) => {
             const User = require('../../models/User')
             const { id } = decoded
             const user = await User.findById(id).populate('role').populate({ path: 'profile', populate: { path: 'photo' } }).populate('config').populate('drawer')
+
+            const isProfileRoute = req.path === '/user/profile'
+            const isChangePasswordRoute = req.path.startsWith('/user/change-password/')
+            if (user?.mustChangePassword && !isProfileRoute && !isChangePasswordRoute) {
+                return response.failure(403, { msg: 'You must change your password before continuing.', mustChangePassword: true }, res)
+            }
+
             req.user = user
             next()
         })
@@ -71,7 +78,7 @@ exports.audit = () => {
                     endpoint: req.originalUrl,
                     method: req.method,
                     status: res.statusCode,
-                    body: req.body,
+                    body: redactSensitiveFields(req.body),
                     createdBy: user?.id
                 })
             } catch (err) {
