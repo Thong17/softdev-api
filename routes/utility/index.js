@@ -4,7 +4,7 @@ const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 const { dumpMongoDB } = require('../../controllers/utilityController')
 
-router.delete('/clear-payment', security.role(privilege.payment.delete), (req, res) => {
+router.delete('/clear-payment', security.requireStore, security.role(privilege.payment.delete), (req, res) => {
     clearTransactionAndPayment(req, res)
 })
 

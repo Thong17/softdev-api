@@ -3,27 +3,27 @@ const { index, detail, create, call, cancel, complete } = require('../../control
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
-router.get('/', security.role(privilege.queue.list), (req, res) => {
+router.get('/', security.requireStore, security.role(privilege.queue.list), (req, res) => {
     index(req, res)
 })
 
-router.get('/detail/:id', security.role(privilege.queue.list), (req, res) => {
+router.get('/detail/:id', security.requireStore, security.role(privilege.queue.list), (req, res) => {
     detail(req, res)
 })
 
-router.post('/create', security.role(privilege.queue.create), security.audit(), (req, res) => {
+router.post('/create', security.requireStore, security.role(privilege.queue.create), security.audit(), (req, res) => {
     create(req, res)
 })
 
-router.post('/call/:id', security.role(privilege.queue.call), security.audit(), (req, res) => {
+router.post('/call/:id', security.requireStore, security.role(privilege.queue.call), security.audit(), (req, res) => {
     call(req, res)
 })
 
-router.put('/complete/:id', security.role(privilege.queue.update), security.audit(), (req, res) => {
+router.put('/complete/:id', security.requireStore, security.role(privilege.queue.update), security.audit(), (req, res) => {
     complete(req, res)
 })
 
-router.delete('/cancel/:id', security.role(privilege.queue.cancel), security.audit(), (req, res) => {
+router.delete('/cancel/:id', security.requireStore, security.role(privilege.queue.cancel), security.audit(), (req, res) => {
     cancel(req, res)
 })
 

@@ -2,25 +2,20 @@ const mongoose = require('mongoose')
 
 const schema = mongoose.Schema(
     {
-        name: {
-            type: Object,
-            required: [true, 'Name is required!']
-        },
         store: {
             type: mongoose.Schema.ObjectId,
             ref: 'Store',
             required: [true, 'Store is required!']
         },
-        description: {
-            type: String
-        },
-        privilege: {
-            type: Object,
-            required: [true, 'Privilege is required!']
-        },
-        createdBy: {
+        user: {
             type: mongoose.Schema.ObjectId,
-            ref: 'User'
+            ref: 'User',
+            required: [true, 'User is required!']
+        },
+        role: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Role',
+            required: [true, 'Role is required!']
         },
         isDefault: {
             type: Boolean,
@@ -29,6 +24,10 @@ const schema = mongoose.Schema(
         isDisabled: {
             type: Boolean,
             default: false
+        },
+        createdBy: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'User'
         },
         tags: {
             type: String,
@@ -39,15 +38,15 @@ const schema = mongoose.Schema(
     }
 )
 
-schema.index({ store: 1, name: 1 }, { unique: true })
+schema.index({ store: 1, user: 1 }, { unique: true })
 
 schema.pre('save', async function (next) {
     try {
-        this.tags = `${JSON.stringify(this.name)}${this.description}${this.isDefault && 'default'}`.replace(/ /g,'')
+        this.tags = `${this.store}${this.user}`.replace(/ /g,'')
         next()
     } catch (err) {
         next(err)
     }
 })
 
-module.exports = mongoose.model('Role', schema)
+module.exports = mongoose.model('StoreMember', schema)

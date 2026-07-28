@@ -35,9 +35,9 @@ exports.list = async (req, res) => {
     if (category && category !== 'all') query['category'] = category
     if (favorite) query['_id'] = { '$in': req.user?.favorites }
 
-    Customer.find({ isDeleted: false, isDisabled: false, ...query }, async (err, customers) => {
+    Customer.find({ isDeleted: false, isDisabled: false, store: req.store, ...query }, async (err, customers) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        const totalCount = await Customer.count({ isDeleted: false, isDisabled: false, ...query  }) 
+        const totalCount = await Customer.count({ isDeleted: false, isDisabled: false, store: req.store, ...query  })
         let hasMore = totalCount > offset + limit
         if (search !== '' || brand !== 'all' || category !== 'all' || promotion || favorite || promotions) hasMore = true
 
@@ -50,7 +50,7 @@ exports.list = async (req, res) => {
 
 exports.detail = async (req, res) => {
     try {
-        const customer = await Customer.findById(req.params.id)
+        const customer = await Customer.findOne({ _id: req.params.id, store: req.store })
 
         return response.success(200, { data: customer }, res)
     } catch (err) {
@@ -64,7 +64,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Customer.create({...body, createdBy: req.user.id}, async (err, customer) => {
+        Customer.create({...body, store: req.store, createdBy: req.user.id}, async (err, customer) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -90,7 +90,7 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
     try {
         body.tags = `${body.displayName}${body.fullName}${body.contact}${body.address}`.replace(/ /g,'')
-        Customer.findByIdAndUpdate(req.params.id, body, (err, customer) => {
+        Customer.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, (err, customer) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -108,7 +108,7 @@ exports.update = async (req, res) => {
 
 exports.disable = async (req, res) => {
     try {
-        Customer.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, customer) => {
+        Customer.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isDeleted: true }, (err, customer) => {
             if (err) {
                 switch (err.code) {
                     default:

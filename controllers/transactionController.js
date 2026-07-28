@@ -22,10 +22,10 @@ exports.index = async (req, res) => {
         }
     }
     
-    Transaction.find({ isDeleted: false, ...query }, async (err, transactions) => {
+    Transaction.find({ isDeleted: false, store: req.store, ...query }, async (err, transactions) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Transaction.count({ isDeleted: false })
+        const totalCount = await Transaction.count({ isDeleted: false, store: req.store })
         return response.success(200, { data: transactions, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -34,7 +34,7 @@ exports.index = async (req, res) => {
 }
 
 exports.detail = async (req, res) => {
-    Transaction.findById(req.params.id, (err, transaction) => {
+    Transaction.findOne({ _id: req.params.id, store: req.store }, (err, transaction) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: transaction }, res)
     })
@@ -50,7 +50,7 @@ exports.create = async (req, res) => {
         if (!isValid) return response.failure(422, { msg }, res)
 
         if (body.promotion) {
-            const promotion = await Promotion.findById(body.promotion)
+            const promotion = await Promotion.findOne({ _id: body.promotion, store: req.store })
             if (promotion && !compareDate(Date.now(), new Date(promotion.expireAt))) {
                 body['discount'] = {
                     value: promotion.value,
@@ -59,14 +59,14 @@ exports.create = async (req, res) => {
                 }
                 const { total, currency } = calculatePromotion(
                     { total: body.total.value, currency: body.total.currency },
-                    { value: promotion.value, type: promotion.type, isFixed: promotion.isFixed }, 
+                    { value: promotion.value, type: promotion.type, isFixed: promotion.isFixed },
                     { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
                 )
                 body.total = { value: total, currency }
             }
         }
 
-        Transaction.create({ ...body, _id: transactionId, stocks: orderStocks, stockCosts, createdBy: req.user.id }, async (err, transaction) => {
+        Transaction.create({ ...body, _id: transactionId, store: req.store, stocks: orderStocks, stockCosts, createdBy: req.user.id }, async (err, transaction) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -95,7 +95,7 @@ exports.stock = async (req, res) => {
         if (!isValid) return response.failure(422, { msg }, res)
 
         if (transactionBody.promotion) {
-            const promotion = await Promotion.findById(transactionBody.promotion)
+            const promotion = await Promotion.findOne({ _id: transactionBody.promotion, store: req.store })
             if (promotion && !compareDate(Date.now(), new Date(promotion.expireAt))) {
                 transactionBody['discount'] = {
                     value: promotion.value,
@@ -104,14 +104,14 @@ exports.stock = async (req, res) => {
                 }
                 const { total, currency } = calculatePromotion(
                     { total: transactionBody.total.value, currency: transactionBody.total.currency },
-                    { value: promotion.value, type: promotion.type, isFixed: promotion.isFixed }, 
+                    { value: promotion.value, type: promotion.type, isFixed: promotion.isFixed },
                     { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
                 )
                 transactionBody.total = { value: total, currency }
             }
         }
 
-        Transaction.create({ ...transactionBody, stocks: orderStocks, stockCosts, createdBy: req.user.id }, async (err, transaction) => {
+        Transaction.create({ ...transactionBody, store: req.store, stocks: orderStocks, stockCosts, createdBy: req.user.id }, async (err, transaction) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -137,7 +137,7 @@ exports.update = async (req, res) => {
 
     try {
         const id = req.params.id
-        const transaction = await Transaction.findById(id)
+        const transaction = await Transaction.findOne({ _id: id, store: req.store })
         if (transaction.status) return response.failure(422, { msg: 'Transaction has already completed' }, res)
 
         reverseProductStock(transaction?.stocks)
@@ -150,13 +150,13 @@ exports.update = async (req, res) => {
                     body.stockCosts = stockCosts
 
                     const { total, currency } = calculatePromotion(
-                        { total: body.price * body.quantity, currency: body.currency }, 
-                        { value: body.discount.value, type: body.discount.currency, isFixed: body.discount.isFixed }, 
+                        { total: body.price * body.quantity, currency: body.currency },
+                        { value: body.discount.value, type: body.discount.currency, isFixed: body.discount.isFixed },
                         { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
                     )
                     body.total = { value: total, currency }
 
-                    Transaction.findByIdAndUpdate(req.params.id, body, { new: true }, async (err, transaction) => {
+                    Transaction.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, { new: true }, async (err, transaction) => {
                         if (err) return response.failure(422, { msg: err.message }, res, err)
             
                         if (!transaction) return response.failure(422, { msg: 'No transaction updated!' }, res, err)
@@ -178,7 +178,7 @@ exports.update = async (req, res) => {
 exports.increaseQuantity = async (req, res) => {
     try {
         const id = req.params.id
-        const transaction = await Transaction.findById(id)
+        const transaction = await Transaction.findOne({ _id: id, store: req.store })
         if (transaction.status) return response.failure(422, { msg: 'Transaction has already completed' }, res)
 
         reverseProductStock(transaction?.stocks)
@@ -195,13 +195,13 @@ exports.increaseQuantity = async (req, res) => {
                     }
 
                     const { total, currency } = calculatePromotion(
-                        { total: transaction.price * increasedQty, currency: transaction.currency }, 
-                        { value: transaction.discount.value, type: transaction.discount.currency, isFixed: transaction.discount.isFixed }, 
+                        { total: transaction.price * increasedQty, currency: transaction.currency },
+                        { value: transaction.discount.value, type: transaction.discount.currency, isFixed: transaction.discount.isFixed },
                         { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
                     )
                     body.total = { value: total, currency }
 
-                    Transaction.findByIdAndUpdate(req.params.id, body, { new: true }, async (err, transaction) => {
+                    Transaction.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, { new: true }, async (err, transaction) => {
                         if (err) return response.failure(422, { msg: err.message }, res, err)
             
                         if (!transaction) return response.failure(422, { msg: 'No transaction updated!' }, res, err)
@@ -223,7 +223,7 @@ exports.increaseQuantity = async (req, res) => {
 exports.decreaseQuantity = async (req, res) => {
     try {
         const id = req.params.id
-        const transaction = await Transaction.findById(id)
+        const transaction = await Transaction.findOne({ _id: id, store: req.store })
         if (transaction.status) return response.failure(422, { msg: 'Transaction has already completed' }, res)
 
         const decreasedQty = transaction.quantity - 1
@@ -242,13 +242,13 @@ exports.decreaseQuantity = async (req, res) => {
                     }
 
                     const { total, currency } = calculatePromotion(
-                        { total: transaction.price * decreasedQty, currency: transaction.currency }, 
-                        { value: transaction.discount.value, type: transaction.discount.currency, isFixed: transaction.discount.isFixed }, 
+                        { total: transaction.price * decreasedQty, currency: transaction.currency },
+                        { value: transaction.discount.value, type: transaction.discount.currency, isFixed: transaction.discount.isFixed },
                         { sellRate: req.user?.drawer?.sellRate, buyRate: req.user?.drawer?.buyRate }
                     )
                     body.total = { value: total, currency }
 
-                    Transaction.findByIdAndUpdate(req.params.id, body, { new: true }, async (err, transaction) => {
+                    Transaction.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, { new: true }, async (err, transaction) => {
                         if (err) return response.failure(422, { msg: err.message }, res, err)
             
                         if (!transaction) return response.failure(422, { msg: 'No transaction updated!' }, res, err)
@@ -270,12 +270,12 @@ exports.decreaseQuantity = async (req, res) => {
 exports.remove = async (req, res) => {
     try {
         const id = req.params.id
-        const transaction = await Transaction.findById(id)
-        
+        const transaction = await Transaction.findOne({ _id: id, store: req.store })
+
         reverseProductStock(transaction?.stocks)
             .then(async ({ totalAllStock }) => {
                 try {
-                    await Transaction.findByIdAndUpdate(id, { isDeleted: true })
+                    await Transaction.findOneAndUpdate({ _id: id, store: req.store }, { isDeleted: true })
                     response.success(200, { msg: 'Transaction has reversed successfully', data: transaction, stockRemain: { totalAllStock, productId: transaction.product } }, res)
                 } catch (err) {
                     return response.failure(422, { msg: failureMsg.trouble }, res, err)

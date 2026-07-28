@@ -12,7 +12,7 @@ const CustomerOption = require('../models/CustomerOption')
 exports.stock = async (req, res) => {
     const product = req.query.productId
     try {
-        ProductStock.find({ isDeleted: false, product }).populate('color').populate('options').exec((err, stocks) => {
+        ProductStock.find({ isDeleted: false, store: req.store, product }).populate('color').populate('options').exec((err, stocks) => {
             if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
             // Sort so that items with quantity === 0 appear last,
@@ -36,7 +36,7 @@ exports.stock = async (req, res) => {
 
 exports.product = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id)
+        const product = await Product.findOne({ _id: req.params.id, store: req.store })
             .populate('images').populate({ path: 'stocks', model: ProductStock }).populate({ path: 'colors', model: ProductColor }).populate({ path: 'customers', model: CustomerOption }).populate({ path: 'options', model: ProductOption }).populate('brand').populate('category').populate('properties')
 
         return response.success(200, { data: product }, res)
@@ -47,7 +47,7 @@ exports.product = async (req, res) => {
 
 exports.detail = async (req, res) => {
     try {
-        const stock = await ProductStock.findById(req.params.id).populate({ path: 'options', model: ProductOption, populate: { path: 'property', model: ProductProperty, select: 'name' } })
+        const stock = await ProductStock.findOne({ _id: req.params.id, store: req.store }).populate({ path: 'options', model: ProductOption, populate: { path: 'property', model: ProductProperty, select: 'name' } })
 
         return response.success(200, { data: stock }, res)
     } catch (err) {
@@ -61,7 +61,7 @@ exports.createStock = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductStock.create({...body, createdBy: req.user.id, totalQuantity: body.quantity}, (err, stock) => {
+        ProductStock.create({...body, store: req.store, createdBy: req.user.id, totalQuantity: body.quantity}, (err, stock) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -85,7 +85,7 @@ exports.updateStock = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductStock.findByIdAndUpdate(req.params.id, {...body, totalQuantity: body.quantity}, { new: true }, async (err, stock) => {
+        ProductStock.findOneAndUpdate({ _id: req.params.id, store: req.store }, {...body, totalQuantity: body.quantity}, { new: true }, async (err, stock) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!stock) return response.failure(422, { msg: 'No stock updated!' }, res, err)
 
@@ -98,7 +98,7 @@ exports.updateStock = async (req, res) => {
 
 exports.disableStock = async (req, res) => {
     try {
-        ProductStock.findByIdAndRemove(req.params.id, async (err, stock) => {
+        ProductStock.findOneAndRemove({ _id: req.params.id, store: req.store }, async (err, stock) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!stock) return response.failure(422, { msg: 'No stock deleted!' }, res, err)
 

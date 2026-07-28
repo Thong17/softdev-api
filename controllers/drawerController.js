@@ -23,10 +23,10 @@ exports.index = async (req, res) => {
         }
     }
     
-    Drawer.find({ isDeleted: false, ...query }, async (err, categories) => {
+    Drawer.find({ isDeleted: false, store: req.store, ...query }, async (err, categories) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Drawer.count({ isDisabled: false })
+        const totalCount = await Drawer.count({ isDisabled: false, store: req.store })
         return response.success(200, { data: categories, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -34,14 +34,14 @@ exports.index = async (req, res) => {
 }
 
 exports.list = async (req, res) => {
-    Drawer.find({ isDeleted: false }, (err, drawers) => {
+    Drawer.find({ isDeleted: false, store: req.store }, (err, drawers) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: drawers }, res)
     }).select('name tags')
 }
 
 exports.detail = async (req, res) => {
-    Drawer.findById(req.params.id, (err, drawer) => {
+    Drawer.findOne({ _id: req.params.id, store: req.store }, (err, drawer) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: drawer }, res)
     })
@@ -53,7 +53,7 @@ exports.open = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Drawer.create({ ...body, user: req.user._id }, async (err, drawer) => {
+        Drawer.create({ ...body, store: req.store, user: req.user._id }, async (err, drawer) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -65,7 +65,7 @@ exports.open = async (req, res) => {
             if (!drawer) return response.failure(422, { msg: 'No drawer created!' }, res, err)
 
             // Send message to Telegram
-            const storeConfig = await StoreSetting.findOne()
+            const storeConfig = await StoreSetting.findOne({ store: req.store })
             if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_OPEN_DRAWER) {
                 let totalCashUSD = 0
                 let totalCashKHR = 0
@@ -101,12 +101,12 @@ exports.save = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Drawer.findByIdAndUpdate(req.params.id, body, { new: true }, async (err, drawer) => {
+        Drawer.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, { new: true }, async (err, drawer) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!drawer) return response.failure(422, { msg: 'No drawer updated!' }, res, err)
 
             // Send message to Telegram
-            const storeConfig = await StoreSetting.findOne()
+            const storeConfig = await StoreSetting.findOne({ store: req.store })
             if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_OPEN_DRAWER) {
                 let totalCashUSD = 0
                 let totalCashKHR = 0
@@ -139,13 +139,13 @@ exports.save = async (req, res) => {
 
 exports.close = async (req, res) => {
     try {
-        Drawer.findByIdAndUpdate(req.params.id, { status: false, endedAt: Date.now() }, async (err, drawer) => {
+        Drawer.findOneAndUpdate({ _id: req.params.id, store: req.store }, { status: false, endedAt: Date.now() }, async (err, drawer) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             await User.findByIdAndUpdate(drawer.user, { drawer: null })
             if (!drawer) return response.failure(422, { msg: 'No drawer updated!' }, res, err)
 
             // Send message to Telegram
-            const storeConfig = await StoreSetting.findOne()
+            const storeConfig = await StoreSetting.findOne({ store: req.store })
             if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_CLOSE_DRAWER) {
                 let totalCashUSD = 0
                 let totalCashKHR = 0

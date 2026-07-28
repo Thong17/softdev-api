@@ -1,4 +1,7 @@
 const Store = require('../models/Store')
+const StoreMember = require('../models/StoreMember')
+const Role = require('../models/Role')
+const { preRole } = require('../constants/roleMap')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel, sendMessageTelegram } = require('../helpers/utils')
@@ -9,33 +12,48 @@ const StoreStructure = require('../models/StoreStructure')
 const StoreSetting = require('../models/StoreSetting')
 
 exports.index = async (req, res) => {
+    const limit = parseInt(req.query.limit) || 10
+    const page = parseInt(req.query.page) || 0
+
     try {
-        const store = await Store.findOne().populate('logo')
-        const floorCount = await StoreFloor.count({ isDisabled: false })
-        const tableCount = await StoreStructure.count({ isDisabled: false, type: 'table' })
-        const roomCount = await StoreStructure.count({ isDisabled: false, type: 'room' })
-        return response.success(200, { data: store, floorCount, tableCount, roomCount }, res)
+        const memberships = await StoreMember.find({ user: req.user.id, isDisabled: false })
+            .skip(page * limit).limit(limit)
+            .populate({ path: 'store', populate: { path: 'logo' } })
+            .populate('role', 'name')
+        const totalCount = await StoreMember.count({ user: req.user.id, isDisabled: false })
+
+        const data = memberships.filter(member => member.store && !member.store.isDeleted).map(member => ({
+            ...member.store.toObject(),
+            roleName: member.role?.name,
+            isDefaultStore: member.isDefault
+        }))
+        return response.success(200, { data, length: totalCount }, res)
     } catch (err) {
-        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
 
 exports.detail = async (req, res) => {
-    Store.findOne({}, (err, store) => {
-        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    try {
+        const member = await StoreMember.findOne({ store: req.params.id, user: req.user.id, isDisabled: false })
+        if (!member) return response.failure(401, { msg: 'You are not a member of this store!' }, res)
+
+        const store = await Store.findOne({ _id: req.params.id, isDeleted: false }).populate('logo')
         return response.success(200, { data: store }, res)
-    }).populate('logo')
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
 }
 
 exports.floors = async (req, res) => {
-    StoreFloor.find({ isDisabled: false }, (err, floors) => {
+    StoreFloor.find({ isDisabled: false, store: req.store }, (err, floors) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: floors }, res)
     }).select('floor description order tags')
 }
 
 exports.structures = async (req, res) => {
-    StoreStructure.find({ isDisabled: false }, (err, structures) => {
+    StoreStructure.find({ isDisabled: false, store: req.store }, (err, structures) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         const data = structures.filter(item => !(item.merged && !item.isMain))
@@ -44,7 +62,7 @@ exports.structures = async (req, res) => {
 }
 
 exports.listStructure = async (req, res) => {
-    StoreStructure.find({ isDisabled: false }, (err, structures) => {
+    StoreStructure.find({ isDisabled: false, store: req.store }, (err, structures) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         const data = structures.filter(item => !(item.merged && !item.isMain))
@@ -53,7 +71,7 @@ exports.listStructure = async (req, res) => {
 }
 
 exports.listTransfer = async (req, res) => {
-    Transfer.find({}, (err, transfers) => {
+    Transfer.find({ store: req.store }, (err, transfers) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: transfers }, res)
     }).populate('image', 'filename')
@@ -62,7 +80,7 @@ exports.listTransfer = async (req, res) => {
 exports.layout = async (req, res) => {
     const id = req.query.id
 
-    StoreFloor.findById(id, (err, layout) => {
+    StoreFloor.findOne({ _id: id, store: req.store }, (err, layout) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: layout }, res)
     }).populate({ path: 'structures', populate: [{ path: 'floor', select: 'floor' }, { path: 'reservations', populate: { path: 'customer', populate: { path: 'picture' } }, match: { isCompleted: false } }] })
@@ -74,21 +92,41 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Store.create(body, (err, store) => {
-            if (err) {
-                switch (err.code) {
-                    case 11000:
-                        return response.failure(422, { msg: 'Store already exists!' }, res, err)
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
-            }
+        const store = await Store.create({ ...body, createdBy: req.user.id })
 
-            if (!store) return response.failure(422, { msg: 'No store created!' }, res, err)
-            response.success(200, { msg: 'Store has created successfully', data: store }, res)
+        let privilege
+        Object.keys(preRole).forEach(menu => {
+            privilege = { ...privilege, [menu]: {} }
+            Object.keys(preRole[menu]).forEach(route => {
+                privilege[menu][route] = true
+            })
         })
+        const ownerRole = await Role.create({
+            name: { English: 'Owner' },
+            store: store.id,
+            privilege,
+            description: 'Default role generated when the store was created',
+            isDefault: true,
+            createdBy: req.user.id
+        })
+
+        const existingMemberships = await StoreMember.count({ user: req.user.id, isDisabled: false })
+        await StoreMember.create({
+            store: store.id,
+            user: req.user.id,
+            role: ownerRole.id,
+            isDefault: existingMemberships === 0,
+            createdBy: req.user.id
+        })
+
+        response.success(200, { msg: 'Store has created successfully', data: store }, res)
     } catch (err) {
-        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        switch (err.code) {
+            case 11000:
+                return response.failure(422, { msg: 'Store already exists!' }, res, err)
+            default:
+                return response.failure(422, { msg: err.message || failureMsg.trouble }, res, err)
+        }
     }
 }
 
@@ -98,7 +136,7 @@ exports.createTransfer = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Transfer.create(body, (err, transfer) => {
+        Transfer.create({ ...body, store: req.store }, (err, transfer) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -122,7 +160,7 @@ exports.createFloor = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        StoreFloor.create(body, (err, floor) => {
+        StoreFloor.create({ ...body, store: req.store }, (err, floor) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -146,7 +184,7 @@ exports.updateFloor = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        StoreFloor.findByIdAndUpdate(req.params.id, body, (err, floor) => {
+        StoreFloor.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, (err, floor) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -168,7 +206,7 @@ exports.updateTransfer = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Transfer.findByIdAndUpdate(req.params.id, body, (err, transfer) => {
+        Transfer.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, (err, transfer) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
 
             if (!transfer) return response.failure(422, { msg: 'No transfer updated!' }, res, err)
@@ -181,7 +219,7 @@ exports.updateTransfer = async (req, res) => {
 
 exports.deleteTransfer = async (req, res) => {
     try {
-        Transfer.findByIdAndRemove(req.params.id, (err, transfer) => {
+        Transfer.findOneAndRemove({ _id: req.params.id, store: req.store }, (err, transfer) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
 
             if (!transfer) return response.failure(422, { msg: 'No transfer deleted!' }, res, err)
@@ -194,7 +232,7 @@ exports.deleteTransfer = async (req, res) => {
 
 exports.disableFloor = async (req, res) => {
     try {
-        StoreFloor.findByIdAndUpdate(req.params.id, { isDisabled: true }, (err, floor) => {
+        StoreFloor.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isDisabled: true }, (err, floor) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -216,6 +254,9 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
+        const member = await StoreMember.findOne({ store: req.params.id, user: req.user.id, isDisabled: false })
+        if (!member) return response.failure(401, { msg: 'You are not a member of this store!' }, res)
+
         Store.findByIdAndUpdate(req.params.id, body, (err, store) => {
             if (err) {
                 switch (err.code) {
@@ -236,13 +277,14 @@ exports.updateLayout = async (req, res) => {
     const floorId = req.params.id
     const { structures, mergedStructures, column, row } = req.body
     try {
-        const layout = await StoreFloor.findById(floorId)
-        await StoreStructure.deleteMany({ floor: floorId })
+        const layout = await StoreFloor.findOne({ _id: floorId, store: req.store })
+        if (!layout) return response.failure(422, { msg: 'No floor found for this store!' }, res)
+        await StoreStructure.deleteMany({ floor: floorId, store: req.store })
 
         const filteredStructures = structures.filter(structure => {
             if (structure.type === 'blank' && !structure.merged) return false
             return true
-        })
+        }).map(structure => ({ ...structure, store: req.store }))
         const insertedStructures = await StoreStructure.insertMany(filteredStructures)
 
         layout.structures = insertedStructures
@@ -259,6 +301,9 @@ exports.updateLayout = async (req, res) => {
 
 exports.disable = async (req, res) => {
     try {
+        const member = await StoreMember.findOne({ store: req.params.id, user: req.user.id, isDisabled: false })
+        if (!member) return response.failure(401, { msg: 'You are not a member of this store!' }, res)
+
         Store.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, store) => {
             if (err) {
                 switch (err.code) {
@@ -307,8 +352,8 @@ exports.batch = async (req, res) => {
 
 exports.getStoreSetting = async (req, res) => {
     try {
-        const setting = await StoreSetting.findOne()
-        if (!setting) return response.success(200, { data: await StoreSetting.create({}) }, res)
+        const setting = await StoreSetting.findOne({ store: req.store })
+        if (!setting) return response.success(200, { data: await StoreSetting.create({ store: req.store }) }, res)
 
         return response.success(200, { data: { 
             telegramAPIKey: setting.telegramAPIKey, 
@@ -336,7 +381,7 @@ exports.updateStoreSetting = async (req, res) => {
     try {
         sendMessageTelegram({ text: 'Bot has been connected', token: body.telegramAPIKey, chatId: body.telegramChatID })
             .then(() => {
-                StoreSetting.findOneAndUpdate({}, body, { upsert: true, new: true, setDefaultsOnInsert: true }, (err, setting) => {
+                StoreSetting.findOneAndUpdate({ store: req.store }, { ...body, store: req.store }, { upsert: true, new: true, setDefaultsOnInsert: true }, (err, setting) => {
                     if (err) return response.failure(422, { msg: err.message }, res, err)
         
                     if (!setting) return response.failure(422, { msg: 'No setting update!' }, res, err)

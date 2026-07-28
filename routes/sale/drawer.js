@@ -4,23 +4,23 @@ const { index, open, save, close, detail, _import, batch } = require('../../cont
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
-router.get('/', security.role(privilege.drawer.list), (req, res) => {
+router.get('/', security.requireStore, security.role(privilege.drawer.list), (req, res) => {
     index(req, res)
 })
 
-router.get('/detail/:id', security.role(privilege.drawer.detail), (req, res) => {
+router.get('/detail/:id', security.requireStore, security.role(privilege.drawer.detail), (req, res) => {
     detail(req, res)
 })
 
-router.post('/open', security.role(privilege.drawer.create), security.audit(), (req, res) => {
+router.post('/open', security.requireStore, security.role(privilege.drawer.create), security.audit(), (req, res) => {
     open(req, res)
 })
 
-router.put('/save/:id', security.role(privilege.drawer.update), security.audit(), (req, res) => {
+router.put('/save/:id', security.requireStore, security.role(privilege.drawer.update), security.audit(), (req, res) => {
     save(req, res)
 })
 
-router.put('/close/:id', security.role(privilege.drawer.update), security.audit(), (req, res) => {
+router.put('/close/:id', security.requireStore, security.role(privilege.drawer.update), security.audit(), (req, res) => {
     close(req, res)
 })
 

@@ -70,6 +70,11 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'User'
         },
+        store: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Store',
+            index: true
+        },
         isDisabled: {
             type: Boolean,
             default: false

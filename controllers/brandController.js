@@ -23,10 +23,10 @@ exports.index = async (req, res) => {
         }
     }
     
-    Brand.find({ isDeleted: false, ...query }, async (err, brands) => {
+    Brand.find({ isDeleted: false, store: req.store, ...query }, async (err, brands) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Brand.count({ isDeleted: false })
+        const totalCount = await Brand.count({ isDeleted: false, store: req.store })
         return response.success(200, { data: brands, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -35,17 +35,43 @@ exports.index = async (req, res) => {
 }
 
 exports.list = async (req, res) => {
-    Brand.find({ isDeleted: false, status: true }, (err, brands) => {
+    Brand.find({ isDeleted: false, status: true, store: req.store }, (err, brands) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: brands }, res)
     }).select('name tags icon').populate('icon')
 }
 
 exports.detail = async (req, res) => {
-    Brand.findById(req.params.id, (err, brand) => {
+    Brand.findOne({ _id: req.params.id, store: req.store }, (err, brand) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: brand }, res)
     }).populate('icon')
+}
+
+exports.listTemplate = async (req, res) => {
+    Brand.find({ isDeleted: false, isTemplate: true }, (err, brands) => {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        return response.success(200, { data: brands }, res)
+    }).select('name tags icon description').populate('icon')
+}
+
+exports.cloneFromTemplate = async (req, res) => {
+    try {
+        const template = await Brand.findOne({ _id: req.params.id, isTemplate: true, isDeleted: false })
+        if (!template) return response.failure(422, { msg: 'Template not found!' }, res)
+
+        const brand = await Brand.create({
+            name: template.name,
+            icon: template.icon,
+            description: template.description,
+            store: req.store,
+            clonedFrom: template.id,
+            createdBy: req.user.id
+        })
+        response.success(200, { msg: 'Brand has been added from template successfully', data: brand }, res)
+    } catch (err) {
+        return response.failure(422, { msg: err.message || failureMsg.trouble }, res, err)
+    }
 }
 
 exports.create = async (req, res) => {
@@ -54,7 +80,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Brand.create({...body, createdBy: req.user.id}, (err, brand) => {
+        Brand.create({...body, store: req.store, createdBy: req.user.id}, (err, brand) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -78,7 +104,7 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Brand.findByIdAndUpdate(req.params.id, body, (err, brand) => {
+        Brand.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, (err, brand) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -97,7 +123,7 @@ exports.update = async (req, res) => {
 exports.toggleStatus = async (req, res) => {
     try {
         const id = req.params.id
-        const brand = await Brand.findById(id)
+        const brand = await Brand.findOne({ _id: id, store: req.store })
         Brand.findByIdAndUpdate(id, { status: !brand.status }, { new: true }, async (err, brand) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
 
@@ -112,7 +138,7 @@ exports.toggleStatus = async (req, res) => {
 
 exports.disable = async (req, res) => {
     try {
-        Brand.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, brand) => {
+        Brand.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isDeleted: true }, (err, brand) => {
             if (err) {
                 switch (err.code) {
                     default:

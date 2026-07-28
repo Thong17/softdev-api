@@ -1,7 +1,7 @@
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const Role = require('../models/Role')
-const User = require('../models/User')
+const StoreMember = require('../models/StoreMember')
 const Brand = require('../models/Brand')
 const Category = require('../models/Category')
 const Product = require('../models/Product')
@@ -15,9 +15,9 @@ const { compareDate } = require('../helpers/utils')
 
 exports.admin = async (req, res) => {
   try {
-    const totalRole = await Role.count({ isDisabled: false })
-    const totalUser = await User.count({ isDisabled: false })
-    const roles = await Role.find({ isDisabled: false }).select(
+    const totalRole = await Role.count({ isDisabled: false, store: req.store })
+    const totalUser = await StoreMember.count({ isDisabled: false, store: req.store })
+    const roles = await Role.find({ isDisabled: false, store: req.store }).select(
       'name privilege'
     )
     let totalPrivilege
@@ -41,7 +41,7 @@ exports.admin = async (req, res) => {
       roleData.push(obj)
     })
 
-    const users = await User.find({ isDisabled: false }).select('role')
+    const members = await StoreMember.find({ isDisabled: false, store: req.store }).select('role')
     const userData = []
     roleData.forEach((role) => {
       let userObj = {
@@ -50,8 +50,8 @@ exports.admin = async (req, res) => {
         title: 'User',
         detail: role.value,
       }
-      users.forEach((user) => {
-        if (user.role.equals(role.id)) userObj.value += 1
+      members.forEach((member) => {
+        if (member.role.equals(role.id)) userObj.value += 1
       })
       userData.push(userObj)
     })
@@ -76,14 +76,14 @@ exports.admin = async (req, res) => {
 
 exports.organize = async (req, res) => {
   try {
-    const totalCategory = await Category.count({ isDeleted: false })
-    const totalBrand = await Brand.count({ isDeleted: false })
-    const totalFloor = await StoreFloor.count({ isDisabled: false })
-    const totalProduct = await Product.count({ isDeleted: false })
-    const totalStandardStructure = await StoreStructure.count({ isDisabled: false, merged: null })
-    const totalMergedStructure = await StoreStructure.count({ isDisabled: false, merged: true, isMain: true })
+    const totalCategory = await Category.count({ isDeleted: false, store: req.store })
+    const totalBrand = await Brand.count({ isDeleted: false, store: req.store })
+    const totalFloor = await StoreFloor.count({ isDisabled: false, store: req.store })
+    const totalProduct = await Product.count({ isDeleted: false, store: req.store })
+    const totalStandardStructure = await StoreStructure.count({ isDisabled: false, merged: null, store: req.store })
+    const totalMergedStructure = await StoreStructure.count({ isDisabled: false, merged: true, isMain: true, store: req.store })
 
-    const categories = await Category.find({ isDeleted: false }).select(
+    const categories = await Category.find({ isDeleted: false, store: req.store }).select(
       'name products'
     )
     const categoryData = []
@@ -98,7 +98,7 @@ exports.organize = async (req, res) => {
       categoryData.push(obj)
     })
 
-    const brands = await Brand.find({ isDeleted: false }).select(
+    const brands = await Brand.find({ isDeleted: false, store: req.store }).select(
       'name products'
     )
     const brandData = []
@@ -113,7 +113,7 @@ exports.organize = async (req, res) => {
       brandData.push(obj)
     })
 
-    const products = await Product.find({ isDeleted: false }).select(
+    const products = await Product.find({ isDeleted: false, store: req.store }).select(
       'name isStock'
     )
     let totalWithStock = 0
@@ -138,7 +138,7 @@ exports.organize = async (req, res) => {
     }
     const productDate = [withStockObj, withoutStockObj]
 
-    const floors = await StoreFloor.find({ isDisabled: false }).select(
+    const floors = await StoreFloor.find({ isDisabled: false, store: req.store }).select(
       'floor structures'
     )
     const floorData = []
@@ -177,12 +177,12 @@ exports.organize = async (req, res) => {
 
 exports.operation = async (req, res) => {
   try {
-    const totalTransaction = await Transaction.count({ isDeleted: false })
-    const totalReservation = await Reservation.count({ isCompleted: false })
-    const totalStock = await ProductStock.count()
-    const totalPromotion = await Promotion.count({ isDeleted: false })
+    const totalTransaction = await Transaction.count({ isDeleted: false, store: req.store })
+    const totalReservation = await Reservation.count({ isCompleted: false, store: req.store })
+    const totalStock = await ProductStock.count({ store: req.store })
+    const totalPromotion = await Promotion.count({ isDeleted: false, store: req.store })
 
-    const transactions = await Transaction.find({ isDeleted: false }).select(
+    const transactions = await Transaction.find({ isDeleted: false, store: req.store }).select(
       'status'
     )
     let transactionPending = 0
@@ -208,6 +208,7 @@ exports.operation = async (req, res) => {
 
     const reservations = await StoreStructure.find({
       isDisabled: false,
+      store: req.store,
     }).select('status')
     let reserved = 0
     let vacant = 0
@@ -246,7 +247,7 @@ exports.operation = async (req, res) => {
       },
     ]
 
-    const stocks = await ProductStock.find().select('remain alertAt')
+    const stocks = await ProductStock.find({ store: req.store }).select('remain alertAt')
     let remain = 0
     let alert = 0
     let outOfStock = 0
@@ -284,7 +285,7 @@ exports.operation = async (req, res) => {
       },
     ]
 
-    const promotions = await Promotion.find({ isDeleted: false }).select(
+    const promotions = await Promotion.find({ isDeleted: false, store: req.store }).select(
       'expireAt'
     )
     let expire = 0

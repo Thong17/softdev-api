@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon -r dotenv/config app.js dotenv_config_path=.env.development",
+    "migrate:multiStore": "node scripts/migrateMultiStore.js",
+    "grant:fullPermission": "node scripts/grantFullPermission.js",
     "dockerBuild": "docker build -t thonggee/softdev-api:production .",
     "dockerPush": "docker push thonggee/softdev-api:production"
   },

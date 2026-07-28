@@ -45,7 +45,7 @@ exports.index = async (req, res) => {
         }
     }
     
-    Loan.find({ isDeleted: false, status: { $ne: 'PENDING' }, ...query }, async (err, loans) => {
+    Loan.find({ isDeleted: false, status: { $ne: 'PENDING' }, store: req.store, ...query }, async (err, loans) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         const listLoans = loans.map(item => {
             return {
@@ -54,7 +54,7 @@ exports.index = async (req, res) => {
             }
         })
 
-        const totalCount = await Loan.count({ isDeleted: false })
+        const totalCount = await Loan.count({ isDeleted: false, store: req.store })
         return response.success(200, { data: listLoans, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -68,7 +68,7 @@ exports.listRequest = async (req, res) => {
         const sort = req.query.sort || 'desc'
         let filterObj = { [filter]: sort }
         
-        const loans = await Loan.find({ isDeleted: false, status: 'PENDING' }).sort(filterObj).populate('payment customer')
+        const loans = await Loan.find({ isDeleted: false, status: 'PENDING', store: req.store }).sort(filterObj).populate('payment customer')
         return response.success(200, { data: loans }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -76,7 +76,7 @@ exports.listRequest = async (req, res) => {
 }
 
 exports.detail = async (req, res) => {
-    Loan.findById(req.params.id, (err, loan) => {
+    Loan.findOne({ _id: req.params.id, store: req.store }, (err, loan) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: loan }, res)
     }).populate('customer loanPayments').populate({ path: 'payment', populate: { path: 'transactions' } })
@@ -84,7 +84,7 @@ exports.detail = async (req, res) => {
 
 exports.cancel = async (req, res) => {
     try {
-        await Loan.findByIdAndUpdate(req.params.id, { isDeleted: true })
+        await Loan.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isDeleted: true })
         return response.success(200, { msg: 'Loan has been canceled' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -95,8 +95,8 @@ exports.reject = async (req, res) => {
     const session = await mongoose.startSession();
     try {
         await session.withTransaction(async () => {
-            const loan = await Loan.findByIdAndUpdate(
-                req.params.id,
+            const loan = await Loan.findOneAndUpdate(
+                { _id: req.params.id, store: req.store },
                 { status: 'REJECTED' },
                 { new: true }
             );
@@ -142,7 +142,7 @@ exports.reject = async (req, res) => {
 
 exports.approve = async (req, res) => {
     try {
-        await Loan.findByIdAndUpdate(req.params.id, { status: 'IN_PROGRESS' })
+        await Loan.findOneAndUpdate({ _id: req.params.id, store: req.store }, { status: 'IN_PROGRESS' })
         return response.success(200, { msg: 'Loan has been approved' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -151,7 +151,7 @@ exports.approve = async (req, res) => {
 
 exports.approveAll = async (req, res) => {
     try {
-        const loans = await Loan.updateMany({ status: 'PENDING' }, { status: 'APPROVED' })
+        const loans = await Loan.updateMany({ status: 'PENDING', store: req.store }, { status: 'APPROVED' })
         return response.success(200, { msg: `${loans} ${loans.length > 1 ? 'loans' : 'loan'} has been approved` }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -175,14 +175,15 @@ exports.create = async (req, res) => {
             if (payment.status) return response.failure(422, { msg: 'Payment has already checked out' }, res)
             if (body.totalRemain.USD <= 0) return response.failure(422, { msg: 'No balance to proceed loan' }, res)
 
-            const { listPayment, loanId } = await generateLoanPayment({...body, createdBy: req.user.id})
+            const { listPayment, loanId } = await generateLoanPayment({...body, store: req.store, createdBy: req.user.id})
 
             const loanBody = {
-                ...body, 
-                totalPaid: { value: body.totalPaid.total, currency: 'USD' }, 
-                totalLoan: body.totalRemain, 
-                loanPayments: listPayment, 
-                attachments: files, 
+                ...body,
+                totalPaid: { value: body.totalPaid.total, currency: 'USD' },
+                totalLoan: body.totalRemain,
+                loanPayments: listPayment,
+                attachments: files,
+                store: req.store,
                 createdBy: req.user.id
             }
             const loan = await Loan.create({_id: loanId, ...loanBody})
@@ -231,7 +232,7 @@ exports.payment = async (req, res) => {
                 await Drawer.findByIdAndUpdate(drawer?._id, { cashes })
                 const data = await LoanPayment.findByIdAndUpdate(id, { ...body, returnCashes, isPaid: true, paymentDate: new Date() }, { new: true }).populate('createdBy', 'username')
 
-                const loan = await Loan.findById(data.loan)
+                const loan = await Loan.findOne({ _id: data.loan, store: req.store })
                 const totalUSD = body.total.value
 
                 loan.actualPaid = {
@@ -254,7 +255,7 @@ exports.payment = async (req, res) => {
                 await loan.save()
 
                 // Send message to Telegram
-                const storeConfig = await StoreSetting.findOne()
+                const storeConfig = await StoreSetting.findOne({ store: req.store })
                 if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
                     const text = `Loan Payment On ${moment(data.createdAt).format('YYYY-MM-DD')}
                         🧾Invoice: ${data.invoice}
@@ -282,7 +283,7 @@ exports.checkout = async (req, res) => {
 
     try {
         const id = req.params.id
-        const loan = await Loan.findById(id)
+        const loan = await Loan.findOne({ _id: id, store: req.store })
         if (loan.status !== 'IN_PROGRESS') return response.failure(422, { msg: 'Loan has already paid' }, res)
 
         const drawer = req.user?.drawer
@@ -291,7 +292,7 @@ exports.checkout = async (req, res) => {
         calculateReturnCashes(drawer.cashes, body.remainTotal, { sellRate: drawer.sellRate, buyRate: drawer.buyRate })
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(drawer?._id, { cashes })
-                const data = await Loan.findByIdAndUpdate(id, {
+                const data = await Loan.findOneAndUpdate({ _id: id, store: req.store }, {
                         paymentObj: {
                             ...body,
                             returnCashes,
@@ -310,7 +311,7 @@ exports.checkout = async (req, res) => {
                 }
 
                 // Send message to Telegram
-                const storeConfig = await StoreSetting.findOne()
+                const storeConfig = await StoreSetting.findOne({ store: req.store })
                 if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
                     const text = `Clear Loan On ${moment(data.createdAt).format('YYYY-MM-DD')}
                         🧾Invoice: ${data.payment.invoice}
@@ -342,7 +343,7 @@ exports.uploadAttachment = async (req, res) => {
                 const id = uuid()
                 return { ...file, id, filename: file.filename }
             })
-            const loan = await Loan.findById(id)
+            const loan = await Loan.findOne({ _id: id, store: req.store })
             loan.attachments = [ ...loan.attachments, ...files ]
             loan.save()
             response.success(200, { msg: 'Attachment uploaded successfully', data: loan }, res)
@@ -356,7 +357,7 @@ exports.removeAttachment = async (req, res) => {
     try {
         const id = req.params.id
         const fileId = req.body.fileId
-        const loan = await Loan.findById(id)
+        const loan = await Loan.findOne({ _id: id, store: req.store })
         loan.attachments = loan.attachments.filter(file => file.id !== fileId)
         loan.save()
         response.success(200, { msg: 'Attachment removed successfully', data: loan }, res)
@@ -372,7 +373,7 @@ exports.writeOff = async (req, res) => {
         if (error) return response.failure(422, extractJoiErrors(error), res)
 
         const id = req.params.id
-        const loan = await Loan.findById(id)
+        const loan = await Loan.findOne({ _id: id, store: req.store })
         if (!loan) return response.failure(422, { msg: 'No loan found' }, res)
         if (loan?.status === 'COMPLETED') return response.failure(422, { msg: 'Loan has already paid' }, res)
 
@@ -396,6 +397,7 @@ exports.writeOff = async (req, res) => {
                         price: transaction.newPrice,
                         currency: transaction.newPriceCurrency,
                         isStock: true,
+                        store: req.store,
                         createdBy: req.user.id,
                     })
                     const addedStock = await ProductStock.create({
@@ -403,6 +405,7 @@ exports.writeOff = async (req, res) => {
                         quantity: loanTransaction.quantity,
                         cost: transaction.remainingCost,
                         currency: transaction.remainingCostCurrency,
+                        store: req.store,
                         createdBy: req.user.id,
                     })
                     addedProduct.stocks.push(addedStock._id)
@@ -415,7 +418,8 @@ exports.writeOff = async (req, res) => {
                         newStock: addedStock._id,
                         createdBy: req.user.id,
                         type: 'REPOSSESSION',
-                        loan: id
+                        loan: id,
+                        store: req.store
                     })
                 }
             } else if (transaction.writeOffType === 'CLEAR') {
@@ -428,7 +432,8 @@ exports.writeOff = async (req, res) => {
                     transaction: loanTransaction._id,
                     createdBy: req.user.id,
                     type: 'CLEARANCE',
-                    loan: id
+                    loan: id,
+                    store: req.store
                 })
             }
         });

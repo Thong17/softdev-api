@@ -1,5 +1,6 @@
 const { extractJoiErrors } = require('../helpers/utils')
 const User = require('../models/User')
+const StoreMember = require('../models/StoreMember')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { loginValidation, registerValidation } = require('../middleware/validations/authValidation')
@@ -11,20 +12,32 @@ exports.login = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        User.authenticate(body.username, body.password, (err, data) => {
+        User.authenticate(body.username, body.password, async (err, data) => {
             if (err) return response.failure(err.code, { msg: err.msg }, res, err)
+
+            const memberships = await StoreMember.find({ user: data.user?.id, isDisabled: false }).populate('store').populate('role')
+            const stores = memberships.map(member => ({
+                id: member.store?.id,
+                name: member.store?.name,
+                logo: member.store?.logo,
+                roleName: member.role?.name,
+                isDefault: member.isDefault
+            }))
+            const activeMember = memberships.find(member => member.isDefault) || (memberships.length === 1 ? memberships[0] : null)
 
             const user = {
                 id: data.user?.id,
                 username: data.user?.username,
-                privilege: data.user?.role?.privilege,
+                privilege: activeMember?.role?.privilege,
                 photo: data.user?.profile?.photo?.filename,
                 theme: data.user?.config?.theme,
                 language: data.user?.config?.language,
                 favorites: data.user?.favorites,
                 drawer: data.user?.drawer,
                 isDefault: data.user?.isDefault,
-                mustChangePassword: data.user?.mustChangePassword
+                mustChangePassword: data.user?.mustChangePassword,
+                stores,
+                activeStoreId: activeMember?.store?.id || null
             }
             response.success(200, { accessToken: data.token, user }, res)
         })

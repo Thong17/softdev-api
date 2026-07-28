@@ -1,5 +1,4 @@
 const mongoose = require('mongoose')
-const Role = require('./Role')
 const Profile = require('./Profile')
 const Config = require('./Config')
 const { comparePassword, issueToken } = require('../helpers/utils')
@@ -33,22 +32,6 @@ const schema = mongoose.Schema(
                     })
                 },
                 message: 'Strong password is required!'
-            },
-        },
-        role: {
-            type: mongoose.Schema.ObjectId,
-            ref: 'Role',
-            required: [true, 'Role is required!'],
-            validate: {
-                validator: (id) => {
-                    return new Promise((resolve, reject) => {
-                        Role.findById(id, function (err, doc) {
-                            if (err) return reject(err)
-                            resolve(!!doc)
-                        })
-                    })
-                },
-                message: 'Role is not existed in our system'
             },
         },
         profile: {
@@ -134,7 +117,6 @@ schema.post('insertMany', async function(users) {
 schema.statics.authenticate = function (username, password, cb) {
     this.findOne({ username, isDisabled: { $ne: true } })
         .select('+password')
-        .populate('role')
         .populate({ path: 'profile', populate: { path: 'photo' } })
         .populate('config')
         .populate('drawer')

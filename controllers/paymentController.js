@@ -53,10 +53,10 @@ exports.index = async (req, res) => {
         }
     }
     
-    Payment.find({ ...query }, async (err, payments) => {
+    Payment.find({ ...query, store: req.store }, async (err, payments) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Payment.count({ ...query })
+        const totalCount = await Payment.count({ ...query, store: req.store })
         return response.success(200, { data: payments, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -65,7 +65,7 @@ exports.index = async (req, res) => {
 }
 
 exports.detail = async (req, res) => {
-    Payment.findById(req.params.id, (err, payment) => {
+    Payment.findOne({ _id: req.params.id, store: req.store }, (err, payment) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: payment }, res)
     }).populate('createdBy').populate({ path: 'reservation', populate: 'structures' }).populate('customer', 'displayName point').populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
@@ -94,7 +94,8 @@ exports.create = async (req, res) => {
             invoice,
             drawer: req.user.drawer?._id,
             createdBy: req.user.id,
-            customer: body.customer
+            customer: body.customer,
+            store: req.store
         }
 
         Payment.create(mappedBody, async (err, payment) => {
@@ -117,7 +118,8 @@ exports.update = async (req, res) => {
 
     try {
         const id = req.params.id
-        let data = await Payment.findByIdAndUpdate(id, body, { new: true })
+        let data = await Payment.findOneAndUpdate({ _id: id, store: req.store }, body, { new: true })
+        if (!data) return response.failure(422, { msg: 'No payment found for this store!' }, res)
         if (data.status) return response.failure(422, { msg: 'Payment has already completed' }, res)
 
         const listTransactions = data?.transactions
@@ -146,13 +148,14 @@ exports.checkout = async (req, res) => {
 
     try {
         const id = req.params.id
-        const payment = await Payment.findById(id).populate('drawer').populate({ path: 'transactions', match: { isDeleted: false }})
+        const payment = await Payment.findOne({ _id: id, store: req.store }).populate('drawer').populate({ path: 'transactions', match: { isDeleted: false }})
+        if (!payment) return response.failure(422, { msg: 'No payment found for this store!' }, res)
         if (payment.status) return response.failure(422, { msg: 'Payment has already checked out' }, res)
 
         calculateReturnCashes(payment?.drawer?.cashes, body.remainTotal, payment.rate)
             .then(async ({ cashes, returnCashes }) => {
                 await Drawer.findByIdAndUpdate(payment?.drawer?._id, { cashes })
-                const data = await Payment.findByIdAndUpdate(id, { ...body, returnCashes, status: true, state: 'COMPLETED' }, { new: true })
+                const data = await Payment.findOneAndUpdate({ _id: id, store: req.store }, { ...body, returnCashes, status: true, state: 'COMPLETED' }, { new: true })
                     .populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
                     .populate('customer').populate('createdBy', 'username')
                 
@@ -170,7 +173,7 @@ exports.checkout = async (req, res) => {
                 }
 
                 // Send message to Telegram
-                const storeConfig = await StoreSetting.findOne()
+                const storeConfig = await StoreSetting.findOne({ store: req.store })
                 if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
                     const text = await telegramReceiptTemplate(data)
                     sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })
@@ -219,7 +222,7 @@ exports.batch = async (req, res) => {
 exports.groupPayment = async (req, res) => {
     try {
         const { paymentIds } = req.body
-        const payments = await Payment.find({ _id: { $in: paymentIds } }).populate('customer').populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] }).populate('createdBy', 'username').populate({ path: 'reservation', populate: 'structures' })
+        const payments = await Payment.find({ _id: { $in: paymentIds }, store: req.store }).populate('customer').populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] }).populate('createdBy', 'username').populate({ path: 'reservation', populate: 'structures' })
         // determine group rate (prefer checkoutFields.rate, fallback to first payment rate)
         const buyRate = req.user.drawer.buyRate
         const sellRate = req.user.drawer.sellRate
@@ -264,7 +267,10 @@ exports.groupCheckout = async (req, res) => {
 
     try {
         // load payments
-        const payments = await Payment.find({ _id: { $in: paymentIds } }).populate('drawer').populate({ path: 'transactions', match: { isDeleted: false }})
+        const payments = await Payment.find({ _id: { $in: paymentIds }, store: req.store }).populate('drawer').populate({ path: 'transactions', match: { isDeleted: false }})
+
+        // make sure every requested id actually belongs to this store (none silently dropped by the filter above)
+        if (payments.length !== paymentIds.length) return response.failure(422, { msg: 'One or more payments were not found for this store' }, res)
 
         // ensure none already checked out
         const already = payments.find(p => p.status)
@@ -306,6 +312,7 @@ exports.groupCheckout = async (req, res) => {
             paymentMethod: checkoutFields.paymentMethod || 'cash',
             createdBy: req.user.id,
             drawer: req.user.drawer?._id,
+            store: req.store,
         }
 
         const group = await GroupPayment.create(groupBody)
@@ -321,7 +328,7 @@ exports.groupCheckout = async (req, res) => {
             const updateBody = { ...checkoutFields, status: true, state: 'COMPLETED', groupPayment: group._id }
 
             // eslint-disable-next-line no-await-in-loop
-            let data = await Payment.findByIdAndUpdate(id, updateBody, { new: true })
+            let data = await Payment.findOneAndUpdate({ _id: id, store: req.store }, updateBody, { new: true })
                 .populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
                 .populate('customer').populate('createdBy', 'username')
 
@@ -337,7 +344,7 @@ exports.groupCheckout = async (req, res) => {
             }
 
             // send telegram per payment if enabled
-            const storeConfig = await StoreSetting.findOne()
+            const storeConfig = await StoreSetting.findOne({ store: req.store })
             if (storeConfig && storeConfig.telegramPrivilege?.SENT_AFTER_PAYMENT) {
                 const text = await telegramReceiptTemplate(data)
                 sendMessageTelegram({ text, token: storeConfig.telegramAPIKey, chatId: storeConfig.telegramChatID })

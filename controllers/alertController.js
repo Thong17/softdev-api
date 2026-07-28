@@ -9,6 +9,7 @@ exports.getNotification = async (req, res) => {
 
     try {
         const candidates = await ProductStock.find({
+            store: req.store,
             quantity: { $gt: 0 },
             $or: [
                 { alertAt: { $gt: 0 } },

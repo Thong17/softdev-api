@@ -71,7 +71,7 @@ exports.dumpMongoDB = async (req, res) => {
 
 exports.sendTelegram = async (data) => {
     // Send message to Telegram
-    const storeConfig = await StoreSetting.findOne()
+    const storeConfig = await StoreSetting.findOne({ store: data.store })
     if (storeConfig?.telegramPrivilege?.SENT_AFTER_PAYMENT) {
         const text = await exports.telegramReceiptTemplate(data)
         sendMessageTelegram({
@@ -86,7 +86,7 @@ exports.telegramReceiptTemplate = async (data) => {
     const subtotalStr = `$${data.subtotal.BOTH.toFixed(2)}`;
     const totalStr = `$${data.total.value.toFixed(2)}`;
     const paymentStr = data.paymentMethod ?? 'Cash';
-    const store = await Store.findOne({})
+    const store = await Store.findOne({ _id: data.store })
 
     const itemsList = (() => {
         const header = 'No.  Description          Qty    Price';
@@ -130,7 +130,7 @@ ${itemsList}
 
 exports.clearTransactionAndPayment = async (req, res) => {
     try {
-        let query = {}
+        let query = { store: req.store }
 
         if (req.body.fromDate) {
             const fromDate = new Date(req.body.fromDate)

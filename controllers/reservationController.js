@@ -24,10 +24,10 @@ exports.index = async (req, res) => {
         }
     }
     
-    Reservation.find({ isCompleted: false, ...query }, async (err, reservations) => {
+    Reservation.find({ isCompleted: false, store: req.store, ...query }, async (err, reservations) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Reservation.count({ isDisabled: false })
+        const totalCount = await Reservation.count({ isDisabled: false, store: req.store })
         return response.success(200, { data: reservations, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -37,14 +37,14 @@ exports.index = async (req, res) => {
 }
 
 exports.list = async (req, res) => {
-    Reservation.find({ isCompleted: false }, (err, reservations) => {
+    Reservation.find({ isCompleted: false, store: req.store }, (err, reservations) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: reservations }, res)
     }).select('name tags')
 }
 
 exports.detail = async (req, res) => {
-    Reservation.findById(req.params.id, (err, reservation) => {
+    Reservation.findOne({ _id: req.params.id, store: req.store }, (err, reservation) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: reservation }, res)
     }).populate({ path: 'payment', populate: [{ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }]}, { path: 'customer', select: 'displayName point' }, { path: 'createdBy' }, { path: 'reservation', populate: 'structures' }] }).populate('customer', 'displayName point').populate('structures')
@@ -57,11 +57,11 @@ exports.create = async (req, res) => {
 
     try {
         if (!body.startAt) delete body.startAt
-        Reservation.create({...body, createdBy: req.user.id}, async (err, reservation) => {
+        Reservation.create({...body, store: req.store, createdBy: req.user.id}, async (err, reservation) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!reservation) return response.failure(422, { msg: 'No reservation created!' }, res, err)
 
-            const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } })
+            const structures = await StoreStructure.find({ _id: { '$in': reservation.structures }, store: req.store })
             for (let i = 0; i < structures.length; i++) {
                 const structure = structures[i]
                 structure.reservations.push(reservation._id)
@@ -84,25 +84,26 @@ exports.checkIn = async (req, res) => {
         const buyRate = req.user.drawer.buyRate
         const sellRate = req.user.drawer.sellRate
 
-        const reservation = await Reservation.findById(req.params.id)
+        const reservation = await Reservation.findOne({ _id: req.params.id, store: req.store })
         if (!reservation) return response.failure(422, { msg: 'No reservation found!' }, res)
 
-        const occupiedReservation = await Reservation.count({ status: 'occupied', structures: { '$in': reservation.structures } })
+        const occupiedReservation = await Reservation.count({ status: 'occupied', structures: { '$in': reservation.structures }, store: req.store })
         if (occupiedReservation > 0) return response.failure(422, { msg: 'Please check out the current reservation first' }, res)
 
         // If the reservation price > 0
         let dataObj = {}
         const price = parseFloat(reservation.price.value)
         if (price > 0) {
-            const transaction = await Transaction.create({ 
-                description: 'Reservation price', 
-                price: price, 
+            const transaction = await Transaction.create({
+                description: 'Reservation price',
+                price: price,
                 currency: reservation.price.currency,
                 total: {
                     value: price,
                     currency: reservation.price.currency
                 },
-                quantity: 1
+                quantity: 1,
+                store: req.store
             })
             const { total, subtotal } = calculatePaymentTotal([transaction], paymentBody.services, paymentBody.vouchers, paymentBody.discounts, { buyRate, sellRate })
             dataObj = {
@@ -118,14 +119,14 @@ exports.checkIn = async (req, res) => {
         // End
         
         const invoice = await generateInvoice(Payment)
-        const payment = await Payment.create({ ...paymentBody, ...dataObj, invoice, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, reservation: reservation._id, rate: { buyRate, sellRate } })
+        const payment = await Payment.create({ ...paymentBody, ...dataObj, invoice, createdBy: req.user.id, customer: reservation.customer, drawer: req.user.drawer, reservation: reservation._id, rate: { buyRate, sellRate }, store: req.store })
 
         reservation.status = 'occupied'
         reservation.startAt = Date.now()
         reservation.payment = payment._id
         reservation.save()
 
-        const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } })
+        const structures = await StoreStructure.find({ _id: { '$in': reservation.structures }, store: req.store })
         for (let i = 0; i < structures.length; i++) {
             const structure = structures[i]
             structure.status = 'occupied'
@@ -141,14 +142,14 @@ exports.checkIn = async (req, res) => {
 
 exports.checkOut = async (req, res) => {
     try {
-        const reservation = await Reservation.findById(req.params.id)
-        if (!reservation) return response.failure(422, { msg: 'No reservation found!' }, res, err)
+        const reservation = await Reservation.findOne({ _id: req.params.id, store: req.store })
+        if (!reservation) return response.failure(422, { msg: 'No reservation found!' }, res)
 
         reservation.endAt = Date.now()
         reservation.status = 'completed'
         reservation.save()
 
-        const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } }).populate({ path: 'reservations', match: { isCompleted: false }})
+        const structures = await StoreStructure.find({ _id: { '$in': reservation.structures }, store: req.store }).populate({ path: 'reservations', match: { isCompleted: false }})
         for (let i = 0; i < structures.length; i++) {
             const structure = structures[i]
             structure.status = structure.reservations.length > 1 ? 'reserved' : 'vacant'
@@ -166,11 +167,11 @@ exports.update = async (req, res) => {
     const body = req.body
 
     try {
-        Reservation.findByIdAndUpdate(req.params.id, body, async (err, reservation) => {
+        Reservation.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, async (err, reservation) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!reservation) return response.failure(422, { msg: 'No reservation updated!' }, res, err)
 
-            const structures = await StoreStructure.find({ _id: { '$in': reservation.structures } })
+            const structures = await StoreStructure.find({ _id: { '$in': reservation.structures }, store: req.store })
             for (let i = 0; i < structures.length; i++) {
                 const structure = structures[i]
                 structure.reservations.push(reservation._id)
@@ -186,7 +187,7 @@ exports.update = async (req, res) => {
 
 exports._delete = async (req, res) => {
     try {
-        Reservation.findByIdAndDelete(req.params.id, (err, reservation) => {
+        Reservation.findOneAndDelete({ _id: req.params.id, store: req.store }, (err, reservation) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
 
             if (!reservation) return response.failure(422, { msg: 'No reservation deleted!' }, res, err)

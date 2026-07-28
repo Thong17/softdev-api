@@ -3,55 +3,55 @@ const { index, listRequest, create, detail, cancel, reject, approve, checkout, a
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
-router.get('/', security.role(privilege.loan.list), (req, res) => {
+router.get('/', security.requireStore, security.role(privilege.loan.list), (req, res) => {
     index(req, res)
 })
 
-router.get('/listRequest', security.role(privilege.loan.list), (req, res) => {
+router.get('/listRequest', security.requireStore, security.role(privilege.loan.list), (req, res) => {
     listRequest(req, res)
 })
 
-router.get('/detail/:id', security.role(privilege.loan.detail), (req, res) => {
+router.get('/detail/:id', security.requireStore, security.role(privilege.loan.detail), (req, res) => {
     detail(req, res)
 })
 
-router.delete('/cancel/:id', security.role(privilege.loan.cancel), security.audit(), (req, res) => {
+router.delete('/cancel/:id', security.requireStore, security.role(privilege.loan.cancel), security.audit(), (req, res) => {
     cancel(req, res)
 })
 
-router.put('/reject/:id', security.role(privilege.loan.reject), security.audit(), (req, res) => {
+router.put('/reject/:id', security.requireStore, security.role(privilege.loan.reject), security.audit(), (req, res) => {
     reject(req, res)
 })
 
-router.put('/approve/:id', security.role(privilege.loan.approve), security.audit(), (req, res) => {
+router.put('/approve/:id', security.requireStore, security.role(privilege.loan.approve), security.audit(), (req, res) => {
     approve(req, res)
 })
 
-router.post('/create', security.role(privilege.loan.create), security.audit(), (req, res) => {
+router.post('/create', security.requireStore, security.role(privilege.loan.create), security.audit(), (req, res) => {
     create(req, res)
 })
 
-router.put('/checkout/:id', security.role(privilege.loan.update), security.audit(), (req, res) => {
+router.put('/checkout/:id', security.requireStore, security.role(privilege.loan.update), security.audit(), (req, res) => {
     checkout(req, res)
 })
 
-router.put('/approveAll', security.role(privilege.loan.update), security.audit(), (req, res) => {
+router.put('/approveAll', security.requireStore, security.role(privilege.loan.update), security.audit(), (req, res) => {
     approveAll(req, res)
 })
 
-router.put('/payment/:id', security.role(privilege.loan.update), security.audit(), (req, res) => {
+router.put('/payment/:id', security.requireStore, security.role(privilege.loan.update), security.audit(), (req, res) => {
     payment(req, res)
 })
 
-router.post('/uploadAttachment/:id', security.role(privilege.loan.update), security.audit(), (req, res) => {
+router.post('/uploadAttachment/:id', security.requireStore, security.role(privilege.loan.update), security.audit(), (req, res) => {
     uploadAttachment(req, res)
 })
 
-router.delete('/removeAttachment/:id', security.role(privilege.loan.update), security.audit(), (req, res) => {
+router.delete('/removeAttachment/:id', security.requireStore, security.role(privilege.loan.update), security.audit(), (req, res) => {
     removeAttachment(req, res)
 })
 
-router.put('/writeOff/:id', security.role(privilege.loan.update), security.audit(), (req, res) => {
+router.put('/writeOff/:id', security.requireStore, security.role(privilege.loan.update), security.audit(), (req, res) => {
     writeOff(req, res)
 })
 

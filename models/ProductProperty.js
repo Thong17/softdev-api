@@ -32,6 +32,11 @@ const schema = mongoose.Schema(
             ref: 'Product',
             require: true
         },
+        store: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Store',
+            index: true
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
@@ -44,11 +49,11 @@ schema.post('save', async function () {
     product.save()
 })
 
-schema.statics.reorder = function (reorderedItems) {
+schema.statics.reorder = function (reorderedItems, storeId) {
     const promises = []
     for (let index = 0; index < reorderedItems.length; index++) {
         const item = reorderedItems[index];
-        const promise = this.findByIdAndUpdate(item._id, { order: item.order }, { new: true })
+        const promise = this.findOneAndUpdate({ _id: item._id, store: storeId }, { order: item.order }, { new: true })
         promises.push(promise)
     }
     Promise.all(promises)

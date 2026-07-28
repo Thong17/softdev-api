@@ -45,6 +45,11 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Payment'
         },
+        store: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Store',
+            index: true
+        },
         tags: {
             type: String,
         },

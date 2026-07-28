@@ -21,10 +21,10 @@ exports.index = async (req, res) => {
         }
     }
 
-    Promotion.find({ isDeleted: false, ...query }, async (err, categories) => {
+    Promotion.find({ isDeleted: false, store: req.store, ...query }, async (err, categories) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Promotion.count({ isDisabled: false })
+        const totalCount = await Promotion.count({ isDisabled: false, store: req.store })
         return response.success(200, { data: categories, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -32,7 +32,7 @@ exports.index = async (req, res) => {
 }
 
 exports.detail = async (req, res) => {
-    Promotion.findById(req.params.id, (err, promotion) => {
+    Promotion.findOne({ _id: req.params.id, store: req.store }, (err, promotion) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: promotion }, res)
     })
@@ -44,7 +44,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Promotion.create({...body, createdBy: req.user.id}, async (err, promotion) => {
+        Promotion.create({...body, store: req.store, createdBy: req.user.id}, async (err, promotion) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -53,7 +53,7 @@ exports.create = async (req, res) => {
                         return response.failure(422, { msg: err.message }, res, err)
                 }
             }
-            await Product.updateMany({ _id: { '$in': body.products } }, { promotion: promotion._id })
+            await Product.updateMany({ _id: { '$in': body.products }, store: req.store }, { promotion: promotion._id })
             
             if (!promotion) return response.failure(422, { msg: 'No promotion created!' }, res, err)
             response.success(200, { msg: 'Promotion has created successfully', data: promotion }, res)
@@ -69,10 +69,10 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        const promotion = await Promotion.findById(req.params.id)
-        if (!promotion) return response.failure(422, { msg: 'No promotion updated!' }, res, err)
+        const promotion = await Promotion.findOne({ _id: req.params.id, store: req.store })
+        if (!promotion) return response.failure(422, { msg: 'No promotion updated!' }, res)
 
-        await Product.updateMany({ _id: { '$in': promotion.products } }, { promotion: null })
+        await Product.updateMany({ _id: { '$in': promotion.products }, store: req.store }, { promotion: null })
 
         promotion.description = body.description
         promotion.value = body.value
@@ -83,7 +83,7 @@ exports.update = async (req, res) => {
         promotion.products = body.products
         promotion.save()
 
-        await Product.updateMany({ _id: { '$in': body.products } }, { promotion: promotion._id })
+        await Product.updateMany({ _id: { '$in': body.products }, store: req.store }, { promotion: promotion._id })
 
         response.success(200, { msg: 'Promotion has updated successfully', data: promotion }, res)
     } catch (err) {
@@ -93,7 +93,7 @@ exports.update = async (req, res) => {
 
 exports.disable = async (req, res) => {
     try {
-        Promotion.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, promotion) => {
+        Promotion.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isDeleted: true }, (err, promotion) => {
             if (err) {
                 switch (err.code) {
                     default:

@@ -31,6 +31,19 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Product'
         }],
+        store: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Store',
+            index: true
+        },
+        isTemplate: {
+            type: Boolean,
+            default: false
+        },
+        clonedFrom: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Brand'
+        },
         tags: {
             type: String,
         },

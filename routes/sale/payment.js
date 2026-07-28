@@ -4,27 +4,27 @@ const { index, create, checkout, update, detail, _import, batch, groupPayment, g
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
-router.get('/', security.role(privilege.payment.list), (req, res) => {
+router.get('/', security.requireStore, security.role(privilege.payment.list), (req, res) => {
     index(req, res)
 })
 
-router.get('/detail/:id', security.role(privilege.payment.detail), (req, res) => {
+router.get('/detail/:id', security.requireStore, security.role(privilege.payment.detail), (req, res) => {
     detail(req, res)
 })
 
-router.post('/create', security.role(privilege.payment.create), security.audit(), (req, res) => {
+router.post('/create', security.requireStore, security.role(privilege.payment.create), security.audit(), (req, res) => {
     create(req, res)
 })
 
-router.put('/update/:id', security.role(privilege.payment.update), security.audit(), (req, res) => {
+router.put('/update/:id', security.requireStore, security.role(privilege.payment.update), security.audit(), (req, res) => {
     update(req, res)
 })
 
-router.put('/checkout/:id', security.role(privilege.payment.update), security.audit(), (req, res) => {
+router.put('/checkout/:id', security.requireStore, security.role(privilege.payment.update), security.audit(), (req, res) => {
     checkout(req, res)
 })
 
-router.put('/group-checkout', security.role(privilege.payment.update), security.audit(), (req, res) => {
+router.put('/group-checkout', security.requireStore, security.role(privilege.payment.update), security.audit(), (req, res) => {
     groupCheckout(req, res)
 })
 
@@ -36,7 +36,7 @@ router.post('/batch', security.audit(), (req, res) => {
     batch(req, res)
 })
 
-router.post('/group-payment', security.role(privilege.payment.merge), security.audit(), (req, res) => {
+router.post('/group-payment', security.requireStore, security.role(privilege.payment.merge), security.audit(), (req, res) => {
     groupPayment(req, res)
 })
 

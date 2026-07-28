@@ -33,6 +33,11 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Loan'
         },
+        store: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Store',
+            index: true
+        },
         createdBy: {
             type: mongoose.Schema.ObjectId,
             ref: 'User'

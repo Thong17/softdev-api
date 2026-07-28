@@ -30,6 +30,7 @@ exports.listSale = async (req, res) => {
         createdAt: query,
         status: true,
         paymentMethod: { $ne: 'loan' },
+        store: req.store,
       }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     const listSale = []
 
@@ -46,7 +47,8 @@ exports.listSale = async (req, res) => {
 
     const incomeLoanPayment = await LoanPayment.find({
       paymentDate: query,
-      isPaid: true
+      isPaid: true,
+      store: req.store,
     }).select('totalAmount isPaid loan paymentDate')
       .populate({ 
         path: 'loan', 
@@ -109,6 +111,7 @@ exports.totalSale = async (req, res) => {
       },
       paymentMethod: { $ne: 'loan' },
       status: true,
+      store: req.store,
     }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     let totalIncome = 0
     incomePayment.forEach(payment => {
@@ -126,6 +129,7 @@ exports.totalSale = async (req, res) => {
       },
       paymentMethod: { $ne: 'loan' },
       status: true,
+      store: req.store,
     }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     let totalProfit = 0
     profitPayment.forEach(payment => {
@@ -147,7 +151,8 @@ exports.totalSale = async (req, res) => {
         $gte: moment().startOf(income).toDate(),
         $lt: moment().endOf(income).toDate(),
       },
-      isPaid: true
+      isPaid: true,
+      store: req.store,
     }).select('totalAmount isPaid loan')
       .populate({ 
         path: 'loan', 
@@ -180,6 +185,7 @@ exports.totalSale = async (req, res) => {
         $gte: moment().startOf(income).toDate(),
         $lt: moment().endOf(income).toDate(),
       },
+      store: req.store,
     }).select('transaction amount currency type').populate('transaction', 'stockCosts').populate({ path: 'loan', select: 'payment', populate: { path: 'payment', select: 'rate' } })
 
     transactionClearance.forEach(clearance => {
@@ -210,8 +216,9 @@ exports.topProduct = async (req, res) => {
         $lt: moment().endOf(income).toDate(),
       },
       status: true,
+      store: req.store,
     }).select('transactions rate').populate({ path: 'transactions', populate: { path: 'product', select: 'name profile', populate: { path: 'profile', select: 'filename' } } })
-    
+
     const listProduct = []
     payments.forEach(payment => {
       const { buyRate } = payment.rate
@@ -267,8 +274,9 @@ exports.listProduct = async (req, res) => {
     const chartPayments = await Payment.find({
       createdAt: query,
       status: true,
+      store: req.store,
     }).select('transactions rate').populate({ path: 'transactions', populate: { path: 'product', select: 'name profile', populate: { path: 'profile', select: 'filename' } } })
-    
+
     const listProductSale = []
     chartPayments.forEach(payment => {
       const { buyRate } = payment.rate
@@ -306,8 +314,9 @@ exports.topStaff = async (req, res) => {
         $lt: moment().endOf(income).toDate(),
       },
       status: true,
+      store: req.store,
     }).select('transactions rate').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username profile', populate: { path: 'profile', populate: { path: 'photo', select: 'filename' } } } })
-    
+
     const listTopStaff = []
     payments.forEach(payment => {
       const { buyRate } = payment.rate
@@ -363,8 +372,9 @@ exports.listStaff = async (req, res) => {
     const chartPayments = await Payment.find({
       createdAt: query,
       status: true,
+      store: req.store,
     }).select('transactions rate').populate({ path: 'transactions', populate: { path: 'createdBy', select: 'username' } })
-    
+
     const listStaff = []
     chartPayments.forEach(payment => {
       const { buyRate } = payment.rate

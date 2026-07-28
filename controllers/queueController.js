@@ -22,10 +22,10 @@ exports.index = async (req, res) => {
         }
     }
 
-    Queue.find({ isDeleted: false, isCompleted: false, ...query }, async (err, queues) => {
+    Queue.find({ isDeleted: false, isCompleted: false, store: req.store, ...query }, async (err, queues) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Queue.count({ isDisabled: false })
+        const totalCount = await Queue.count({ isDeleted: false, store: req.store })
         return response.success(200, { data: queues, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -34,7 +34,7 @@ exports.index = async (req, res) => {
 }
 
 exports.detail = async (req, res) => {
-    Queue.findById(req.params.id, (err, queue) => {
+    Queue.findOne({ _id: req.params.id, store: req.store }, (err, queue) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: queue }, res)
     }).select('payment ticket').populate({ path: 'payment', select: 'transactions invoice', populate: { path: 'transactions', populate: 'product' } })
@@ -46,10 +46,10 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        const latestQueue = await Queue.findOne().sort('-createdAt')
+        const latestQueue = await Queue.findOne({ store: req.store }).sort('-createdAt')
         const latestTicket = parseInt(latestQueue?.ticket) || 0
         const ticket = latestTicket >= parseInt(process.env.MAX_QUEUE_NUMBER) ? 1 : latestTicket + 1
-        Queue.create({...body, ticket, createdBy: req.user.id}, async (err, queue) => {
+        Queue.create({...body, ticket, store: req.store, createdBy: req.user.id}, async (err, queue) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             
             if (!queue) return response.failure(422, { msg: 'No queue created!' }, res, err)
@@ -66,7 +66,7 @@ exports.call = async (req, res) => {
         let filename = '../static/audio/default.m4a'
         
         if (process.env.QUEUE_SOUND !== 'default') {
-            const queue = await Queue.findById(id)
+            const queue = await Queue.findOne({ _id: id, store: req.store })
             filename = `../static/audio/${queue.ticket}.m4a`
         }
         const filePath = path.join(__dirname, filename)
@@ -79,8 +79,8 @@ exports.call = async (req, res) => {
 
 exports.complete = async (req, res) => {
     try {
-        const queue = await Queue.findByIdAndUpdate(req.params.id, { isCompleted: true })
-        if (!queue) return response.failure(422, { msg: 'No queue updated!' }, res, err)
+        const queue = await Queue.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isCompleted: true })
+        if (!queue) return response.failure(422, { msg: 'No queue found for this store!' }, res)
 
         response.success(200, { msg: 'Queue has updated successfully', data: queue }, res)
     } catch (err) {
@@ -89,10 +89,10 @@ exports.complete = async (req, res) => {
 }
 
 exports.cancel = async (req, res) => {
-    Queue.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, queue) => {
+    Queue.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isDeleted: true }, (err, queue) => {
         if (err) return response.failure(422, { msg: err.message }, res, err)
 
-        if (!queue) return response.failure(422, { msg: 'No queue deleted!' }, res, err)
+        if (!queue) return response.failure(422, { msg: 'No queue found for this store!' }, res, err)
         response.success(200, { msg: 'Queue has deleted successfully', data: queue }, res)
     })
 }

@@ -20,10 +20,10 @@ exports.index = async (req, res) => {
         }
     }
 
-    Role.find({ isDisabled: false, ...query }, async (err, roles) => {
+    Role.find({ isDisabled: false, store: req.store, ...query }, async (err, roles) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Role.count({ isDisabled: false })
+        const totalCount = await Role.count({ isDisabled: false, store: req.store })
         return response.success(200, { data: roles, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -32,14 +32,14 @@ exports.index = async (req, res) => {
 }
 
 exports.detail = async (req, res) => {
-    Role.findById(req.params.id, (err, role) => {
+    Role.findOne({ _id: req.params.id, store: req.store }, (err, role) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: role }, res)
     })
 }
 
 exports.list = async (req, res) => {
-    Role.find({ isDisabled: false }, (err, roles) => {
+    Role.find({ isDisabled: false, store: req.store }, (err, roles) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: roles }, res)
     }).select('name privilege')
@@ -51,7 +51,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Role.create({...body, createdBy: req.user.id}, (err, role) => {
+        Role.create({...body, store: req.store, createdBy: req.user.id}, (err, role) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -75,7 +75,7 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Role.findByIdAndUpdate(req.params.id, body, (err, role) => {
+        Role.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, (err, role) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -93,10 +93,10 @@ exports.update = async (req, res) => {
 
 exports.disable = async (req, res) => {
     try {
-        const role = await Role.findById(req.params.id)
+        const role = await Role.findOne({ _id: req.params.id, store: req.store })
         if (role?.isDefault) return response.failure(422, { msg: 'Default role cannot be delete' }, res)
 
-        Role.findByIdAndUpdate(req.params.id, { isDisabled: true }, (err, role) => {
+        Role.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isDisabled: true }, (err, role) => {
             if (err) {
                 switch (err.code) {
                     default:

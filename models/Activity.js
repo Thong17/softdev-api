@@ -22,6 +22,11 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'User'
         },
+        store: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Store',
+            index: true
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }

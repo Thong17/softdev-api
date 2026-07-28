@@ -23,10 +23,10 @@ exports.index = async (req, res) => {
         }
     }
 
-    Category.find({ isDeleted: false, ...query }, async (err, categories) => {
+    Category.find({ isDeleted: false, store: req.store, ...query }, async (err, categories) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Category.count({ isDeleted: false })
+        const totalCount = await Category.count({ isDeleted: false, store: req.store })
         return response.success(200, { data: categories, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -35,17 +35,44 @@ exports.index = async (req, res) => {
 }
 
 exports.list = async (req, res) => {
-    Category.find({ isDeleted: false, status: true }, (err, categories) => {
+    Category.find({ isDeleted: false, status: true, store: req.store }, (err, categories) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: categories }, res)
     }).select('name tags icon').populate('icon')
 }
 
 exports.detail = async (req, res) => {
-    Category.findById(req.params.id, (err, category) => {
+    Category.findOne({ _id: req.params.id, store: req.store }, (err, category) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: category }, res)
     }).populate('icon')
+}
+
+exports.listTemplate = async (req, res) => {
+    Category.find({ isDeleted: false, isTemplate: true }, (err, categories) => {
+        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        return response.success(200, { data: categories }, res)
+    }).select('name tags icon description').populate('icon')
+}
+
+exports.cloneFromTemplate = async (req, res) => {
+    try {
+        const template = await Category.findOne({ _id: req.params.id, isTemplate: true, isDeleted: false })
+        if (!template) return response.failure(422, { msg: 'Template not found!' }, res)
+
+        const category = await Category.create({
+            name: template.name,
+            icon: template.icon,
+            description: template.description,
+            hasThermalPrinting: template.hasThermalPrinting,
+            store: req.store,
+            clonedFrom: template.id,
+            createdBy: req.user.id
+        })
+        response.success(200, { msg: 'Category has been added from template successfully', data: category }, res)
+    } catch (err) {
+        return response.failure(422, { msg: err.message || failureMsg.trouble }, res, err)
+    }
 }
 
 exports.create = async (req, res) => {
@@ -54,7 +81,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Category.create({...body, createdBy: req.user.id}, (err, category) => {
+        Category.create({...body, store: req.store, createdBy: req.user.id}, (err, category) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -78,7 +105,7 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Category.findByIdAndUpdate(req.params.id, body, (err, category) => {
+        Category.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, (err, category) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -97,7 +124,7 @@ exports.update = async (req, res) => {
 exports.toggleStatus = async (req, res) => {
     try {
         const id = req.params.id
-        const category = await Category.findById(id)
+        const category = await Category.findOne({ _id: id, store: req.store })
         Category.findByIdAndUpdate(id, { status: !category.status }, { new: true }, async (err, category) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
 
@@ -113,7 +140,7 @@ exports.toggleStatus = async (req, res) => {
 exports.toggleThermalPrinting = async (req, res) => {
     try {
         const id = req.params.id
-        const category = await Category.findById(id)
+        const category = await Category.findOne({ _id: id, store: req.store })
         Category.findByIdAndUpdate(id, { hasThermalPrinting: !category.hasThermalPrinting }, { new: true }, async (err, category) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
 
@@ -128,7 +155,7 @@ exports.toggleThermalPrinting = async (req, res) => {
 
 exports.disable = async (req, res) => {
     try {
-        Category.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, category) => {
+        Category.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isDeleted: true }, (err, category) => {
             if (err) {
                 switch (err.code) {
                     default:

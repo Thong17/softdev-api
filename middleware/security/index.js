@@ -27,8 +27,9 @@ exports.auth = (req, res, next) => {
     verifyToken(token, process.env.TOKEN_SECRET)
         .then(async decoded => {
             const User = require('../../models/User')
+            const StoreMember = require('../../models/StoreMember')
             const { id } = decoded
-            const user = await User.findById(id).populate('role').populate({ path: 'profile', populate: { path: 'photo' } }).populate('config').populate('drawer')
+            const user = await User.findById(id).populate({ path: 'profile', populate: { path: 'photo' } }).populate('config').populate('drawer')
 
             const isProfileRoute = req.path === '/user/profile'
             const isChangePasswordRoute = req.path.startsWith('/user/change-password/')
@@ -37,6 +38,17 @@ exports.auth = (req, res, next) => {
             }
 
             req.user = user
+
+            const storeId = req.headers['x-store-id']
+            if (user && storeId) {
+                const storeMember = await StoreMember.findOne({ store: storeId, user: user.id, isDisabled: false }).populate('role')
+                if (storeMember) {
+                    req.store = storeId
+                    req.storeMember = storeMember
+                    req.privilege = storeMember.role?.privilege
+                }
+            }
+
             next()
         })
         .catch(err => {
@@ -63,9 +75,14 @@ exports.role = (role) => {
         const user = req.user
         if (!user) return response.failure(401, { msg: 'You don not have permission!' }, res)
         const { route, action } = role
-        if (!user.role?.privilege?.[route]?.[action]) return response.failure(401, { msg: 'You don not have permission!' }, res)
+        if (!req.privilege?.[route]?.[action]) return response.failure(401, { msg: 'You don not have permission!' }, res)
         next()
     }
+}
+
+exports.requireStore = (req, res, next) => {
+    if (!req.store) return response.failure(422, { msg: 'A store must be selected!' }, res)
+    next()
 }
 
 exports.audit = () => {

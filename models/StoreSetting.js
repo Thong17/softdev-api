@@ -2,6 +2,12 @@ const mongoose = require('mongoose')
 
 const schema = mongoose.Schema(
     {
+        store: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Store',
+            required: [true, 'Store is required!'],
+            unique: true
+        },
         telegramAPIKey: {
             type: String,
             default: ''

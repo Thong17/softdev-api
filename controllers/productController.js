@@ -31,9 +31,9 @@ exports.index = async (req, res) => {
         }
     }
 
-    Product.find({ isDeleted: false, ...query }, async (err, products) => {
+    Product.find({ isDeleted: false, store: req.store, ...query }, async (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        const totalCount = await Product.count({ isDeleted: false, ...query  })
+        const totalCount = await Product.count({ isDeleted: false, store: req.store, ...query  })
         let hasMore = totalCount > offset + limit
         if (search !== '') hasMore = true
         return response.success(200, { data: products, length: totalCount, hasMore }, res)
@@ -80,9 +80,9 @@ exports.list = async (req, res) => {
     if (category && category !== 'all') query['category'] = category
     if (favorite) query['_id'] = { '$in': req.user?.favorites }
 
-    Product.find({ isDeleted: false, status: true, ...query }, async (err, products) => {
+    Product.find({ isDeleted: false, status: true, store: req.store, ...query }, async (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-        const totalCount = await Product.count({ isDeleted: false, status: true, ...query  }) 
+        const totalCount = await Product.count({ isDeleted: false, status: true, store: req.store, ...query  })
         let hasMore = totalCount > offset + limit
         if (search !== '' || brand !== 'all' || category !== 'all' || promotion || favorite || promotions) hasMore = true
 
@@ -98,7 +98,7 @@ exports.list = async (req, res) => {
 }
 
 exports.listCode = async (req, res) => {
-    Product.find({ isDeleted: false }, (err, products) => {
+    Product.find({ isDeleted: false, store: req.store }, (err, products) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
         return response.success(200, { data: products.map(product => {
@@ -111,9 +111,57 @@ exports.listCode = async (req, res) => {
         .select('code isStock stocks').populate('stocks', 'code')
 }
 
+exports.listTemplate = async (req, res) => {
+    try {
+        const products = await Product.find({ isDeleted: false, isTemplate: true })
+            .populate('brand')
+            .populate('category')
+            .populate('images')
+        return response.success(200, { data: products }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.cloneFromTemplate = async (req, res) => {
+    try {
+        const template = await Product.findOne({ _id: req.params.id, isTemplate: true, isDeleted: false })
+        if (!template) return response.failure(422, { msg: 'Template not found!' }, res)
+
+        const product = await Product.create({
+            name: template.name,
+            price: template.price,
+            currency: template.currency,
+            condition: template.condition,
+            code: template.code,
+            description: template.description,
+            profile: template.profile,
+            brand: template.brand,
+            category: template.category,
+            images: template.images,
+            store: req.store,
+            clonedFrom: template.id,
+            createdBy: req.user.id
+        })
+
+        if (product.category) {
+            const category = await Category.findById(product.category).select('products')
+            if (category) await Category.findByIdAndUpdate(product.category, { products: [...category.products, product._id] })
+        }
+        if (product.brand) {
+            const brand = await Brand.findById(product.brand).select('products')
+            if (brand) await Brand.findByIdAndUpdate(product.brand, { products: [...brand.products, product._id] })
+        }
+
+        response.success(200, { msg: 'Product has been added from template successfully', data: product }, res)
+    } catch (err) {
+        return response.failure(422, { msg: err.message || failureMsg.trouble }, res, err)
+    }
+}
+
 exports.detail = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id)
+        const product = await Product.findOne({ _id: req.params.id, store: req.store })
             .populate('brand')
             .populate('category')
             .populate('images')
@@ -130,7 +178,7 @@ exports.detail = async (req, res) => {
 
 exports.info = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id)
+        const product = await Product.findOne({ _id: req.params.id, store: req.store })
             .populate('brand')
             .populate('category')
             .populate('images')
@@ -152,7 +200,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Product.create({...body, createdBy: req.user.id}, async (err, product) => {
+        Product.create({...body, store: req.store, createdBy: req.user.id}, async (err, product) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -188,7 +236,8 @@ exports.update = async (req, res) => {
 
     try {
         const productId = req.params.id
-        const oldProduct = await Product.findById(productId)
+        const oldProduct = await Product.findOne({ _id: productId, store: req.store })
+        if (!oldProduct) return response.failure(422, { msg: 'No product found for this store!' }, res)
         const oldCategory = await Category.findById(oldProduct.category).select('products')
         const oldBrand = await Brand.findById(oldProduct.brand).select('products')
 
@@ -198,7 +247,7 @@ exports.update = async (req, res) => {
         await Category.findByIdAndUpdate(oldProduct.category, { products: oldListCategory })
         await Brand.findByIdAndUpdate(oldProduct.brand, { products: oldListBrand })
 
-        Product.findByIdAndUpdate(productId, body, { new: true }, async (err, product) => {
+        Product.findOneAndUpdate({ _id: productId, store: req.store }, body, { new: true }, async (err, product) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -226,7 +275,7 @@ exports.update = async (req, res) => {
 
 exports.enableStock = async (req, res) => {
     try {
-        Product.findByIdAndUpdate(req.params.id, { isStock: true }, (err, product) => {
+        Product.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isStock: true }, (err, product) => {
             if (err) {
                 return response.failure(422, { msg: err.message }, res, err)
             }
@@ -241,7 +290,7 @@ exports.enableStock = async (req, res) => {
 
 exports.disable = async (req, res) => {
     try {
-        Product.findByIdAndUpdate(req.params.id, { isDeleted: true }, (err, product) => {
+        Product.findOneAndUpdate({ _id: req.params.id, store: req.store }, { isDeleted: true }, (err, product) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -455,7 +504,7 @@ exports.createProperty = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductProperty.create(body, (err, property) => {
+        ProductProperty.create({...body, store: req.store}, (err, property) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -475,12 +524,12 @@ exports.createProperty = async (req, res) => {
 
 exports.detailProperty = async (req, res) => {
     try {
-        const property = await ProductProperty.findById(req.params.id)
+        const property = await ProductProperty.findOne({ _id: req.params.id, store: req.store })
 
         return response.success(200, { data: property }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-    }   
+    }
 }
 
 exports.updateProperty = async (req, res) => {
@@ -489,7 +538,7 @@ exports.updateProperty = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductProperty.findByIdAndUpdate(req.params.id, body, { new: true }, (err, property) => {
+        ProductProperty.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, { new: true }, (err, property) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -497,7 +546,7 @@ exports.updateProperty = async (req, res) => {
                 }
             }
 
-            if (!property) return response.failure(422, { msg: 'No property updated!' }, res, err)
+            if (!property) return response.failure(422, { msg: 'No property found for this store!' }, res, err)
             response.success(200, { msg: 'Property has updated successfully', data: property }, res)
         })
     } catch (err) {
@@ -507,7 +556,7 @@ exports.updateProperty = async (req, res) => {
 
 exports.reorderProperty = async (req, res) => {
     try {
-        await ProductProperty.reorder(req.body)
+        await ProductProperty.reorder(req.body, req.store)
         response.success(200, { msg: 'Property has reordered successfully' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -516,7 +565,7 @@ exports.reorderProperty = async (req, res) => {
 
 exports.disableProperty = async (req, res) => {
     try {
-        ProductProperty.findByIdAndRemove(req.params.id, (err, property) => {
+        ProductProperty.findOneAndRemove({ _id: req.params.id, store: req.store }, (err, property) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -524,7 +573,7 @@ exports.disableProperty = async (req, res) => {
                 }
             }
 
-            if (!property) return response.failure(422, { msg: 'No property deleted!' }, res, err)
+            if (!property) return response.failure(422, { msg: 'No property found for this store!' }, res, err)
             response.success(200, { msg: 'Property has deleted successfully', data: property }, res)
         })
     } catch (err) {
@@ -534,7 +583,7 @@ exports.disableProperty = async (req, res) => {
 
 exports.listProperty = async (req, res) => {
     try {
-        const properties = await ProductProperty.find({ isDeleted: false })
+        const properties = await ProductProperty.find({ isDeleted: false, store: req.store })
             .populate('product', 'name')
             .populate('options')
             .sort({ order: 1 })
@@ -580,7 +629,7 @@ exports.clonePropertyOption = async (req, res) => {
             // create (or reuse) cloned property for this source property
             let targetPropertyId = clonedPropertyMap[sourcePropertyId]
             if (!targetPropertyId) {
-                const sourceProp = await ProductProperty.findById(sourcePropertyId)
+                const sourceProp = await ProductProperty.findOne({ _id: sourcePropertyId, store: req.store })
                 if (!sourceProp) continue
 
                 const newPropData = {
@@ -590,6 +639,7 @@ exports.clonePropertyOption = async (req, res) => {
                     isRequire: sourceProp.isRequire,
                     description: sourceProp.description,
                     product: productId,
+                    store: req.store,
                     options: []
                 }
 
@@ -607,7 +657,8 @@ exports.clonePropertyOption = async (req, res) => {
                 description: item.description || '',
                 isDefault: !!item.isDefault,
                 property: targetPropertyId,
-                product: productId
+                product: productId,
+                store: req.store
             }
 
             const newOption = await ProductOption.create(optionData)
@@ -627,7 +678,7 @@ exports.createOption = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductOption.create(body, (err, option) => {
+        ProductOption.create({...body, store: req.store}, (err, option) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -647,13 +698,13 @@ exports.createOption = async (req, res) => {
 
 exports.detailOption = async (req, res) => {
     try {
-        const option = await ProductOption.findById(req.params.id)
+        const option = await ProductOption.findOne({ _id: req.params.id, store: req.store })
             .populate('profile')
 
         return response.success(200, { data: option }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-    }   
+    }
 }
 
 exports.updateOption = async (req, res) => {
@@ -662,7 +713,7 @@ exports.updateOption = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductOption.findByIdAndUpdate(req.params.id, body, { new: true }, (err, option) => {
+        ProductOption.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, { new: true }, (err, option) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -670,7 +721,7 @@ exports.updateOption = async (req, res) => {
                 }
             }
 
-            if (!option) return response.failure(422, { msg: 'No option updated!' }, res, err)
+            if (!option) return response.failure(422, { msg: 'No option found for this store!' }, res, err)
             response.success(200, { msg: 'Option has updated successfully', data: option }, res)
         })
     } catch (err) {
@@ -681,20 +732,21 @@ exports.updateOption = async (req, res) => {
 exports.toggleDefault = async (req, res) => {
     try {
         const id = req.params.id
-        const option = await ProductOption.findById(id).populate('property')
+        const option = await ProductOption.findOne({ _id: id, store: req.store }).populate('property')
+        if (!option) return response.failure(422, { msg: 'No option found for this store!' }, res)
 
         if (option.isDefault) {
-            await ProductOption.findByIdAndUpdate(id, { isDefault: false })
+            await ProductOption.findOneAndUpdate({ _id: id, store: req.store }, { isDefault: false })
             return response.success(200, { msg: 'Option has updated successfully' }, res)
         }
 
         if (option?.property?.choice === 'MULTIPLE') {
-            await ProductOption.findByIdAndUpdate(id, { isDefault: true })
+            await ProductOption.findOneAndUpdate({ _id: id, store: req.store }, { isDefault: true })
             return response.success(200, { msg: 'Option has updated successfully' }, res)
         }
 
-        await ProductOption.updateMany({ property: option.property }, { isDefault: false })
-        await ProductOption.findByIdAndUpdate(id, { isDefault: true })
+        await ProductOption.updateMany({ property: option.property, store: req.store }, { isDefault: false })
+        await ProductOption.findOneAndUpdate({ _id: id, store: req.store }, { isDefault: true })
         return response.success(200, { msg: 'Option has updated successfully' }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -703,7 +755,7 @@ exports.toggleDefault = async (req, res) => {
 
 exports.disableOption = async (req, res) => {
     try {
-        ProductOption.findByIdAndRemove(req.params.id, (err, option) => {
+        ProductOption.findOneAndRemove({ _id: req.params.id, store: req.store }, (err, option) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -711,7 +763,7 @@ exports.disableOption = async (req, res) => {
                 }
             }
 
-            if (!option) return response.failure(422, { msg: 'No option deleted!' }, res, err)
+            if (!option) return response.failure(422, { msg: 'No option found for this store!' }, res, err)
             response.success(200, { msg: 'Option has deleted successfully', data: option }, res)
         })
     } catch (err) {
@@ -726,7 +778,7 @@ exports.createColor = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductColor.create(body, (err, color) => {
+        ProductColor.create({...body, store: req.store}, (err, color) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -746,13 +798,13 @@ exports.createColor = async (req, res) => {
 
 exports.detailColor = async (req, res) => {
     try {
-        const color = await ProductColor.findById(req.params.id)
+        const color = await ProductColor.findOne({ _id: req.params.id, store: req.store })
             .populate('profile').populate('images')
 
         return response.success(200, { data: color }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-    }   
+    }
 }
 
 exports.updateColor = async (req, res) => {
@@ -761,7 +813,7 @@ exports.updateColor = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        ProductColor.findByIdAndUpdate(req.params.id, body, { new: true }, (err, color) => {
+        ProductColor.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, { new: true }, (err, color) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -769,7 +821,7 @@ exports.updateColor = async (req, res) => {
                 }
             }
 
-            if (!color) return response.failure(422, { msg: 'No color updated!' }, res, err)
+            if (!color) return response.failure(422, { msg: 'No color found for this store!' }, res, err)
             response.success(200, { msg: 'Option has updated successfully', data: color }, res)
         })
     } catch (err) {
@@ -779,7 +831,7 @@ exports.updateColor = async (req, res) => {
 
 exports.disableColor = async (req, res) => {
     try {
-        ProductColor.findByIdAndRemove(req.params.id, (err, color) => {
+        ProductColor.findOneAndRemove({ _id: req.params.id, store: req.store }, (err, color) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -787,7 +839,7 @@ exports.disableColor = async (req, res) => {
                 }
             }
 
-            if (!color) return response.failure(422, { msg: 'No color deleted!' }, res, err)
+            if (!color) return response.failure(422, { msg: 'No color found for this store!' }, res, err)
             response.success(200, { msg: 'Option has deleted successfully', data: color }, res)
         })
     } catch (err) {
@@ -802,7 +854,7 @@ exports.createCustomerOption = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        CustomerOption.create(body, (err, option) => {
+        CustomerOption.create({...body, store: req.store}, (err, option) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -822,12 +874,12 @@ exports.createCustomerOption = async (req, res) => {
 
 exports.detailCustomerOption = async (req, res) => {
     try {
-        const option = await CustomerOption.findById(req.params.id)
+        const option = await CustomerOption.findOne({ _id: req.params.id, store: req.store })
 
         return response.success(200, { data: option }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
-    }   
+    }
 }
 
 exports.updateCustomerOption = async (req, res) => {
@@ -836,7 +888,7 @@ exports.updateCustomerOption = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        CustomerOption.findByIdAndUpdate(req.params.id, body, { new: true }, (err, option) => {
+        CustomerOption.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, { new: true }, (err, option) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -844,7 +896,7 @@ exports.updateCustomerOption = async (req, res) => {
                 }
             }
 
-            if (!option) return response.failure(422, { msg: 'No option updated!' }, res, err)
+            if (!option) return response.failure(422, { msg: 'No option found for this store!' }, res, err)
             response.success(200, { msg: 'Option has updated successfully', data: option }, res)
         })
     } catch (err) {
@@ -854,7 +906,7 @@ exports.updateCustomerOption = async (req, res) => {
 
 exports.disableCustomerOption = async (req, res) => {
     try {
-        CustomerOption.findByIdAndRemove(req.params.id, (err, option) => {
+        CustomerOption.findOneAndRemove({ _id: req.params.id, store: req.store }, (err, option) => {
             if (err) {
                 switch (err.code) {
                     default:
@@ -862,7 +914,7 @@ exports.disableCustomerOption = async (req, res) => {
                 }
             }
 
-            if (!option) return response.failure(422, { msg: 'No option deleted!' }, res, err)
+            if (!option) return response.failure(422, { msg: 'No option found for this store!' }, res, err)
             response.success(200, { msg: 'Option has deleted successfully', data: option }, res)
         })
     } catch (err) {

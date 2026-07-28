@@ -11,7 +11,9 @@ const schema = mongoose.Schema(
         },
         store: {
             type: mongoose.Schema.ObjectId,
-            ref: 'Store'
+            ref: 'Store',
+            required: [true, 'Store is required!'],
+            index: true
         },
         tags: {
             type: String,

@@ -461,7 +461,7 @@ module.exports = utils = {
     generateLoanPayment: (loanInfo) => {
         return new Promise(async (resolve, reject) => {
             try {
-                const { duration, totalRemain, createdBy, interest } = loanInfo
+                const { duration, totalRemain, createdBy, interest, store } = loanInfo
                 if (!duration || !totalRemain) return reject(new Error('Unprocessable Entity'))
                 const loanId = mongoose.Types.ObjectId()
 
@@ -490,7 +490,7 @@ module.exports = utils = {
                         const principalBalance = { value: totalPrincipalBalance < 0 ? 0 : totalPrincipalBalance, currency: 'USD' }
                         
                         const paymentTime = moment().add(i + 1, 'month').format()
-                        const loanPayment = await LoanPayment.create({ ...loanItem, createdBy, loan: loanId, dueDate: paymentTime, interestAmount, totalAmount, principalBalance })
+                        const loanPayment = await LoanPayment.create({ ...loanItem, createdBy, store, loan: loanId, dueDate: paymentTime, interestAmount, totalAmount, principalBalance })
                         listPayment.push(loanPayment._id)
                     }
                 })

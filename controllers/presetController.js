@@ -21,10 +21,10 @@ exports.index = async (req, res) => {
         }
     }
     
-    PresetCash.find({ isDeleted: false, ...query }, async (err, categories) => {
+    PresetCash.find({ isDeleted: false, store: req.store, ...query }, async (err, categories) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await PresetCash.count({ isDisabled: false })
+        const totalCount = await PresetCash.count({ isDeleted: false, store: req.store })
         return response.success(200, { data: categories, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -32,14 +32,14 @@ exports.index = async (req, res) => {
 }
 
 exports.list = async (req, res) => {
-    PresetCash.find({ isDeleted: false }, (err, presetCashs) => {
+    PresetCash.find({ isDeleted: false, store: req.store }, (err, presetCashs) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: presetCashs }, res)
     }).select('name tags cashes')
 }
 
 exports.detail = async (req, res) => {
-    PresetCash.findById(req.params.id, (err, presetCash) => {
+    PresetCash.findOne({ _id: req.params.id, store: req.store }, (err, presetCash) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: presetCash }, res)
     })
@@ -51,7 +51,7 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        PresetCash.create({...body, createdBy: req.user.id}, (err, presetCash) => {
+        PresetCash.create({...body, store: req.store, createdBy: req.user.id}, (err, presetCash) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -73,10 +73,10 @@ exports.save = async (req, res) => {
     const body = req.body
 
     try {
-        PresetCash.findByIdAndUpdate(req.params.id, body, (err, presetCash) => {
+        PresetCash.findOneAndUpdate({ _id: req.params.id, store: req.store }, body, (err, presetCash) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
 
-            if (!presetCash) return response.failure(422, { msg: 'No preset saved!' }, res, err)
+            if (!presetCash) return response.failure(422, { msg: 'No preset found for this store!' }, res, err)
             response.success(200, { msg: 'Preset has saved successfully', data: presetCash }, res)
         })
     } catch (err) {
@@ -86,12 +86,12 @@ exports.save = async (req, res) => {
 
 exports.disable = async (req, res) => {
     try {
-        PresetCash.findByIdAndDelete(req.params.id, (err, presetCash) => {
+        PresetCash.findOneAndDelete({ _id: req.params.id, store: req.store }, (err, presetCash) => {
             if (err) {
                 return response.failure(422, { msg: err.message }, res, err)
             }
 
-            if (!presetCash) return response.failure(422, { msg: 'No preset deleted!' }, res, err)
+            if (!presetCash) return response.failure(422, { msg: 'No preset found for this store!' }, res, err)
             response.success(200, { msg: 'Preset has deleted successfully', data: presetCash }, res)
         })
     } catch (err) {
