@@ -89,6 +89,7 @@ exports.create = async (req, res) => {
 
     try {
         const password = await encryptPassword(body.password)
+        body.expireAt = body.expireAt || null
         User.create({...body, password, createdBy: req.user.id}, (err, user) => {
             if (err) {
                 switch (err.code) {
@@ -121,6 +122,11 @@ exports.update = async (req, res) => {
         } else {
             delete body.password
         }
+        body.expireAt = body.expireAt || null
+
+        const existing = await User.findById(id)
+        if (existing?.isDefault && body.expireAt) return response.failure(422, { msg: 'Default user cannot have an expiration date' }, res)
+
         User.findByIdAndUpdate(id, body, (err, user) => {
             if (err) {
                 return response.failure(422, { msg: err.message }, res, err)
@@ -196,7 +202,8 @@ exports.profile = (req, res) => {
         language: req.user?.config?.language,
         favorites: req.user?.favorites,
         drawer: req.user?.drawer,
-        isDefault: req.user?.isDefault
+        isDefault: req.user?.isDefault,
+        expireAt: req.user?.expireAt
     }
     return response.success(200, { user }, res)
 }

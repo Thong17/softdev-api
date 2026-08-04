@@ -2,7 +2,7 @@ const mongoose = require('mongoose')
 const Role = require('./Role')
 const Profile = require('./Profile')
 const Config = require('./Config')
-const { comparePassword, issueToken } = require('../helpers/utils')
+const { comparePassword, issueToken, compareDate } = require('../helpers/utils')
 
 const schema = mongoose.Schema(
     {
@@ -78,6 +78,10 @@ const schema = mongoose.Schema(
             type: Boolean,
             default: false
         },
+        expireAt: {
+            type: Date,
+            default: null
+        },
         tags: {
             type: String,
         },
@@ -128,6 +132,9 @@ schema.statics.authenticate = function (username, password, cb) {
         .populate('drawer')
         .then(user => {
             if (!user) return cb({ code: 404, msg: 'Username is incorrect' }, null)
+            if (user.expireAt && compareDate(Date.now(), user.expireAt)) {
+                return cb({ code: 403, msg: 'Your trial has expired. Please contact an admin to renew your account.' }, null)
+            }
             comparePassword(password, user.password)
                 .then(isMatch => {
                     if (!isMatch) return cb({ code: 404, msg: 'Password is incorrect' }, null)

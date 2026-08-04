@@ -1,5 +1,5 @@
 const response = require('../../helpers/response')
-const { createHash, verifyToken, issueToken } = require('../../helpers/utils')
+const { createHash, verifyToken, issueToken, compareDate } = require('../../helpers/utils')
 
 exports.hash = (req, res, next) => {
     const token = req.headers['x-access-token'] || ''
@@ -29,6 +29,9 @@ exports.auth = (req, res, next) => {
             const User = require('../../models/User')
             const { id } = decoded
             const user = await User.findById(id).populate('role').populate({ path: 'profile', populate: { path: 'photo' } }).populate('config').populate('drawer')
+            if (user?.expireAt && compareDate(Date.now(), user.expireAt)) {
+                return response.failure(403, { msg: 'Your account has expired.' }, res)
+            }
             req.user = user
             next()
         })
