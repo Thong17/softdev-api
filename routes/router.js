@@ -50,6 +50,7 @@ router.get('/uploads/:filename', async (req, res) => {
 
 router.use('/auth', require('./auth/auth'))
 router.use('/config', require('./config'))
+router.use('/public', require('./public'))
 router.use(require('../middleware/security').auth)
 router.use('/shared', require('./shared'))
 router.use('/admin', require('./admin'))
