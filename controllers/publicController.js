@@ -4,6 +4,26 @@ const Store = require('../models/Store')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 
+// Reduces a raw promotion doc to the sale price shown on the storefront, or
+// null when it isn't currently running or can't be applied without an
+// exchange rate (cross-currency fixed discounts aren't shown publicly).
+const resolveSalePrice = (price, currency, promotion) => {
+    if (!promotion) return null
+
+    const now = new Date()
+    if (promotion.startAt && now < promotion.startAt) return null
+    if (promotion.expireAt && now > promotion.expireAt) return null
+
+    if (promotion.type === 'PCT') {
+        return promotion.isFixed
+            ? price * promotion.value / 100
+            : price - (price * promotion.value / 100)
+    }
+
+    if (promotion.type !== currency) return null
+    return promotion.isFixed ? promotion.value : price - promotion.value
+}
+
 exports.menu = async (req, res) => {
     try {
         const categories = await Category.find({ isDeleted: false, status: true })
@@ -12,15 +32,29 @@ exports.menu = async (req, res) => {
             .populate({
                 path: 'products',
                 match: { isDeleted: false, status: true },
-                select: 'name price currency description profile images promotion',
+                select: 'name price currency profile promotion',
                 populate: [
                     { path: 'profile', select: 'filename' },
-                    { path: 'images', select: 'filename' },
                     { path: 'promotion', select: 'description isFixed startAt expireAt type value' },
                 ]
             })
 
-        return response.success(200, { data: categories }, res)
+        const data = categories.map((category) => ({
+            _id: category._id,
+            name: category.name,
+            icon: category.icon,
+            products: category.products.map((product) => ({
+                _id: product._id,
+                name: product.name,
+                price: product.price,
+                currency: product.currency,
+                profile: product.profile,
+                salePrice: resolveSalePrice(product.price, product.currency, product.promotion),
+                promotionLabel: product.promotion?.description,
+            })),
+        }))
+
+        return response.success(200, { data }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
@@ -29,7 +63,7 @@ exports.menu = async (req, res) => {
 exports.brands = async (req, res) => {
     try {
         const brands = await Brand.find({ isDeleted: false, status: true })
-            .select('name icon description')
+            .select('name icon')
             .populate('icon', 'filename')
 
         return response.success(200, { data: brands }, res)
