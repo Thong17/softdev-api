@@ -3,7 +3,7 @@ FROM node:14-alpine
 WORKDIR /app
 
 # Build arg
-ARG ENV_FILE=.env.production
+ARG ENV_FILE=.env.stationary
 
 COPY package.json .
 COPY package-lock.json .

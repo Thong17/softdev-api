@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon -r dotenv/config app.js dotenv_config_path=.env.development",
-    "dockerBuild": "docker build -t thonggee/softdev-api:production .",
-    "dockerPush": "docker push thonggee/softdev-api:production"
+    "dockerBuild": "docker build -t thonggee/softdev-api:stationary .",
+    "dockerPush": "docker push thonggee/softdev-api:stationary"
   },
   "repository": {
     "type": "git",
