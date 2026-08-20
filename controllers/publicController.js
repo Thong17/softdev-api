@@ -1,4 +1,6 @@
 const Category = require('../models/Category')
+const Brand = require('../models/Brand')
+const Store = require('../models/Store')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 
@@ -19,6 +21,30 @@ exports.menu = async (req, res) => {
             })
 
         return response.success(200, { data: categories }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.brands = async (req, res) => {
+    try {
+        const brands = await Brand.find({ isDeleted: false, status: true })
+            .select('name icon description')
+            .populate('icon', 'filename')
+
+        return response.success(200, { data: brands }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.store = async (req, res) => {
+    try {
+        const store = await Store.findOne()
+            .select('name logo contact address')
+            .populate('logo', 'filename')
+
+        return response.success(200, { data: store }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
