@@ -68,6 +68,10 @@ exports.privilege = {
             route: 'menu',
             action: 'store'
         },
+        announcement: {
+            route: 'menu',
+            action: 'announcement'
+        },
     },
     operation: {
         cashing: {
@@ -127,6 +131,10 @@ exports.privilege = {
         promotion: {
             route: 'function',
             action: 'promotion'
+        },
+        announcement: {
+            route: 'function',
+            action: 'announcement'
         }
     },
     report: {
@@ -302,6 +310,28 @@ exports.privilege = {
         },
         delete: {
             route: 'promotion',
+            action: 'delete'
+        },
+    },
+    announcement: {
+        list: {
+            route: 'announcement',
+            action: 'list'
+        },
+        detail: {
+            route: 'announcement',
+            action: 'detail'
+        },
+        create: {
+            route: 'announcement',
+            action: 'create'
+        },
+        update: {
+            route: 'announcement',
+            action: 'update'
+        },
+        delete: {
+            route: 'announcement',
             action: 'delete'
         },
     },

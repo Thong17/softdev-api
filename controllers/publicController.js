@@ -1,6 +1,7 @@
 const Category = require('../models/Category')
 const Brand = require('../models/Brand')
 const Store = require('../models/Store')
+const Announcement = require('../models/Announcement')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 
@@ -79,6 +80,25 @@ exports.store = async (req, res) => {
             .populate('logo', 'filename')
 
         return response.success(200, { data: store }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.announcements = async (req, res) => {
+    try {
+        const now = new Date()
+        const announcements = await Announcement.find({
+            isDeleted: false,
+            status: true,
+            startAt: { $lte: now },
+            expireAt: { $gte: now },
+        })
+            .select('title description banner order')
+            .populate('banner', 'filename')
+            .sort('order')
+
+        return response.success(200, { data: announcements }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
