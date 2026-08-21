@@ -81,10 +81,14 @@ exports.products = async (req, res) => {
         const brand = req.query.brand
         const minPrice = req.query.minPrice !== undefined ? parseFloat(req.query.minPrice) : undefined
         const maxPrice = req.query.maxPrice !== undefined ? parseFloat(req.query.maxPrice) : undefined
+        const search = (req.query.search || '').replace(/ /g, '')
+        const sortField = ['price', 'createdAt'].includes(req.query.filter) ? req.query.filter : 'createdAt'
+        const sortOrder = req.query.sort === 'asc' ? 'asc' : 'desc'
 
         const query = { isDeleted: false, status: true }
         if (category) query.category = category
         if (brand) query.brand = brand
+        if (search) query.tags = { $regex: new RegExp(search, 'i') }
         if ((minPrice !== undefined && !isNaN(minPrice)) || (maxPrice !== undefined && !isNaN(maxPrice))) {
             // minPrice/maxPrice arrive in USD (matching /public/products/price-range),
             // so each currency's own bound is converted before filtering.
@@ -109,7 +113,7 @@ exports.products = async (req, res) => {
             .populate('profile', 'filename')
             .populate('category', 'name')
             .populate('promotion', 'description isFixed startAt expireAt type value')
-            .sort({ createdAt: 'desc' })
+            .sort({ [sortField]: sortOrder })
             .skip(page * limit)
             .limit(limit)
 
