@@ -2,6 +2,7 @@ const Category = require('../models/Category')
 const Brand = require('../models/Brand')
 const Store = require('../models/Store')
 const Announcement = require('../models/Announcement')
+const Product = require('../models/Product')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 
@@ -25,6 +26,17 @@ const resolveSalePrice = (price, currency, promotion) => {
     return promotion.isFixed ? promotion.value : price - promotion.value
 }
 
+const shapeProduct = (product) => ({
+    _id: product._id,
+    name: product.name,
+    price: product.price,
+    currency: product.currency,
+    profile: product.profile,
+    category: product.category,
+    salePrice: resolveSalePrice(product.price, product.currency, product.promotion),
+    promotionLabel: product.promotion?.description,
+})
+
 exports.menu = async (req, res) => {
     try {
         const categories = await Category.find({ isDeleted: false, status: true })
@@ -44,18 +56,36 @@ exports.menu = async (req, res) => {
             _id: category._id,
             name: category.name,
             icon: category.icon,
-            products: category.products.map((product) => ({
-                _id: product._id,
-                name: product.name,
-                price: product.price,
-                currency: product.currency,
-                profile: product.profile,
-                salePrice: resolveSalePrice(product.price, product.currency, product.promotion),
-                promotionLabel: product.promotion?.description,
-            })),
+            products: category.products.map(shapeProduct),
         }))
 
         return response.success(200, { data }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.products = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 12
+        const page = parseInt(req.query.page) || 0
+        const category = req.query.category
+
+        const query = { isDeleted: false, status: true }
+        if (category) query.category = category
+
+        const products = await Product.find(query)
+            .select('name price currency profile category promotion')
+            .populate('profile', 'filename')
+            .populate('category', 'name')
+            .populate('promotion', 'description isFixed startAt expireAt type value')
+            .sort({ createdAt: 'desc' })
+            .skip(page * limit)
+            .limit(limit)
+
+        const totalCount = await Product.count(query)
+
+        return response.success(200, { data: products.map(shapeProduct), length: totalCount }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
