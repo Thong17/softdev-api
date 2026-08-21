@@ -26,6 +26,14 @@ const resolveSalePrice = (price, currency, promotion) => {
     return promotion.isFixed ? promotion.value : price - promotion.value
 }
 
+// Approximate KHR/USD rate, matching the default used elsewhere in this
+// codebase (helpers/utils.js calculatePromotion). Only USD and KHR are
+// valid product currencies (constants/variables currencyOptions on the
+// frontend), so price filtering/ranging normalizes across just these two
+// rather than mixing raw KHR and USD numbers on one scale.
+const KHR_PER_USD = 4000
+const normalizeToUsd = (price, currency) => (currency === 'KHR' ? price / KHR_PER_USD : price)
+
 const shapeProduct = (product) => ({
     _id: product._id,
     name: product.name,
@@ -77,10 +85,23 @@ exports.products = async (req, res) => {
         const query = { isDeleted: false, status: true }
         if (category) query.category = category
         if (brand) query.brand = brand
-        if (minPrice !== undefined || maxPrice !== undefined) {
-            query.price = {}
-            if (minPrice !== undefined && !isNaN(minPrice)) query.price.$gte = minPrice
-            if (maxPrice !== undefined && !isNaN(maxPrice)) query.price.$lte = maxPrice
+        if ((minPrice !== undefined && !isNaN(minPrice)) || (maxPrice !== undefined && !isNaN(maxPrice))) {
+            // minPrice/maxPrice arrive in USD (matching /public/products/price-range),
+            // so each currency's own bound is converted before filtering.
+            const usdRange = {}
+            const khrRange = {}
+            if (minPrice !== undefined && !isNaN(minPrice)) {
+                usdRange.$gte = minPrice
+                khrRange.$gte = minPrice * KHR_PER_USD
+            }
+            if (maxPrice !== undefined && !isNaN(maxPrice)) {
+                usdRange.$lte = maxPrice
+                khrRange.$lte = maxPrice * KHR_PER_USD
+            }
+            query.$or = [
+                { currency: 'USD', price: usdRange },
+                { currency: 'KHR', price: khrRange },
+            ]
         }
 
         const products = await Product.find(query)
@@ -102,13 +123,12 @@ exports.products = async (req, res) => {
 
 exports.productPriceRange = async (req, res) => {
     try {
-        const result = await Product.aggregate([
-            { $match: { isDeleted: false, status: true } },
-            { $group: { _id: null, min: { $min: '$price' }, max: { $max: '$price' } } },
-        ])
-        const range = result[0] || { min: 0, max: 0 }
+        const products = await Product.find({ isDeleted: false, status: true }).select('price currency')
+        if (products.length === 0) return response.success(200, { data: { min: 0, max: 0 } }, res)
 
-        return response.success(200, { data: { min: range.min, max: range.max } }, res)
+        const normalized = products.map((product) => normalizeToUsd(product.price, product.currency))
+
+        return response.success(200, { data: { min: Math.min(...normalized), max: Math.max(...normalized) } }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
