@@ -68,9 +68,9 @@ exports.privilege = {
             route: 'menu',
             action: 'store'
         },
-        announcement: {
+        banner: {
             route: 'menu',
-            action: 'announcement'
+            action: 'banner'
         },
     },
     operation: {
@@ -132,9 +132,9 @@ exports.privilege = {
             route: 'function',
             action: 'promotion'
         },
-        announcement: {
+        banner: {
             route: 'function',
-            action: 'announcement'
+            action: 'banner'
         }
     },
     report: {
@@ -313,25 +313,25 @@ exports.privilege = {
             action: 'delete'
         },
     },
-    announcement: {
+    banner: {
         list: {
-            route: 'announcement',
+            route: 'banner',
             action: 'list'
         },
         detail: {
-            route: 'announcement',
+            route: 'banner',
             action: 'detail'
         },
         create: {
-            route: 'announcement',
+            route: 'banner',
             action: 'create'
         },
         update: {
-            route: 'announcement',
+            route: 'banner',
             action: 'update'
         },
         delete: {
-            route: 'announcement',
+            route: 'banner',
             action: 'delete'
         },
     },
