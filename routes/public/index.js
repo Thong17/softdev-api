@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { menu, brands, store, announcements, products } = require('../../controllers/publicController')
+const { menu, brands, store, announcements, products, productPriceRange } = require('../../controllers/publicController')
 
 router.get('/menu', (req, res) => {
     menu(req, res)
@@ -19,6 +19,10 @@ router.get('/announcements', (req, res) => {
 
 router.get('/products', (req, res) => {
     products(req, res)
+})
+
+router.get('/products/price-range', (req, res) => {
+    productPriceRange(req, res)
 })
 
 module.exports = router

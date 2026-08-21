@@ -70,9 +70,18 @@ exports.products = async (req, res) => {
         const limit = parseInt(req.query.limit) || 12
         const page = parseInt(req.query.page) || 0
         const category = req.query.category
+        const brand = req.query.brand
+        const minPrice = req.query.minPrice !== undefined ? parseFloat(req.query.minPrice) : undefined
+        const maxPrice = req.query.maxPrice !== undefined ? parseFloat(req.query.maxPrice) : undefined
 
         const query = { isDeleted: false, status: true }
         if (category) query.category = category
+        if (brand) query.brand = brand
+        if (minPrice !== undefined || maxPrice !== undefined) {
+            query.price = {}
+            if (minPrice !== undefined && !isNaN(minPrice)) query.price.$gte = minPrice
+            if (maxPrice !== undefined && !isNaN(maxPrice)) query.price.$lte = maxPrice
+        }
 
         const products = await Product.find(query)
             .select('name price currency profile category promotion')
@@ -86,6 +95,20 @@ exports.products = async (req, res) => {
         const totalCount = await Product.count(query)
 
         return response.success(200, { data: products.map(shapeProduct), length: totalCount }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.productPriceRange = async (req, res) => {
+    try {
+        const result = await Product.aggregate([
+            { $match: { isDeleted: false, status: true } },
+            { $group: { _id: null, min: { $min: '$price' }, max: { $max: '$price' } } },
+        ])
+        const range = result[0] || { min: 0, max: 0 }
+
+        return response.success(200, { data: { min: range.min, max: range.max } }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
