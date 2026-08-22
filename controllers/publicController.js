@@ -5,10 +5,22 @@ const Announcement = require('../models/Announcement')
 const Product = require('../models/Product')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
+const utils = require('../helpers/utils')
+
+// Approximate KHR/USD rate, matching the default sellRate/buyRate that
+// helpers/utils.js calculatePromotion falls back to. Only USD and KHR are
+// valid product currencies (constants/variables currencyOptions on the
+// frontend), so price filtering/ranging normalizes across just these two
+// rather than mixing raw KHR and USD numbers on one scale.
+const KHR_PER_USD = 4000
+const normalizeToUsd = (price, currency) => (currency === 'KHR' ? price / KHR_PER_USD : price)
 
 // Reduces a raw promotion doc to the sale price shown on the storefront, or
-// null when it isn't currently running or can't be applied without an
-// exchange rate (cross-currency fixed discounts aren't shown publicly).
+// null when it isn't currently running. Reuses calculatePromotion (same
+// logic as admin cashing) so PCT/USD/KHR types and the isFixed flag are
+// handled identically -- there's no live cash-drawer exchange rate on the
+// public storefront, so this falls back to calculatePromotion's own default
+// sellRate/buyRate (same as admin does when no drawer rate is available).
 const resolveSalePrice = (price, currency, promotion) => {
     if (!promotion) return null
 
@@ -16,23 +28,17 @@ const resolveSalePrice = (price, currency, promotion) => {
     if (promotion.startAt && now < promotion.startAt) return null
     if (promotion.expireAt && now > promotion.expireAt) return null
 
-    if (promotion.type === 'PCT') {
-        return promotion.isFixed
-            ? price * promotion.value / 100
-            : price - (price * promotion.value / 100)
-    }
+    const { total, currency: resultCurrency } = utils.calculatePromotion({ total: price, currency }, promotion, {})
 
-    if (promotion.type !== currency) return null
-    return promotion.isFixed ? promotion.value : price - promotion.value
+    if (resultCurrency === currency) return total
+
+    // isFixed promotions priced in a different currency than the product
+    // (e.g. a fixed $1 USD price on a KHR product) flip the result currency --
+    // convert back to the product's own currency so salePrice/price can keep
+    // rendering side by side in one currency on the storefront.
+    const usdTotal = resultCurrency === 'KHR' ? total / KHR_PER_USD : total
+    return currency === 'KHR' ? usdTotal * KHR_PER_USD : usdTotal
 }
-
-// Approximate KHR/USD rate, matching the default used elsewhere in this
-// codebase (helpers/utils.js calculatePromotion). Only USD and KHR are
-// valid product currencies (constants/variables currencyOptions on the
-// frontend), so price filtering/ranging normalizes across just these two
-// rather than mixing raw KHR and USD numbers on one scale.
-const KHR_PER_USD = 4000
-const normalizeToUsd = (price, currency) => (currency === 'KHR' ? price / KHR_PER_USD : price)
 
 const shapeProduct = (product) => ({
     _id: product._id,
