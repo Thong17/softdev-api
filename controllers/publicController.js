@@ -15,6 +15,15 @@ const utils = require('../helpers/utils')
 const KHR_PER_USD = 4000
 const normalizeToUsd = (price, currency) => (currency === 'KHR' ? price / KHR_PER_USD : price)
 
+// A promotion is only shown publicly while its display window is current.
+const isPromotionActive = (promotion) => {
+    if (!promotion) return false
+    const now = new Date()
+    if (promotion.startAt && now < promotion.startAt) return false
+    if (promotion.expireAt && now > promotion.expireAt) return false
+    return true
+}
+
 // Reduces a raw promotion doc to the sale price shown on the storefront, or
 // null when it isn't currently running. Reuses calculatePromotion (same
 // logic as admin cashing) so PCT/USD/KHR types and the isFixed flag are
@@ -22,11 +31,7 @@ const normalizeToUsd = (price, currency) => (currency === 'KHR' ? price / KHR_PE
 // public storefront, so this falls back to calculatePromotion's own default
 // sellRate/buyRate (same as admin does when no drawer rate is available).
 const resolveSalePrice = (price, currency, promotion) => {
-    if (!promotion) return null
-
-    const now = new Date()
-    if (promotion.startAt && now < promotion.startAt) return null
-    if (promotion.expireAt && now > promotion.expireAt) return null
+    if (!isPromotionActive(promotion)) return null
 
     const { total, currency: resultCurrency } = utils.calculatePromotion({ total: price, currency }, promotion, {})
 
@@ -40,16 +45,25 @@ const resolveSalePrice = (price, currency, promotion) => {
     return currency === 'KHR' ? usdTotal * KHR_PER_USD : usdTotal
 }
 
-const shapeProduct = (product) => ({
-    _id: product._id,
-    name: product.name,
-    price: product.price,
-    currency: product.currency,
-    profile: product.profile,
-    category: product.category,
-    salePrice: resolveSalePrice(product.price, product.currency, product.promotion),
-    promotionLabel: product.promotion?.description,
-})
+const shapeProduct = (product) => {
+    const activePromotion = isPromotionActive(product.promotion) ? product.promotion : null
+
+    return {
+        _id: product._id,
+        name: product.name,
+        price: product.price,
+        currency: product.currency,
+        profile: product.profile,
+        category: product.category,
+        salePrice: resolveSalePrice(product.price, product.currency, product.promotion),
+        promotionLabel: activePromotion?.description,
+        promotion: activePromotion && {
+            type: activePromotion.type,
+            value: activePromotion.value,
+            isFixed: activePromotion.isFixed,
+        },
+    }
+}
 
 exports.menu = async (req, res) => {
     try {
