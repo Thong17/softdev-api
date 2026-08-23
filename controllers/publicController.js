@@ -1,3 +1,5 @@
+const fs = require('fs')
+const path = require('path')
 const Category = require('../models/Category')
 const Brand = require('../models/Brand')
 const Store = require('../models/Store')
@@ -6,6 +8,27 @@ const Product = require('../models/Product')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const utils = require('../helpers/utils')
+
+// Bulk-imported/seeded products often have no MinIO profile image. Rather than
+// always falling back to the generic default.png, /uploads also holds a small
+// library of representative photos (see routes/router.js) keyed by slugified
+// product name -- read once at startup since the folder only changes on deploy.
+const UPLOADS_DIR = path.join(__dirname, '../uploads')
+const slugify = (value) =>
+    (value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+const localImageBySlug = new Map(
+    (fs.existsSync(UPLOADS_DIR) ? fs.readdirSync(UPLOADS_DIR) : [])
+        .filter((file) => file !== 'default.png')
+        .map((file) => [file.replace(/\.[^.]+$/, ''), file])
+)
+const resolveProfile = (product) => {
+    if (product.profile) return product.profile
+    const localFile = localImageBySlug.get(slugify(product.name?.English))
+    return localFile ? { filename: localFile } : product.profile
+}
 
 // Approximate KHR/USD rate, matching the default sellRate/buyRate that
 // helpers/utils.js calculatePromotion falls back to. Only USD and KHR are
@@ -53,7 +76,7 @@ const shapeProduct = (product) => {
         name: product.name,
         price: product.price,
         currency: product.currency,
-        profile: product.profile,
+        profile: resolveProfile(product),
         category: product.category,
         salePrice: resolveSalePrice(product.price, product.currency, product.promotion),
         promotionLabel: activePromotion?.description,

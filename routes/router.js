@@ -30,6 +30,14 @@ router.get('/uploads/:filename', async (req, res) => {
             })
             return stream.pipe(res)
         } catch (err) {
+            // Not every filename lives in MinIO -- generic fallback photos for
+            // products without a real upload ship as static files in uploads/
+            // alongside default.png (see controllers/publicController.js).
+            const localImagePath = path.join(process.cwd(), 'uploads', path.basename(filename))
+            if (fs.existsSync(localImagePath)) {
+                return res.sendFile(localImagePath)
+            }
+
             const defaultImagePath = path.join(process.cwd(), 'uploads', 'default.png')
 
             if (!fs.existsSync(defaultImagePath)) {
