@@ -14,6 +14,7 @@ const CustomerOption = require('../models/CustomerOption')
 const { Workbook } = require('exceljs')
 const { worksheetOption } = require('../configs/excel')
 const moment = require('moment')
+const Promotion = require('../models/Promotion')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit)
@@ -139,8 +140,16 @@ exports.info = async (req, res) => {
             .populate({ path: 'customers', model: CustomerOption })
             .populate({ path: 'options', model: ProductOption })
             .populate({ path: 'stocks', model: ProductStock })
+            .populate('profile', 'filename')
 
-        return response.success(200, { data: product }, res)
+        // `promotion` stays an id (cashing sends it back to the transaction
+        // API); quotations price items locally, so they also get its details
+        const data = product?.toObject()
+        if (data?.promotion) {
+            data.promotionDetail = await Promotion.findById(data.promotion).select('value type isFixed expireAt')
+        }
+
+        return response.success(200, { data }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }   

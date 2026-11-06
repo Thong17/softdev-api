@@ -72,6 +72,10 @@ exports.privilege = {
             route: 'menu',
             action: 'banner'
         },
+        quotation: {
+            route: 'menu',
+            action: 'quotation'
+        },
     },
     operation: {
         cashing: {
@@ -93,6 +97,10 @@ exports.privilege = {
         payment: {
             route: 'operation',
             action: 'payment'
+        },
+        quotation: {
+            route: 'operation',
+            action: 'quotation'
         },
     },
     organize: {
@@ -502,6 +510,28 @@ exports.privilege = {
         },
         delete: {
             route: 'preset',
+            action: 'delete'
+        },
+    },
+    quotation: {
+        list: {
+            route: 'quotation',
+            action: 'list'
+        },
+        detail: {
+            route: 'quotation',
+            action: 'detail'
+        },
+        create: {
+            route: 'quotation',
+            action: 'create'
+        },
+        update: {
+            route: 'quotation',
+            action: 'update'
+        },
+        delete: {
+            route: 'quotation',
             action: 'delete'
         },
     },

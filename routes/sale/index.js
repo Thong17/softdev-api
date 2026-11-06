@@ -6,5 +6,6 @@ router.use('/drawer', require('./drawer'))
 router.use('/payment', require('./payment'))
 router.use('/reservation', require('./reservation'))
 router.use('/loan', require('./loan'))
+router.use('/quotation', require('./quotation'))
 
 module.exports = router
