@@ -109,7 +109,7 @@ exports.listCode = async (req, res) => {
             }
         }) }, res)
     })  
-        .select('code isStock stocks').populate('stocks', 'code')
+        .select('code isStock stocks name').populate('stocks', 'code')
 }
 
 exports.detail = async (req, res) => {
@@ -155,38 +155,33 @@ exports.info = async (req, res) => {
     }   
 }
 
+// Creates a product and links it to its category, brand and images. Shared by
+// product creation and stock conversion; `session` is optional.
+const createProductRecord = async (body, userId, session = null) => {
+    const [product] = await Product.create([{ ...body, createdBy: userId }], { session })
+
+    await Category.updateOne({ _id: product.category }, { $addToSet: { products: product._id } }, { session })
+    await Brand.updateOne({ _id: product.brand }, { $addToSet: { products: product._id } }, { session })
+    await Image.updateMany({ _id: { $in: product.images } }, { $set: { isActive: true } }, { session })
+    return product
+}
+exports.createProductRecord = createProductRecord
+
 exports.create = async (req, res) => {
     const body = req.body
     const { error } = createProductValidation.validate(body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
-        Product.create({...body, createdBy: req.user.id}, async (err, product) => {
-            if (err) {
-                switch (err.code) {
-                    case 11000:
-                        return response.failure(422, { msg: 'Product already exists!' }, res, err)
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
-            }
-
-            if (!product) return response.failure(422, { msg: 'No product created!' }, res, err)
-
-            const category = await Category.findById(product.category).select('products')
-            const brand = await Brand.findById(product.brand).select('products')
-
-            const listCategory = [...category.products, product._id]
-            const listBrand = [...brand.products, product._id]
-
-            await Category.findByIdAndUpdate(product.category, { products: listCategory })
-            await Brand.findByIdAndUpdate(product.brand, { products: listBrand })
-
-            await Image.updateMany({ _id: { $in: product.images } }, { $set: { isActive: true } }, { multi:true })
-            response.success(200, { msg: 'Product has created successfully', data: product }, res)
-        })
+        const product = await createProductRecord(body, req.user.id)
+        response.success(200, { msg: 'Product has created successfully', data: product }, res)
     } catch (err) {
-        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        switch (err.code) {
+            case 11000:
+                return response.failure(422, { msg: 'Product already exists!' }, res, err)
+            default:
+                return response.failure(422, { msg: err.message || failureMsg.trouble }, res, err)
+        }
     }
 }
 

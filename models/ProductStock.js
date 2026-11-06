@@ -55,6 +55,11 @@ const schema = mongoose.Schema(
             ref: 'Product',
             require: true
         },
+        // Set when the batch was produced by converting another product's stock
+        conversion: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'StockConversion'
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }

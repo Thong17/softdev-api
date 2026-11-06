@@ -13,6 +13,28 @@ const createStockValidation = Joi.object({
     customers: Joi.array().optional(),
 })
 
+const convertStockValidation = Joi.object({
+    fromProduct: Joi.string().required(),
+    toProduct: Joi.string().invalid(Joi.ref('fromProduct')).messages({ 'any.invalid': 'Cannot convert a product into itself' }),
+    newProduct: Joi.object({
+        name: Joi.object().required(),
+        price: Joi.number().min(0).required(),
+        currency: Joi.string().valid('USD', 'KHR').required(),
+        code: Joi.string().optional().allow(''),
+        status: Joi.boolean().optional(),
+        description: Joi.string().optional().allow(''),
+        profile: Joi.string().optional().allow(null, ''),
+        images: Joi.array().items(Joi.string()).optional(),
+        // Default to the source product's brand and category when not given
+        brand: Joi.string().optional().allow(''),
+        category: Joi.string().optional().allow(''),
+    }),
+    ratio: Joi.number().integer().min(1).required(),
+    quantity: Joi.number().integer().min(1).required(),
+    note: Joi.string().optional().allow(''),
+}).xor('toProduct', 'newProduct')
+
 module.exports = {
-    createStockValidation
+    createStockValidation,
+    convertStockValidation
 }

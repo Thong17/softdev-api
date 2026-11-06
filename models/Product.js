@@ -59,6 +59,16 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Promotion'
         },
+        // Pre-fills the stock conversion dialog with the last target and ratio
+        lastConversion: {
+            product: {
+                type: mongoose.Schema.ObjectId,
+                ref: 'Product'
+            },
+            ratio: {
+                type: Number
+            },
+        },
         detail: {
             type: mongoose.Schema.ObjectId,
             ref: 'ProductDetail'
