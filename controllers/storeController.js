@@ -322,6 +322,7 @@ exports.getStoreSetting = async (req, res) => {
             thermalPrinterGap: setting.thermalPrinterGap,
             storePrinterName: setting.storePrinterName, 
             storePrinterCharPerLine: setting.storePrinterCharPerLine, 
+            printMode: setting.printMode,
         } }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)

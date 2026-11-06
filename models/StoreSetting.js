@@ -49,6 +49,13 @@ const schema = mongoose.Schema(
         storePrinterCharPerLine: {
             type: Number,
             default: 32
+        },
+        // `web`: each browser prints through its own QZ Tray
+        // `api`: the API prints through QZ Tray on its host machine
+        printMode: {
+            type: String,
+            enum: ['web', 'api'],
+            default: 'web'
         }
     },
     {
