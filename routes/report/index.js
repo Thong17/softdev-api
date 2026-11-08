@@ -1,5 +1,6 @@
 const router = require('express').Router()
 const { listSale, totalSale, topProduct, topStaff, listProduct, listStaff } = require('../../controllers/reportController')
+const reportExport = require('../../controllers/reportExportController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -25,6 +26,23 @@ router.get('/listStaff', security.role(privilege.report.staff), (req, res) => {
 
 router.get('/listProduct', security.role(privilege.report.staff), (req, res) => {
     listProduct(req, res)
+})
+
+// Excel exports of the reports (inventory shares the product report privilege)
+router.get('/export/sale', security.role(privilege.report.sale), (req, res) => {
+    reportExport.sale(req, res)
+})
+
+router.get('/export/product', security.role(privilege.report.product), (req, res) => {
+    reportExport.product(req, res)
+})
+
+router.get('/export/staff', security.role(privilege.report.staff), (req, res) => {
+    reportExport.staff(req, res)
+})
+
+router.get('/export/inventory', security.role(privilege.report.product), (req, res) => {
+    reportExport.inventory(req, res)
 })
 
 module.exports = router

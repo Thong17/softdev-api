@@ -298,6 +298,11 @@ exports.privilege = {
             route: 'product',
             action: 'delete'
         },
+        // See stock (cost) prices, e.g. in the cashing stock-cost dialog
+        viewCost: {
+            route: 'product',
+            action: 'viewCost'
+        },
     },
     promotion: {
         list: {

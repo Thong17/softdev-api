@@ -14,6 +14,7 @@ const { createProductRecord } = require('./productController')
 const Category = require('../models/Category')
 const Brand = require('../models/Brand')
 const mongoose = require('mongoose')
+const ProductPriceHistory = require('../models/ProductPriceHistory')
 
 exports.stock = async (req, res) => {
     const product = req.query.productId
@@ -63,13 +64,53 @@ exports.detail = async (req, res) => {
     }   
 }
 
+const hasNewPrice = (body) => body.newPrice !== undefined && body.newPrice !== null && body.newPrice !== ''
+
+// Changing the selling price is a product update, so it needs that privilege
+const canChangePrice = (user) => !!user?.role?.privilege?.product?.update
+
+// Sets the product's selling price and logs the change. Does nothing when the
+// price and currency are unchanged. Returns an undo for runs without a session.
+const applyNewPrice = async ({ productId, newPrice, newCurrency, cost, costCurrency, source, stock, userId, session }) => {
+    const product = await Product.findById(productId).select('price currency').session(session || null)
+    if (!product) return null
+    const currency = newCurrency || product.currency || 'USD'
+    const price = Number(newPrice)
+    if (product.price === price && product.currency === currency) return null
+
+    // updateOne (not findOneAndUpdate) so the image hook on Product doesn't run
+    await Product.updateOne({ _id: productId }, { price, currency }, { session })
+    const [history] = await ProductPriceHistory.create([{
+        product: productId,
+        oldPrice: product.price,
+        oldCurrency: product.currency,
+        newPrice: price,
+        newCurrency: currency,
+        cost,
+        costCurrency,
+        source,
+        stock,
+        createdBy: userId,
+    }], { session })
+    return async () => {
+        await Product.updateOne({ _id: productId }, { price: product.price, currency: product.currency })
+        await ProductPriceHistory.deleteOne({ _id: history._id })
+    }
+}
+
+const splitPrice = (body) => {
+    const { newPrice, newPriceCurrency, ...rest } = body
+    return { stockBody: rest, newPrice, newPriceCurrency }
+}
+
 exports.createStock = async (req, res) => {
-    const body = req.body
-    const { error } = createStockValidation.validate(body, { abortEarly: false })
+    const { error } = createStockValidation.validate(req.body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
+    if (hasNewPrice(req.body) && !canChangePrice(req.user)) return response.failure(401, { msg: 'You do not have permission to change the price!' }, res)
+    const { stockBody: body, newPrice, newPriceCurrency } = splitPrice(req.body)
 
     try {
-        ProductStock.create({...body, createdBy: req.user.id, totalQuantity: body.quantity}, (err, stock) => {
+        ProductStock.create({...body, createdBy: req.user.id, totalQuantity: body.quantity}, async (err, stock) => {
             if (err) {
                 switch (err.code) {
                     case 11000:
@@ -80,6 +121,13 @@ exports.createStock = async (req, res) => {
             }
 
             if (!stock) return response.failure(422, { msg: 'No stock created!' }, res, err)
+            if (hasNewPrice(req.body)) {
+                try {
+                    await applyNewPrice({ productId: stock.product, newPrice, newCurrency: newPriceCurrency, cost: stock.cost, costCurrency: stock.currency, source: 'STOCK_CREATE', stock: stock._id, userId: req.user.id })
+                } catch (priceErr) {
+                    return response.failure(422, { msg: 'Stock was added but the price could not be updated' }, res, priceErr)
+                }
+            }
             response.success(200, { msg: 'Stock has created successfully', data: stock }, res)
         })
     } catch (err) {
@@ -88,14 +136,22 @@ exports.createStock = async (req, res) => {
 }
 
 exports.updateStock = async (req, res) => {
-    const body = req.body
-    const { error } = createStockValidation.validate(body, { abortEarly: false })
+    const { error } = createStockValidation.validate(req.body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
+    if (hasNewPrice(req.body) && !canChangePrice(req.user)) return response.failure(401, { msg: 'You do not have permission to change the price!' }, res)
+    const { stockBody: body, newPrice, newPriceCurrency } = splitPrice(req.body)
 
     try {
         ProductStock.findByIdAndUpdate(req.params.id, {...body, totalQuantity: body.quantity}, { new: true }, async (err, stock) => {
             if (err) return response.failure(422, { msg: err.message }, res, err)
             if (!stock) return response.failure(422, { msg: 'No stock updated!' }, res, err)
+            if (hasNewPrice(req.body)) {
+                try {
+                    await applyNewPrice({ productId: stock.product, newPrice, newCurrency: newPriceCurrency, cost: stock.cost, costCurrency: stock.currency, source: 'STOCK_UPDATE', stock: stock._id, userId: req.user.id })
+                } catch (priceErr) {
+                    return response.failure(422, { msg: 'Stock was updated but the price could not be updated' }, res, priceErr)
+                }
+            }
 
             response.success(200, { msg: 'Stock has updated successfully', data: stock }, res)
         })
@@ -156,6 +212,9 @@ exports.convert = async (req, res) => {
     if (body.newProduct && !req.user.role?.privilege?.product?.create) {
         return response.failure(401, { msg: 'You do not have permission to create product!' }, res)
     }
+    // A new product already gets its own price; New Price is for an existing target
+    if (hasNewPrice(body) && body.newProduct) return response.failure(422, { msg: 'Set the price on the new product instead' }, res)
+    if (hasNewPrice(body) && !canChangePrice(req.user)) return response.failure(401, { msg: 'You do not have permission to change the price!' }, res)
 
     const { fromProduct, toProduct, newProduct, direction, ratio, quantity, note } = body
     if (direction === 'merge' && quantity % ratio !== 0) {
@@ -268,6 +327,11 @@ exports.convert = async (req, res) => {
                 }], { session })
                 undo.push(() => StockConversion.deleteOne({ _id: conversionId }))
 
+                if (hasNewPrice(body)) {
+                    const revertPrice = await applyNewPrice({ productId: target._id, newPrice: body.newPrice, newCurrency: body.newPriceCurrency, cost: createdStock.cost, costCurrency: createdStock.currency, source: 'CONVERSION', stock: createdStock._id, userId: req.user.id, session })
+                    if (revertPrice) undo.push(revertPrice)
+                }
+
                 // updateOne (not findOneAndUpdate) so the image hook on Product doesn't run
                 await Product.updateOne({ _id: fromProduct }, { lastConversion: { product: target._id, direction, ratio } }, { session })
 
@@ -297,6 +361,18 @@ exports.listConversion = async (req, res) => {
             .populate('toProduct', 'name')
             .populate('createdBy', 'username')
         return response.success(200, { data: conversions }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+// Selling-price changes for a product, newest first
+exports.listPriceHistory = async (req, res) => {
+    try {
+        const history = await ProductPriceHistory.find({ product: req.params.productId })
+            .sort({ createdAt: -1 })
+            .populate('createdBy', 'username')
+        return response.success(200, { data: history }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }

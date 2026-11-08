@@ -93,4 +93,13 @@ schema.pre('save', async function (next) {
     }
 })
 
+// Batch costs are only used server side (reports); keep them out of API
+// responses so cashiers never receive stock prices
+schema.set('toJSON', {
+    transform: (doc, ret) => {
+        delete ret.stockCosts
+        return ret
+    }
+})
+
 module.exports = mongoose.model('Transaction', schema)

@@ -12,7 +12,7 @@ mongoose.connect(process.env.DATABASE_URL, {
 .then(async () => {
     try {
         const totalUser = await User.count()
-        if (totalUser > 0) return
+        if (totalUser > 0) return syncDefaultRole()
 
         const { preRole } = require('../constants/roleMap')
         let privilege
@@ -44,3 +44,28 @@ mongoose.connect(process.env.DATABASE_URL, {
     }
 })
 .catch((error) => console.error(error))
+
+// Privileges added after the first deploy are missing from the Super Admin
+// role created back then; grant them so it keeps full access
+async function syncDefaultRole() {
+    try {
+        const { preRole } = require('../constants/roleMap')
+        const roles = await Role.find({ isDefault: true })
+        for (const role of roles) {
+            const privilege = { ...(role.privilege || {}) }
+            let changed = false
+            Object.keys(preRole).forEach(menu => {
+                privilege[menu] = { ...(privilege[menu] || {}) }
+                Object.keys(preRole[menu]).forEach(action => {
+                    if (privilege[menu][action] === undefined) {
+                        privilege[menu][action] = true
+                        changed = true
+                    }
+                })
+            })
+            if (changed) await Role.updateOne({ _id: role._id }, { privilege })
+        }
+    } catch (err) {
+        console.error(err)
+    }
+}

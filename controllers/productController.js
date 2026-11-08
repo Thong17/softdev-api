@@ -16,6 +16,7 @@ const { worksheetOption } = require('../configs/excel')
 const moment = require('moment')
 const Promotion = require('../models/Promotion')
 const { withFallbackProfile } = require('../helpers/productImage')
+const { stockCostFor } = require('../helpers/stockCost')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit)
@@ -38,7 +39,7 @@ exports.index = async (req, res) => {
         const totalCount = await Product.count({ isDeleted: false, ...query  })
         let hasMore = totalCount > offset + limit
         if (search !== '') hasMore = true
-        return response.success(200, { data: products.map(withFallbackProfile), length: totalCount, hasMore }, res)
+        return response.success(200, { data: products.map(withFallbackProfile).map(stockCostFor(req.user)), length: totalCount, hasMore }, res)
     })
         .skip(offset).limit(limit)
         .sort(filterObj)
@@ -88,7 +89,7 @@ exports.list = async (req, res) => {
         let hasMore = totalCount > offset + limit
         if (search !== '' || brand !== 'all' || category !== 'all' || promotion || favorite || promotions) hasMore = true
 
-        return response.success(200, { data: products.map(withFallbackProfile), length: totalCount, hasMore }, res)
+        return response.success(200, { data: products.map(withFallbackProfile).map(stockCostFor(req.user)), length: totalCount, hasMore }, res)
     })  
         .skip(offset).limit(limit)
         .sort(filterObj)
@@ -110,7 +111,7 @@ exports.listCode = async (req, res) => {
             }
         }) }, res)
     })  
-        .select('code isStock stocks name').populate('stocks', 'code')
+        .select('code isStock stocks name price currency').populate('stocks', 'code')
 }
 
 exports.detail = async (req, res) => {
@@ -150,10 +151,39 @@ exports.info = async (req, res) => {
             data.promotionDetail = await Promotion.findById(data.promotion).select('value type isFixed expireAt')
         }
 
-        return response.success(200, { data }, res)
+        return response.success(200, { data: stockCostFor(req.user)(data) }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }   
+}
+
+// Selling price and the batches still in stock, oldest first. Sales take from
+// batches in this order (see determineProductStock), so the first batch of each
+// colour/option variant is marked `nextOut`.
+exports.stockCost = async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id).select('name price currency isStock profile').populate('profile', 'filename')
+        if (!product) return response.failure(404, { msg: 'Product not found' }, res)
+
+        const stocks = await ProductStock.find({ product: product._id, quantity: { $gt: 0 } })
+            .sort({ _id: 1 })
+            .select('cost currency quantity totalQuantity code expireAt color options createdAt conversion')
+            .populate({ path: 'color', model: ProductColor, select: 'name code' })
+            .populate({ path: 'options', model: ProductOption, select: 'name' })
+            .lean()
+
+        const seenVariants = new Set()
+        const data = stocks.map((stock) => {
+            const variant = `${stock.color?._id || ''}|${(stock.options || []).map((option) => option._id).sort().join(',')}`
+            const nextOut = !seenVariants.has(variant)
+            seenVariants.add(variant)
+            return { ...stock, nextOut }
+        })
+
+        return response.success(200, { data: { product: withFallbackProfile(product), stocks: data } }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
 }
 
 // Creates a product and links it to its category, brand and images. Shared by

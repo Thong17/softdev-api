@@ -11,6 +11,9 @@ const createStockValidation = Joi.object({
     product: Joi.string().required(),
     options: Joi.array().optional(),
     customers: Joi.array().optional(),
+    // Optional new selling price, applied together with the stock
+    newPrice: Joi.number().min(0).optional().allow(null, ''),
+    newPriceCurrency: Joi.string().valid('USD', 'KHR').optional().allow(null, ''),
 })
 
 const convertStockValidation = Joi.object({
@@ -36,6 +39,9 @@ const convertStockValidation = Joi.object({
     // Source units consumed; for `merge` it must be a multiple of ratio
     quantity: Joi.number().integer().min(1).required(),
     note: Joi.string().optional().allow(''),
+    // Optional new selling price, applied together with the stock
+    newPrice: Joi.number().min(0).optional().allow(null, ''),
+    newPriceCurrency: Joi.string().valid('USD', 'KHR').optional().allow(null, ''),
 }).xor('toProduct', 'newProduct')
 
 module.exports = {

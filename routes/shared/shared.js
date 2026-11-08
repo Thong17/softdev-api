@@ -6,7 +6,9 @@ const { list: customerList } = require('../../controllers/customerController')
 const { list: brandList } = require('../../controllers/brandController')
 const { list: categoryList } = require('../../controllers/categoryController')
 const { list: presetCashList } = require('../../controllers/presetController')
-const { info: productInfo, listCode } = require('../../controllers/productController')
+const { info: productInfo, listCode, stockCost } = require('../../controllers/productController')
+const security = require('../../middleware/security')
+const { privilege } = require('../../constants/roleMap')
 const { listStructure: structureList } = require('../../controllers/storeController')
 const { list: notificationList, count: notificationCount } = require('../../controllers/notificationController')
 const response = require('../../helpers/response')
@@ -18,6 +20,10 @@ const uploadPicture = minioStorage.single('picture')
 
 router.get('/product/info/:id', (req, res) => {
   productInfo(req, res)
+})
+
+router.get('/product/stock-cost/:id', security.role(privilege.product.viewCost), (req, res) => {
+  stockCost(req, res)
 })
 
 router.get('/role/list', (req, res) => {
