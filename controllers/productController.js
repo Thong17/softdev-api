@@ -15,6 +15,7 @@ const { Workbook } = require('exceljs')
 const { worksheetOption } = require('../configs/excel')
 const moment = require('moment')
 const Promotion = require('../models/Promotion')
+const { withFallbackProfile } = require('../helpers/productImage')
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit)
@@ -37,7 +38,7 @@ exports.index = async (req, res) => {
         const totalCount = await Product.count({ isDeleted: false, ...query  })
         let hasMore = totalCount > offset + limit
         if (search !== '') hasMore = true
-        return response.success(200, { data: products, length: totalCount, hasMore }, res)
+        return response.success(200, { data: products.map(withFallbackProfile), length: totalCount, hasMore }, res)
     })
         .skip(offset).limit(limit)
         .sort(filterObj)
@@ -87,7 +88,7 @@ exports.list = async (req, res) => {
         let hasMore = totalCount > offset + limit
         if (search !== '' || brand !== 'all' || category !== 'all' || promotion || favorite || promotions) hasMore = true
 
-        return response.success(200, { data: products, length: totalCount, hasMore }, res)
+        return response.success(200, { data: products.map(withFallbackProfile), length: totalCount, hasMore }, res)
     })  
         .skip(offset).limit(limit)
         .sort(filterObj)
