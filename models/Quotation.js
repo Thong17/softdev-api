@@ -47,8 +47,42 @@ const schema = mongoose.Schema(
                 note: {
                     type: String
                 },
+                // Kept so converting to cashing takes stock from the right batches
+                color: {
+                    type: mongoose.Schema.ObjectId,
+                    ref: 'ProductColor'
+                },
+                options: [{
+                    type: mongoose.Schema.ObjectId,
+                    ref: 'ProductOption'
+                }],
+                customerOption: {
+                    type: mongoose.Schema.ObjectId,
+                    ref: 'CustomerOption'
+                },
             }
         ],
+        // The quoted prices are honoured until this date
+        expireAt: {
+            type: Date
+        },
+        // DRAFT until a cashing payment is created from it; CONVERTED is locked
+        status: {
+            type: String,
+            enum: ['DRAFT', 'CONVERTED'],
+            default: 'DRAFT'
+        },
+        payment: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Payment'
+        },
+        convertedAt: {
+            type: Date
+        },
+        convertedBy: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'User'
+        },
         discounts: {
             type: Array,
         },

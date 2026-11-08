@@ -19,6 +19,9 @@ const itemSchema = Joi.object({
     }).required(),
     profile: Joi.string().allow(null, '').optional(),
     note: Joi.string().allow(null, '').optional(),
+    color: Joi.string().allow(null, '').optional(),
+    options: Joi.array().items(Joi.string()).optional(),
+    customerOption: Joi.string().allow(null, '').optional(),
 })
 
 const quotationValidation = Joi.object({
@@ -32,6 +35,7 @@ const quotationValidation = Joi.object({
         sellRate: Joi.number().optional(),
     }).optional(),
     note: Joi.string().allow(null, '').optional(),
+    expireAt: Joi.date().allow(null, '').optional(),
 })
 
 module.exports = {

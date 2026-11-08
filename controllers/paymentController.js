@@ -1,6 +1,7 @@
 const Drawer = require('../models/Drawer')
 const Payment = require('../models/Payment')
 const Transaction = require('../models/Transaction')
+const Quotation = require('../models/Quotation')
 const StoreSetting = require('../models/StoreSetting')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
@@ -100,6 +101,14 @@ exports.create = async (req, res) => {
         Payment.create(mappedBody, async (err, payment) => {
             if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
             if (!payment) return response.failure(422, { msg: 'No payment created!' }, res, err)
+
+            // A sale made from a quotation locks that quotation
+            if (body.quotation) {
+                await Quotation.updateOne(
+                    { _id: body.quotation, status: { $ne: 'CONVERTED' } },
+                    { status: 'CONVERTED', payment: payment._id, convertedAt: new Date(), convertedBy: req.user.id }
+                )
+            }
 
             let data = await payment.populate('customer')
             data = await payment.populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })

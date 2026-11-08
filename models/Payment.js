@@ -68,6 +68,11 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Reservation'
         },
+        // Set when the sale was converted from a quotation
+        quotation: {
+            type: mongoose.Schema.ObjectId,
+            ref: 'Quotation'
+        },
         groupPayment: {
             type: mongoose.Schema.ObjectId,
             ref: 'GroupPayment'

@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { index, detail, create, update, _delete, _export } = require('../../controllers/quotationController')
+const { index, detail, create, update, _delete, _export, convert } = require('../../controllers/quotationController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -21,6 +21,11 @@ router.put('/update/:id', security.role(privilege.quotation.update), security.au
 
 router.delete('/delete/:id', security.role(privilege.quotation.delete), security.audit(), (req, res) => {
     _delete(req, res)
+})
+
+// Creates cart items like cashing does, so it also needs the cashing privilege
+router.post('/convert/:id', security.role(privilege.quotation.detail), security.role(privilege.transaction.create), security.audit(), (req, res) => {
+    convert(req, res)
 })
 
 router.post('/excel/export/:id', security.role(privilege.quotation.detail), (req, res) => {

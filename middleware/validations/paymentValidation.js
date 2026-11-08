@@ -6,7 +6,8 @@ const createPaymentValidation = Joi.object({
     discounts: Joi.array().required(),
     vouchers: Joi.array().required(),
     customer: Joi.string().optional().allow(null),
-    table: Joi.string().optional().allow('')
+    table: Joi.string().optional().allow(''),
+    quotation: Joi.string().optional().allow(null)
 })
 
 const checkoutPaymentValidation = Joi.object({
