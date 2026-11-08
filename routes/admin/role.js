@@ -32,11 +32,11 @@ router.get('/preRole', (req, res) => {
     getPreRole(req, res)
 }) 
 
-router.post('/excel/import', memoryStorage.single('excel'), (req, res) => {
+router.post('/excel/import', security.role(privilege.role.create), memoryStorage.single('excel'), (req, res) => {
     _import(req, res)
 })
 
-router.post('/batch', security.audit(), (req, res) => {
+router.post('/batch', security.role(privilege.role.create), security.audit(), (req, res) => {
     batch(req, res)
 })
 

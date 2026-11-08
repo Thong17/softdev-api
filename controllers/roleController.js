@@ -3,6 +3,10 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
 const { createRoleValidation } = require('../middleware/validations/roleValidation')
+const { isSuperAdmin, roleVisibilityFilter } = require('../helpers/superAdmin')
+
+// Super Admin roles answer "not found" to everyone else, so they stay hidden
+const findVisibleRole = (req) => Role.findOne({ _id: req.params.id, ...roleVisibilityFilter(req.user) })
 
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
@@ -20,10 +24,11 @@ exports.index = async (req, res) => {
         }
     }
 
-    Role.find({ isDisabled: false, ...query }, async (err, roles) => {
+    const visibility = roleVisibilityFilter(req.user)
+    Role.find({ isDisabled: false, ...query, ...visibility }, async (err, roles) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await Role.count({ isDisabled: false })
+        const totalCount = await Role.count({ isDisabled: false, ...visibility })
         return response.success(200, { data: roles, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -32,14 +37,18 @@ exports.index = async (req, res) => {
 }
 
 exports.detail = async (req, res) => {
-    Role.findById(req.params.id, (err, role) => {
-        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    try {
+        const role = await findVisibleRole(req)
+        if (!role) return response.failure(404, { msg: 'Role not found' }, res)
         return response.success(200, { data: role }, res)
-    })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
 }
 
+// Roles offered when creating or editing a user
 exports.list = async (req, res) => {
-    Role.find({ isDisabled: false }, (err, roles) => {
+    Role.find({ isDisabled: false, ...roleVisibilityFilter(req.user) }, (err, roles) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
         return response.success(200, { data: roles }, res)
     }).select('name privilege')
@@ -75,6 +84,8 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
+        if (!(await findVisibleRole(req))) return response.failure(404, { msg: 'Role not found' }, res)
+
         Role.findByIdAndUpdate(req.params.id, body, (err, role) => {
             if (err) {
                 switch (err.code) {
@@ -93,8 +104,9 @@ exports.update = async (req, res) => {
 
 exports.disable = async (req, res) => {
     try {
-        const role = await Role.findById(req.params.id)
-        if (role?.isDefault) return response.failure(422, { msg: 'Default role cannot be delete' }, res)
+        const role = await findVisibleRole(req)
+        if (!role) return response.failure(404, { msg: 'Role not found' }, res)
+        if (role.isDefault) return response.failure(422, { msg: 'Default role cannot be delete' }, res)
 
         Role.findByIdAndUpdate(req.params.id, { isDisabled: true }, (err, role) => {
             if (err) {
@@ -138,6 +150,9 @@ exports.batch = async (req, res) => {
         roles.forEach(role => {
             role.privilege = JSON.parse(role.privilege)
             role.name = JSON.parse(role.name)
+            // Imports can never create another Super Admin role
+            role.isDefault = false
+            role.createdBy = req.user.id
         })
 
         Role.insertMany(roles)

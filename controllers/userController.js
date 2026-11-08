@@ -5,8 +5,15 @@ const Profile = require('../models/Profile')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel, encryptPassword, comparePassword, validatePassword } = require('../helpers/utils')
 const { createUserValidation, updateUserValidation } = require('../middleware/validations/userValidation')
+const { isSuperAdmin, userVisibilityFilter, isSuperAdminUser, isSuperAdminRoleId } = require('../helpers/superAdmin')
 
-exports.index = (req, res) => {
+// Super Admin users answer "not found" to everyone else, so they stay hidden
+const findVisibleUser = async (req) => User.findOne({ _id: req.params.id, ...(await userVisibilityFilter(req.user)) })
+
+const cannotAssignRole = async (req, roleId) => !isSuperAdmin(req.user) && await isSuperAdminRoleId(roleId)
+const ASSIGN_DENIED = { msg: 'You do not have permission to assign this role!' }
+
+exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
     const page = parseInt(req.query.page) || 0
     const search = req.query.search?.replace(/ /g,'')
@@ -22,10 +29,11 @@ exports.index = (req, res) => {
         }
     }
 
-    User.find({ isDisabled: false, ...query }, async (err, users) => {
+    const visibility = await userVisibilityFilter(req.user)
+    User.find({ isDisabled: false, ...query, ...visibility }, async (err, users) => {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
-        const totalCount = await User.count({ isDisabled: false })
+        const totalCount = await User.count({ isDisabled: false, ...visibility })
         return response.success(200, { data: users, length: totalCount }, res)
     })
         .skip(page * limit).limit(limit)
@@ -33,11 +41,14 @@ exports.index = (req, res) => {
         .populate('role')
 }
 
-exports.detail = (req, res) => {
-    User.findById(req.params.id, (err, user) => {
-        if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
+exports.detail = async (req, res) => {
+    try {
+        const user = await findVisibleUser(req)
+        if (!user) return response.failure(404, { msg: 'User not found' }, res)
         return response.success(200, { data: user }, res)
-    })
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
 }
 
 exports.profileDetail = async (req, res) => {
@@ -88,6 +99,8 @@ exports.create = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
+        if (await cannotAssignRole(req, body.role)) return response.failure(403, ASSIGN_DENIED, res)
+
         const password = await encryptPassword(body.password)
         body.expireAt = body.expireAt || null
         User.create({...body, password, createdBy: req.user.id}, (err, user) => {
@@ -115,6 +128,10 @@ exports.update = async (req, res) => {
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     try {
+        // Also covers resetting a Super Admin's password or changing their role
+        if (!(await findVisibleUser(req))) return response.failure(404, { msg: 'User not found' }, res)
+        if (await cannotAssignRole(req, body.role)) return response.failure(403, ASSIGN_DENIED, res)
+
         if (body.password !== '') {
             if (body.password.length < 7) return response.failure(422, { msg: 'Password must be at least 7 characters!' }, res)
             if (!validatePassword(body.password)) return response.failure(422, { msg: 'Strong password is required!' }, res)
@@ -143,8 +160,9 @@ exports.update = async (req, res) => {
 exports.disable = async (req, res) => {
     const id = req.params.id
     try {
-        const user = await User.findById(id)
-        if (user?.isDefault) return response.failure(422, { msg: 'Default user cannot be delete' }, res)
+        const user = await findVisibleUser(req)
+        if (!user) return response.failure(404, { msg: 'User not found' }, res)
+        if (user.isDefault) return response.failure(422, { msg: 'Default user cannot be delete' }, res)
 
         User.findByIdAndUpdate(id, { isDisabled: true }, (err, user) => {
             if (err) {
@@ -176,8 +194,15 @@ exports.batch = async (req, res) => {
         const users = req.body
         const password = await encryptPassword('default')
 
+        for (const user of users) {
+            if (await cannotAssignRole(req, user.role)) return response.failure(403, ASSIGN_DENIED, res)
+        }
+
         users.forEach(user => {
             user.password = password
+            // Imports can never create another default user
+            user.isDefault = false
+            user.createdBy = req.user.id
         })
 
         User.insertMany(users)
