@@ -65,6 +65,9 @@ const schema = mongoose.Schema(
                 type: mongoose.Schema.ObjectId,
                 ref: 'Product'
             },
+            direction: {
+                type: String
+            },
             ratio: {
                 type: Number
             },

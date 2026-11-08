@@ -19,7 +19,7 @@ exports.stock = async (req, res) => {
     const product = req.query.productId
     try {
         ProductStock.find({ isDeleted: false, product }).populate('color').populate('options')
-            .populate({ path: 'conversion', select: 'fromProduct quantity ratio', populate: { path: 'fromProduct', select: 'name' } })
+            .populate({ path: 'conversion', select: 'fromProduct quantity direction ratio', populate: { path: 'fromProduct', select: 'name' } })
             .exec((err, stocks) => {
             if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
 
@@ -150,16 +150,18 @@ const runAtomic = async (work) => {
 }
 
 exports.convert = async (req, res) => {
-    const body = req.body
-    const { error } = convertStockValidation.validate(body, { abortEarly: false })
+    const { error, value: body } = convertStockValidation.validate(req.body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
 
     if (body.newProduct && !req.user.role?.privilege?.product?.create) {
         return response.failure(401, { msg: 'You do not have permission to create product!' }, res)
     }
 
-    const { fromProduct, toProduct, newProduct, ratio, quantity, note } = body
-    const producedQuantity = quantity * ratio
+    const { fromProduct, toProduct, newProduct, direction, ratio, quantity, note } = body
+    if (direction === 'merge' && quantity % ratio !== 0) {
+        return response.failure(422, { msg: `Quantity must be a multiple of ${ratio} to combine` }, res)
+    }
+    const producedQuantity = direction === 'merge' ? quantity / ratio : quantity * ratio
     const sellRate = req.user.drawer?.sellRate || 4000
 
     try {
@@ -253,6 +255,7 @@ exports.convert = async (req, res) => {
                     fromProduct,
                     toProduct: target._id,
                     quantity,
+                    direction,
                     ratio,
                     producedQuantity,
                     consumedStocks,
@@ -266,7 +269,7 @@ exports.convert = async (req, res) => {
                 undo.push(() => StockConversion.deleteOne({ _id: conversionId }))
 
                 // updateOne (not findOneAndUpdate) so the image hook on Product doesn't run
-                await Product.updateOne({ _id: fromProduct }, { lastConversion: { product: target._id, ratio } }, { session })
+                await Product.updateOne({ _id: fromProduct }, { lastConversion: { product: target._id, direction, ratio } }, { session })
 
                 return { conversion, targetProduct: target, createdStock, remaining: available - quantity }
             } catch (err) {

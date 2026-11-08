@@ -14,12 +14,17 @@ const schema = mongoose.Schema(
             ref: 'Product',
             required: true
         },
-        // Number of bundles taken from `fromProduct`
+        // Units taken from `fromProduct`
         quantity: {
             type: Number,
             required: true
         },
-        // How many `toProduct` units one bundle makes
+        // `split`: 1 source = ratio target; `merge`: ratio source = 1 target
+        direction: {
+            type: String,
+            enum: ['split', 'merge'],
+            default: 'split'
+        },
         ratio: {
             type: Number,
             required: true

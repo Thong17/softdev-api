@@ -29,7 +29,11 @@ const convertStockValidation = Joi.object({
         brand: Joi.string().optional().allow(''),
         category: Joi.string().optional().allow(''),
     }),
+    // `split`: 1 source = ratio target (ream → sheets)
+    // `merge`: ratio source = 1 target (sheets → ream)
+    direction: Joi.string().valid('split', 'merge').default('split'),
     ratio: Joi.number().integer().min(1).required(),
+    // Source units consumed; for `merge` it must be a multiple of ratio
     quantity: Joi.number().integer().min(1).required(),
     note: Joi.string().optional().allow(''),
 }).xor('toProduct', 'newProduct')
