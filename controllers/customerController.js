@@ -185,7 +185,7 @@ exports.batch = async (req, res) => {
         })
 }
 
-// Groups and sources already used, for the Customer RM filters and form
+// Groups and sources already used, for the customer list filters and form
 exports.options = async (req, res) => {
     try {
         const [groups, sources] = await Promise.all([
@@ -198,7 +198,7 @@ exports.options = async (req, res) => {
     }
 }
 
-// Customer RM (newest customers first by default): each customer with their last purchase, number of sales and
+// Customer list (newest customers first by default): each customer with their last purchase, number of sales and
 // total spent (USD). `inactiveDays` keeps only customers with no purchase in
 // that many days (including those who never bought). `days` in each row is
 // the number of days since the last purchase, null when there is none.

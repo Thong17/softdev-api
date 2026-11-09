@@ -12,6 +12,11 @@ exports.privilege = {
             route: 'menu',
             action: 'promotion'
         },
+        // Function › Customer in the side menu
+        customer: {
+            route: 'menu',
+            action: 'customer'
+        },
         operation: {
             route: 'menu',
             action: 'operation'
@@ -144,9 +149,9 @@ exports.privilege = {
             route: 'function',
             action: 'banner'
         },
-        customerRm: {
+        customer: {
             route: 'function',
-            action: 'customerRm'
+            action: 'customer'
         },
     },
     report: {

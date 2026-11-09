@@ -9,7 +9,7 @@ router.get('/', security.role(privilege.customer.list), (req, res) => {
     index(req, res)
 })
 
-// Customer RM list: last purchase, spending and the "no purchase" remark
+// Customer list (Function › Customer): last purchase, spending and the "no purchase" remark
 router.get('/rm', security.role(privilege.customer.list), (req, res) => {
     rm(req, res)
 })
