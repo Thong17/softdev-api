@@ -3,6 +3,7 @@ const { memoryStorage } = require('../../configs/multer')
 const { index, create, update, detail, disable, _import, batch, rm, options } = require('../../controllers/customerController')
 const security = require('../../middleware/security')
 const customerTier = require('../../controllers/customerTierController')
+const priceHistory = require('../../controllers/priceHistoryController')
 const { privilege } = require('../../constants/roleMap')
 
 router.get('/', security.role(privilege.customer.list), (req, res) => {
@@ -29,6 +30,12 @@ router.post('/tier/recalculate', security.role(privilege.customer.update), secur
 
 router.get('/tier/status/:id', security.role(privilege.customer.detail), (req, res) => {
     customerTier.status(req, res)
+})
+
+// What customers paid per product; the controller checks customer or
+// product access depending on the filter
+router.get('/price-history', (req, res) => {
+    priceHistory.list(req, res)
 })
 
 router.get('/options', security.role(privilege.customer.list), (req, res) => {
