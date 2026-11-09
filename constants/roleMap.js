@@ -143,7 +143,11 @@ exports.privilege = {
         banner: {
             route: 'function',
             action: 'banner'
-        }
+        },
+        customerRm: {
+            route: 'function',
+            action: 'customerRm'
+        },
     },
     report: {
         sale: {
@@ -252,6 +256,28 @@ exports.privilege = {
         },
         delete: {
             route: 'brand',
+            action: 'delete'
+        },
+    },
+    customer: {
+        list: {
+            route: 'customer',
+            action: 'list'
+        },
+        detail: {
+            route: 'customer',
+            action: 'detail'
+        },
+        create: {
+            route: 'customer',
+            action: 'create'
+        },
+        update: {
+            route: 'customer',
+            action: 'update'
+        },
+        delete: {
+            route: 'customer',
             action: 'delete'
         },
     },

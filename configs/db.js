@@ -5,6 +5,8 @@ const StoreFloor = require('../models/StoreFloor')
 const StoreSetting = require('../models/StoreSetting')
 const User = require('../models/User')
 const { encryptPassword } = require('../helpers/utils')
+const { syncRolePrivileges } = require('../helpers/rolePrivileges')
+const { startTierSchedule } = require('../helpers/customerTier')
 
 mongoose.connect(process.env.DATABASE_URL, {
     useNewUrlParser: true,
@@ -12,7 +14,10 @@ mongoose.connect(process.env.DATABASE_URL, {
 .then(async () => {
     try {
         const totalUser = await User.count()
-        if (totalUser > 0) return syncDefaultRole()
+        if (totalUser > 0) {
+            await syncRolePrivileges()
+            return startTierSchedule()
+        }
 
         const { preRole } = require('../constants/roleMap')
         let privilege
@@ -39,33 +44,9 @@ mongoose.connect(process.env.DATABASE_URL, {
         await StoreFloor.create({})
         await StoreSetting.create({})
         console.log('Mongo Client is connected...')
+        await startTierSchedule()
     } catch (err) {
         console.error(err)
     }
 })
 .catch((error) => console.error(error))
-
-// Privileges added after the first deploy are missing from the Super Admin
-// role created back then; grant them so it keeps full access
-async function syncDefaultRole() {
-    try {
-        const { preRole } = require('../constants/roleMap')
-        const roles = await Role.find({ isDefault: true })
-        for (const role of roles) {
-            const privilege = { ...(role.privilege || {}) }
-            let changed = false
-            Object.keys(preRole).forEach(menu => {
-                privilege[menu] = { ...(privilege[menu] || {}) }
-                Object.keys(preRole[menu]).forEach(action => {
-                    if (privilege[menu][action] === undefined) {
-                        privilege[menu][action] = true
-                        changed = true
-                    }
-                })
-            })
-            if (changed) await Role.updateOne({ _id: role._id }, { privilege })
-        }
-    } catch (err) {
-        console.error(err)
-    }
-}

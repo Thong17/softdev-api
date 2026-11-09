@@ -1,3 +1,4 @@
+const { onPaymentCompleted } = require('../helpers/customerTier')
 const Drawer = require('../models/Drawer')
 const Payment = require('../models/Payment')
 const Transaction = require('../models/Transaction')
@@ -175,7 +176,9 @@ exports.checkout = async (req, res) => {
                     const customer = await Customer.findById(data.customer)
                     const paymentPoint = payment.total.currency === 'USD' ? payment.total.value : payment.total.value / payment.rate.buyRate
                     customer.point = customer.point + paymentPoint
-                    customer.save()
+                    await customer.save()
+                    // May move the customer up a tier
+                    onPaymentCompleted(customer._id)
                 }
 
                 // Send message to Telegram
@@ -343,6 +346,7 @@ exports.groupCheckout = async (req, res) => {
                 const paymentPoint = data.total.currency === 'USD' ? data.total.value : data.total.value / data.rate.buyRate
                 // eslint-disable-next-line no-await-in-loop
                 await utils.calculateCustomerPoint({ customerId: data.customer, paymentPoint })
+                onPaymentCompleted(data.customer?._id || data.customer)
             }
 
             // send telegram per payment if enabled

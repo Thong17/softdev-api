@@ -1,3 +1,4 @@
+const { onPaymentCompleted } = require('../helpers/customerTier')
 const Loan = require('../models/Loan')
 const LoanPayment = require('../models/LoanPayment')
 const Drawer = require('../models/Drawer')
@@ -252,6 +253,8 @@ exports.payment = async (req, res) => {
                     KHR: totalRemain * drawer.sellRate,
                 }
                 await loan.save()
+                // A paid installment counts towards the customer's tier
+                onPaymentCompleted(loan.customer)
 
                 // Send message to Telegram
                 const storeConfig = await StoreSetting.findOne()

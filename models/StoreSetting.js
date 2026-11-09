@@ -49,7 +49,15 @@ const schema = mongoose.Schema(
         storePrinterCharPerLine: {
             type: Number,
             default: 32
-        }
+        },
+        // Customer tiers: months of spending counted, and the last re-check
+        customerTierMonths: {
+            type: Number,
+            default: 12
+        },
+        customerTierCheckedAt: {
+            type: Date
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
