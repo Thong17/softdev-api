@@ -11,6 +11,7 @@ const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 const { listStructure: structureList } = require('../../controllers/storeController')
 const { list: notificationList, count: notificationCount } = require('../../controllers/notificationController')
+const { getFeatures: storeFeatures } = require('../../controllers/storeController')
 const response = require('../../helpers/response')
 const { uploadImageController, uploadIconController, uploadPictureController, structureCapacity } = require('../../controllers/sharedController')
 
@@ -24,6 +25,11 @@ router.get('/product/info/:id', (req, res) => {
 
 router.get('/product/stock-cost/:id', security.role(privilege.product.viewCost), (req, res) => {
   stockCost(req, res)
+})
+
+// Store feature switches (any signed-in user)
+router.get('/store/features', (req, res) => {
+  storeFeatures(req, res)
 })
 
 router.get('/role/list', (req, res) => {

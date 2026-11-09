@@ -1,6 +1,6 @@
 const router = require('express').Router()
 const { memoryStorage } = require('../../configs/multer')
-const { index, create, update, detail, disable, _import, batch, floors, listTransfer, structures, layout, updateLayout, createFloor, updateFloor, disableFloor, createTransfer, updateTransfer, deleteTransfer, updateStoreSetting: updateTelegramSetting, getStoreSetting: getTelegramSetting, updateInvoiceSetting } = require('../../controllers/storeController')
+const { index, create, update, detail, disable, _import, batch, floors, listTransfer, structures, layout, updateLayout, createFloor, updateFloor, disableFloor, createTransfer, updateTransfer, deleteTransfer, updateStoreSetting: updateTelegramSetting, getStoreSetting: getTelegramSetting, updateInvoiceSetting, updatePrintingSetting, updateFeatureSetting } = require('../../controllers/storeController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 
@@ -78,6 +78,14 @@ router.post('/batch', security.audit(), (req, res) => {
 
 router.get('/getTelegramSetting', security.role(privilege.store.detail), security.audit(), (req, res) => {
     getTelegramSetting(req, res)
+})
+
+router.put('/printing-setting', security.role(privilege.store.update), security.audit(), (req, res) => {
+    updatePrintingSetting(req, res)
+})
+
+router.put('/feature-setting', security.role(privilege.store.update), security.audit(), (req, res) => {
+    updateFeatureSetting(req, res)
 })
 
 router.put('/invoice-setting', security.role(privilege.store.update), security.audit(), (req, res) => {

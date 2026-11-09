@@ -58,6 +58,14 @@ const schema = mongoose.Schema(
         customerTierCheckedAt: {
             type: Date
         },
+        // Parts of the app a store can switch off (e.g. a stationery shop has
+        // no tables). Off only hides them; nothing is deleted.
+        features: {
+            labelPrinting: { type: Boolean, default: true },
+            tables: { type: Boolean, default: true },
+            reservation: { type: Boolean, default: true },
+            queue: { type: Boolean, default: true },
+        },
         // A4 / A5 invoices that can be printed or saved as PDF
         softInvoice: {
             enabled: { type: Boolean, default: false },

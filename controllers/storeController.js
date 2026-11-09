@@ -2,7 +2,7 @@ const Store = require('../models/Store')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel, sendMessageTelegram } = require('../helpers/utils')
-const { createStoreValidation, createFloorValidation, transferValidation, updateTelegramSettingValidation, updateInvoiceSettingValidation } = require('../middleware/validations/storeValidation')
+const { createStoreValidation, createFloorValidation, transferValidation, updateTelegramSettingValidation, updateInvoiceSettingValidation, updatePrintingSettingValidation, updateFeatureSettingValidation } = require('../middleware/validations/storeValidation')
 const StoreFloor = require('../models/StoreFloor')
 const Transfer = require('../models/Transfer')
 const StoreStructure = require('../models/StoreStructure')
@@ -323,6 +323,7 @@ exports.getStoreSetting = async (req, res) => {
             storePrinterName: setting.storePrinterName, 
             storePrinterCharPerLine: setting.storePrinterCharPerLine,
             softInvoice: setting.softInvoice,
+            features: setting.features,
         } }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -362,6 +363,45 @@ exports.updateInvoiceSetting = async (req, res) => {
         const softInvoice = { showLogo: true, footer: '', ...value }
         const setting = await StoreSetting.findOneAndUpdate({}, { $set: { softInvoice } }, { upsert: true, new: true, setDefaultsOnInsert: true })
         return response.success(200, { msg: 'Invoice setting has been saved', data: setting.softInvoice }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+const defaultFeatures = { labelPrinting: true, tables: true, reservation: true, queue: true }
+
+// Receipt, store-copy and label printer settings (Store › Printing)
+exports.updatePrintingSetting = async (req, res) => {
+    const { error, value } = updatePrintingSettingValidation.validate(req.body, { abortEarly: false, stripUnknown: true })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+    try {
+        const setting = await StoreSetting.findOneAndUpdate({}, { $set: value }, { upsert: true, new: true, setDefaultsOnInsert: true })
+        const data = {}
+        Object.keys(updatePrintingSettingValidation.describe().keys).forEach((key) => { data[key] = setting[key] })
+        return response.success(200, { msg: 'Printing setting has been saved', data }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+// Which optional parts of the app the store uses (Store › Features)
+exports.updateFeatureSetting = async (req, res) => {
+    const { error, value } = updateFeatureSettingValidation.validate(req.body, { abortEarly: false, stripUnknown: true })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+    try {
+        const setting = await StoreSetting.findOneAndUpdate({}, { $set: { features: value } }, { upsert: true, new: true, setDefaultsOnInsert: true })
+        return response.success(200, { msg: 'Features have been saved', data: setting.features }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+// Feature switches for every signed-in user, so screens can hide what the
+// store doesn't use
+exports.getFeatures = async (req, res) => {
+    try {
+        const setting = await StoreSetting.findOne().select('features').lean()
+        return response.success(200, { data: { ...defaultFeatures, ...(setting?.features || {}) } }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }

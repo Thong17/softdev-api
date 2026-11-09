@@ -43,7 +43,27 @@ const updateInvoiceSettingValidation = Joi.object({
     footer: Joi.string().max(500).optional().allow(''),
 })
 
+const updatePrintingSettingValidation = Joi.object({
+    receiptPrinterName: Joi.string().optional().allow(''),
+    receiptPrinterCharPerLine: Joi.number().min(0).optional().allow(''),
+    storePrinterName: Joi.string().optional().allow(''),
+    storePrinterCharPerLine: Joi.number().min(0).optional().allow(''),
+    thermalPrinterName: Joi.string().optional().allow(''),
+    thermalPrinterWidth: Joi.number().min(0).optional().allow(''),
+    thermalPrinterHeight: Joi.number().min(0).optional().allow(''),
+    thermalPrinterGap: Joi.number().min(0).optional().allow(''),
+})
+
+const updateFeatureSettingValidation = Joi.object({
+    labelPrinting: Joi.boolean().required(),
+    tables: Joi.boolean().required(),
+    reservation: Joi.boolean().required(),
+    queue: Joi.boolean().required(),
+})
+
 module.exports = {
+    updatePrintingSettingValidation,
+    updateFeatureSettingValidation,
     updateInvoiceSettingValidation,
     createStoreValidation,
     createFloorValidation,
