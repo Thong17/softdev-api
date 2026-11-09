@@ -2,10 +2,20 @@ const router = require('express').Router()
 const { memoryStorage } = require('../../configs/multer')
 const { index, create, checkout, update, detail, _import, batch, groupPayment, groupCheckout } = require('../../controllers/paymentController')
 const security = require('../../middleware/security')
+const invoice = require('../../controllers/invoiceController')
 const { privilege } = require('../../constants/roleMap')
 
 router.get('/', security.role(privilege.payment.list), (req, res) => {
     index(req, res)
+})
+
+// A4 / A5 soft invoice data for one sale or a group payment
+router.get('/invoice/group/:id', security.role(privilege.payment.detail), (req, res) => {
+    invoice.group(req, res)
+})
+
+router.get('/invoice/:id', security.role(privilege.payment.detail), (req, res) => {
+    invoice.sale(req, res)
 })
 
 router.get('/detail/:id', security.role(privilege.payment.detail), (req, res) => {

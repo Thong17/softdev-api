@@ -36,7 +36,15 @@ const updateTelegramSettingValidation = Joi.object({
     storePrinterCharPerLine: Joi.number().optional().allow(''),
 })
 
+const updateInvoiceSettingValidation = Joi.object({
+    enabled: Joi.boolean().required(),
+    paperSize: Joi.string().valid('A4', 'A5').required(),
+    showLogo: Joi.boolean().optional(),
+    footer: Joi.string().max(500).optional().allow(''),
+})
+
 module.exports = {
+    updateInvoiceSettingValidation,
     createStoreValidation,
     createFloorValidation,
     transferValidation,

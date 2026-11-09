@@ -2,7 +2,7 @@ const Store = require('../models/Store')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel, sendMessageTelegram } = require('../helpers/utils')
-const { createStoreValidation, createFloorValidation, transferValidation, updateTelegramSettingValidation } = require('../middleware/validations/storeValidation')
+const { createStoreValidation, createFloorValidation, transferValidation, updateTelegramSettingValidation, updateInvoiceSettingValidation } = require('../middleware/validations/storeValidation')
 const StoreFloor = require('../models/StoreFloor')
 const Transfer = require('../models/Transfer')
 const StoreStructure = require('../models/StoreStructure')
@@ -321,7 +321,8 @@ exports.getStoreSetting = async (req, res) => {
             thermalPrinterHeight: setting.thermalPrinterHeight, 
             thermalPrinterGap: setting.thermalPrinterGap,
             storePrinterName: setting.storePrinterName, 
-            storePrinterCharPerLine: setting.storePrinterCharPerLine, 
+            storePrinterCharPerLine: setting.storePrinterCharPerLine,
+            softInvoice: setting.softInvoice,
         } }, res)
     } catch (err) {
         if (err) return response.failure(422, { msg: failureMsg.trouble }, res, err)
@@ -352,3 +353,16 @@ exports.updateStoreSetting = async (req, res) => {
     }
 }
 
+// Soft invoice (A4 / A5 print and PDF) settings. Saved on their own so the
+// Telegram test message isn't sent like it is for the Telegram settings.
+exports.updateInvoiceSetting = async (req, res) => {
+    const { error, value } = updateInvoiceSettingValidation.validate(req.body, { abortEarly: false, stripUnknown: true })
+    if (error) return response.failure(422, extractJoiErrors(error), res)
+    try {
+        const softInvoice = { showLogo: true, footer: '', ...value }
+        const setting = await StoreSetting.findOneAndUpdate({}, { $set: { softInvoice } }, { upsert: true, new: true, setDefaultsOnInsert: true })
+        return response.success(200, { msg: 'Invoice setting has been saved', data: setting.softInvoice }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}

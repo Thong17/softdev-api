@@ -58,6 +58,14 @@ const schema = mongoose.Schema(
         customerTierCheckedAt: {
             type: Date
         },
+        // A4 / A5 invoices that can be printed or saved as PDF
+        softInvoice: {
+            enabled: { type: Boolean, default: false },
+            paperSize: { type: String, enum: ['A4', 'A5'], default: 'A4' },
+            showLogo: { type: Boolean, default: true },
+            // Printed at the bottom, e.g. bank account or return policy
+            footer: { type: String, default: '' },
+        },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }
