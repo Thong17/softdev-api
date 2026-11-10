@@ -104,6 +104,8 @@ const schema = mongoose.Schema(
                 type: { type: String, default: 'PCT' },
                 amount: { type: Number, default: 0 },
             },
+            // Fees added later, when collecting (USD, summed)
+            collectFees: { type: Number, default: 0 },
         },
         transactions: [{
             type: mongoose.Schema.ObjectId,

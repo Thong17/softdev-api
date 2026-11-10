@@ -13,6 +13,7 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, calculateReturnCashes, checkoutTransaction, calculateCustomerPoint } = require('../helpers/utils')
 const { onPaymentCompleted } = require('../helpers/customerTier')
+const { installmentCost } = require('../helpers/payLaterRevenue')
 
 const TOLERANCE = 0.01
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100
@@ -50,6 +51,11 @@ const checkoutLaterValidation = Joi.object({
 })
 
 const collectValidation = Joi.object({
+    // Optional fee added to what's owed with this collection (e.g. late fee)
+    fee: Joi.object({
+        value: Joi.number().min(0).optional().allow(null, ''),
+        type: Joi.string().valid('PCT', 'USD', 'KHR').optional(),
+    }).optional().allow(null),
     receiveCashes: Joi.array().optional(),
     receiveTotal: Joi.object().required(),
     paymentMethod: Joi.string().valid('cash', 'transfer').optional().allow(null, ''),
@@ -59,8 +65,9 @@ const collectValidation = Joi.object({
 // the drawer (like checkout does), saves the installment, adds customer
 // points and may move the customer up a tier. `due` is what is still owed
 // before this payment; anything above it is change.
-const recordInstallment = async ({ payment, received, due, receiveCashes, receiveTotal, paymentMethod, drawer, userId, kind, groupPayment }) => {
+const recordInstallment = async ({ payment, received, due, receiveCashes, receiveTotal, paymentMethod, drawer, userId, kind, groupPayment, fee }) => {
     const amount = round2(Math.min(received, due))
+    const cost = await installmentCost(payment, amount, due)
     const change = Math.max(0, received - due)
     const sellRate = sellRateOf(payment)
     let returnCashes = []
@@ -79,6 +86,8 @@ const recordInstallment = async ({ payment, received, due, receiveCashes, receiv
         rate: payment.rate,
         paymentMethod: paymentMethod || 'cash',
         kind,
+        fee: fee || undefined,
+        cost,
         drawer: drawer?._id,
         groupPayment,
         createdBy: userId,
@@ -167,8 +176,12 @@ exports.collect = async (req, res) => {
     try {
         const payment = await Payment.findById(req.params.id)
         if (!payment || !payment.isPayLater) return response.failure(404, { msg: 'Pay Later sale not found' }, res)
-        const owed = round2(payment.balance?.USD || 0)
-        if (owed <= TOLERANCE) return response.failure(422, { msg: 'This sale is already fully paid' }, res)
+        const owedBefore = round2(payment.balance?.USD || 0)
+        if (owedBefore <= TOLERANCE) return response.failure(422, { msg: 'This sale is already fully paid' }, res)
+        if (body.fee?.type === 'PCT' && Number(body.fee?.value) > 100) return response.failure(422, { msg: 'A % fee can be at most 100%' }, res)
+        // A fee charged now (% of what's owed) is added before the payment
+        const fee = round2(feeAmount(body.fee, owedBefore, payment))
+        const owed = round2(owedBefore + fee)
         const received = amountReceived(body.receiveTotal)
         if (received <= 0) return response.failure(422, { msg: 'Enter the amount received' }, res)
         if (body.paymentMethod === 'transfer' && received > owed + TOLERANCE) return response.failure(422, { msg: "A transfer can't be more than what's owed" }, res)
@@ -178,8 +191,10 @@ exports.collect = async (req, res) => {
         const installment = await recordInstallment({
             payment, received, due: owed, receiveCashes: body.receiveCashes, receiveTotal: body.receiveTotal,
             paymentMethod: body.paymentMethod, drawer, userId: req.user.id, kind: 'COLLECT',
+            fee: fee > 0 ? { value: Number(body.fee?.value) || 0, type: body.fee?.type || 'PCT', amount: fee } : null,
         })
         Object.assign(payment, balanceAfter(payment.toObject(), owed, installment.amount))
+        if (fee > 0) payment.set('payLater.collectFees', round2((payment.payLater?.collectFees || 0) + fee))
         await payment.save()
 
         const data = await loadPayment(payment._id)

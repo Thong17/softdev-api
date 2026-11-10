@@ -16,6 +16,15 @@ const schema = mongoose.Schema(
         paymentMethod: { type: String, default: 'cash' },
         // DEPOSIT (at checkout) | COLLECT (later)
         kind: { type: String, default: 'COLLECT' },
+        // Fee added to the balance with this collection (USD amount)
+        fee: {
+            value: { type: Number, default: 0 },
+            type: { type: String, default: 'PCT' },
+            amount: { type: Number, default: 0 },
+        },
+        // Its share of the items' cost (USD), fixed when recorded so later
+        // fees never change past reports
+        cost: { type: Number },
         drawer: { type: mongoose.Schema.ObjectId, ref: 'Drawer' },
         groupPayment: { type: mongoose.Schema.ObjectId, ref: 'GroupPayment' },
         createdBy: { type: mongoose.Schema.ObjectId, ref: 'User' },
