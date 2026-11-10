@@ -57,9 +57,10 @@ const spentSince = async (since, customerIds) => {
     const LoanPayment = mongoose.model('LoanPayment')
     const customerMatch = customerIds ? { $in: customerIds.map((id) => new mongoose.Types.ObjectId(String(id))) } : { $ne: null }
 
-    const [sales, installments] = await Promise.all([
+    const PaymentInstallment = mongoose.model('PaymentInstallment')
+    const [sales, installments, payLater] = await Promise.all([
         Payment.aggregate([
-            { $match: { customer: customerMatch, status: true, paymentMethod: { $ne: 'loan' }, createdAt: { $gte: since } } },
+            { $match: { customer: customerMatch, status: true, paymentMethod: { $ne: 'loan' }, isPayLater: { $ne: true }, createdAt: { $gte: since } } },
             { $group: { _id: '$customer', spent: { $sum: toUSD('$total.value', '$total.currency', '$rate.buyRate') } } },
         ]),
         LoanPayment.aggregate([
@@ -71,10 +72,15 @@ const spentSince = async (since, customerIds) => {
             { $unwind: { path: '$payment', preserveNullAndEmptyArrays: true } },
             { $group: { _id: '$loan.customer', spent: { $sum: toUSD('$totalAmount.value', '$totalAmount.currency', '$payment.rate.buyRate') } } },
         ]),
+        // Pay Later: what was actually received
+        PaymentInstallment.aggregate([
+            { $match: { customer: customerMatch, paidAt: { $gte: since } } },
+            { $group: { _id: '$customer', spent: { $sum: '$amount' } } },
+        ]),
     ])
 
     const spent = new Map()
-    ;[...sales, ...installments].forEach(({ _id, spent: amount }) => {
+    ;[...sales, ...installments, ...payLater].forEach(({ _id, spent: amount }) => {
         const key = String(_id)
         spent.set(key, (spent.get(key) || 0) + amount)
     })

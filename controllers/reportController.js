@@ -4,6 +4,7 @@ const { failureMsg } = require('../constants/responseMsg')
 const moment = require('moment')
 const LoanPayment = require('../models/LoanPayment')
 const TransactionClearance = require('../models/TransactionClearance')
+const { installmentsBetween } = require('../helpers/payLaterRevenue')
 
 exports.listSale = async (req, res) => {
   const rawChart = req.query._chartData || 'hourly'
@@ -30,6 +31,8 @@ exports.listSale = async (req, res) => {
         createdAt: query,
         status: true,
         paymentMethod: { $ne: 'loan' },
+        // Pay Later sales count as their money arrives (installments below)
+        isPayLater: { $ne: true },
       }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     const listSale = []
 
@@ -64,6 +67,14 @@ exports.listSale = async (req, res) => {
       total: loanPayment.totalAmount,
       rate: loanPayment.loan.payment.rate,
       createdAt: loanPayment.paymentDate
+    })))
+
+    // Pay Later: each amount received, on the day it was received
+    const payLaterReceived = await installmentsBetween(query)
+    listPayment.push(payLaterReceived.map(installment => ({
+      total: { value: installment.income, currency: 'USD' },
+      rate: installment.payment?.rate,
+      createdAt: installment.paidAt
     })))
 
     // normalize payments and group according to label (or emit each item when label === null)
@@ -108,6 +119,7 @@ exports.totalSale = async (req, res) => {
         $lt: moment().endOf(income).toDate(),
       },
       paymentMethod: { $ne: 'loan' },
+      isPayLater: { $ne: true },
       status: true,
     }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     let totalIncome = 0
@@ -125,6 +137,7 @@ exports.totalSale = async (req, res) => {
         $lt: moment().endOf(profit).toDate(),
       },
       paymentMethod: { $ne: 'loan' },
+      isPayLater: { $ne: true },
       status: true,
     }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
     let totalProfit = 0
@@ -192,6 +205,12 @@ exports.totalSale = async (req, res) => {
       totalIncome += clearanceAmount
       totalProfit += clearanceAmount - totalTransactionCost
     })
+
+    // Pay Later: money received in each window, with its share of the cost
+    const payLaterIncome = await installmentsBetween({ $gte: moment().startOf(income).toDate(), $lt: moment().endOf(income).toDate() })
+    payLaterIncome.forEach(installment => { totalIncome += installment.income })
+    const payLaterProfit = await installmentsBetween({ $gte: moment().startOf(profit).toDate(), $lt: moment().endOf(profit).toDate() })
+    payLaterProfit.forEach(installment => { totalProfit += installment.profit })
 
     return response.success(200, { data: { totalIncome, totalProfit } }, res)
   } catch (err) {

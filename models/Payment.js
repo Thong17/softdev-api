@@ -77,6 +77,34 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'GroupPayment'
         },
+        // Pay Later: sold now, paid over time. Only sales checked out through
+        // Pay Later have isPayLater; their revenue is counted from
+        // PaymentInstallment as money arrives.
+        isPayLater: {
+            type: Boolean,
+            default: false,
+            index: true
+        },
+        // USD received so far (deposit + collections)
+        paidTotal: {
+            type: Number,
+            default: 0
+        },
+        // Still owed, fee included
+        balance: {
+            USD: { type: Number, default: 0 },
+            KHR: { type: Number, default: 0 },
+        },
+        payLater: {
+            dueDate: { type: Date },
+            note: { type: String },
+            // One-time fee on the balance after the deposit; amount is in USD
+            fee: {
+                value: { type: Number, default: 0 },
+                type: { type: String, default: 'PCT' },
+                amount: { type: Number, default: 0 },
+            },
+        },
         transactions: [{
             type: mongoose.Schema.ObjectId,
             ref: 'Transaction'

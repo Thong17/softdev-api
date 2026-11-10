@@ -3,6 +3,7 @@ const { memoryStorage } = require('../../configs/multer')
 const { index, create, checkout, update, detail, _import, batch, groupPayment, groupCheckout } = require('../../controllers/paymentController')
 const security = require('../../middleware/security')
 const invoice = require('../../controllers/invoiceController')
+const payLater = require('../../controllers/payLaterController')
 const { privilege } = require('../../constants/roleMap')
 
 router.get('/', security.role(privilege.payment.list), (req, res) => {
@@ -16,6 +17,20 @@ router.get('/invoice/group/:id', security.role(privilege.payment.detail), (req, 
 
 router.get('/invoice/:id', security.role(privilege.payment.detail), (req, res) => {
     invoice.sale(req, res)
+})
+
+// Pay Later: check out with an optional deposit / due date / fee, then
+// collect the balance over time
+router.put('/checkout-later/:id', security.role(privilege.payment.update), security.audit(), (req, res) => {
+    payLater.checkoutLater(req, res)
+})
+
+router.post('/collect/:id', security.role(privilege.payment.update), security.audit(), (req, res) => {
+    payLater.collect(req, res)
+})
+
+router.get('/installments/:id', security.role(privilege.payment.detail), (req, res) => {
+    payLater.installments(req, res)
 })
 
 router.get('/detail/:id', security.role(privilege.payment.detail), (req, res) => {

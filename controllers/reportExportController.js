@@ -17,6 +17,7 @@ const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { canViewCost } = require('../helpers/stockCost')
 const { Workbook, addSheet, sendWorkbook, formats } = require('../helpers/excel')
+const { installmentsBetween } = require('../helpers/payLaterRevenue')
 
 const nameOf = (item, lang = 'English') => item?.name?.[lang] || item?.name?.English || (typeof item?.name === 'string' ? item.name : '') || ''
 
@@ -43,7 +44,7 @@ const costOf = (transaction, buyRate) => (transaction?.stockCosts || [])
 const completedPayments = (filter, populate, { includeLoan = false } = {}) => Payment.find({
     createdAt: filter,
     status: true,
-    ...(!includeLoan && { paymentMethod: { $ne: 'loan' } }),
+    ...(!includeLoan && { paymentMethod: { $ne: 'loan' }, isPayLater: { $ne: true } }),
 })
     .sort({ createdAt: 1 })
     .populate(populate)
@@ -149,6 +150,23 @@ exports.sale = handle(async (req) => {
             cost,
             profit: total - cost,
             by: clearance.createdBy?.username || '',
+        })
+    })
+
+    // Pay Later: each amount received, on the day it was received
+    const payLaterReceived = await installmentsBetween(filter)
+    payLaterReceived.forEach((installment) => {
+        invoices.push({
+            date: installment.paidAt,
+            invoice: installment.payment?.invoice || '',
+            type: installment.kind === 'DEPOSIT' ? 'Pay Later deposit' : 'Pay Later payment',
+            customer: installment.payment?.customer?.displayName || installment.payment?.customer?.fullName || '',
+            method: (installment.paymentMethod || 'cash').toUpperCase(),
+            items: '',
+            total: installment.income,
+            cost: installment.cost,
+            profit: installment.profit,
+            by: installment.createdBy?.username || '',
         })
     })
 

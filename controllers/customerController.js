@@ -210,7 +210,7 @@ exports.rm = async (req, res) => {
     if (inactiveDays !== null && (!Number.isFinite(inactiveDays) || inactiveDays < 0)) {
         return response.failure(422, { msg: 'Days must be 0 or more' }, res)
     }
-    const sortField = ['lastPurchaseAt', 'totalSpent', 'tierSpent', 'invoiceCount', 'createdAt', 'displayName'].includes(req.query.filter) ? req.query.filter : 'createdAt'
+    const sortField = ['lastPurchaseAt', 'totalSpent', 'tierSpent', 'invoiceCount', 'createdAt', 'displayName', 'balance'].includes(req.query.filter) ? req.query.filter : 'createdAt'
     const sortOrder = req.query.sort === 'asc' ? 1 : -1
 
     const match = { isDeleted: false }
@@ -235,15 +235,24 @@ exports.rm = async (req, res) => {
                                 _id: null,
                                 lastPurchaseAt: { $max: '$createdAt' },
                                 invoiceCount: { $sum: 1 },
+                                // Pay Later sales count what was paid so far
                                 totalSpent: {
                                     $sum: {
                                         $cond: [
-                                            { $eq: ['$total.currency', 'KHR'] },
-                                            { $divide: [{ $ifNull: ['$total.value', 0] }, { $ifNull: ['$rate.buyRate', 4000] }] },
-                                            { $ifNull: ['$total.value', 0] },
+                                            { $eq: ['$isPayLater', true] },
+                                            { $ifNull: ['$paidTotal', 0] },
+                                            {
+                                                $cond: [
+                                                    { $eq: ['$total.currency', 'KHR'] },
+                                                    { $divide: [{ $ifNull: ['$total.value', 0] }, { $ifNull: ['$rate.buyRate', 4000] }] },
+                                                    { $ifNull: ['$total.value', 0] },
+                                                ],
+                                            },
                                         ],
                                     },
                                 },
+                                // Still owed on Pay Later sales
+                                balance: { $sum: { $cond: [{ $eq: ['$isPayLater', true] }, { $ifNull: ['$balance.USD', 0] }, 0] } },
                             },
                         },
                     ],
@@ -255,6 +264,7 @@ exports.rm = async (req, res) => {
                     lastPurchaseAt: { $arrayElemAt: ['$sales.lastPurchaseAt', 0] },
                     invoiceCount: { $ifNull: [{ $arrayElemAt: ['$sales.invoiceCount', 0] }, 0] },
                     totalSpent: { $ifNull: [{ $arrayElemAt: ['$sales.totalSpent', 0] }, 0] },
+                    balance: { $ifNull: [{ $arrayElemAt: ['$sales.balance', 0] }, 0] },
                 },
             },
             { $lookup: { from: 'customertiers', localField: 'tier', foreignField: '_id', as: 'tier' } },
@@ -263,6 +273,7 @@ exports.rm = async (req, res) => {
             { $addFields: { tier: { $cond: [{ $ifNull: ['$tier', false] }, { $mergeObjects: ['$tier', { iconImage: { $arrayElemAt: [{ $map: { input: '$tierIcon', as: 'icon', in: { _id: '$$icon._id', filename: '$$icon.filename' } } }, 0] } }] }, null] } } },
             { $project: { sales: 0, tags: 0, tierIcon: 0 } },
         ]
+        if (req.query.owing === 'true') pipeline.push({ $match: { balance: { $gt: 0.01 } } })
         if (inactiveDays !== null) {
             const since = new Date(now.getTime() - inactiveDays * 24 * 60 * 60 * 1000)
             pipeline.push({ $match: { $or: [{ lastPurchaseAt: null }, { lastPurchaseAt: { $lt: since } }] } })

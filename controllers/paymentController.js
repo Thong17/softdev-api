@@ -1,4 +1,5 @@
 const { onPaymentCompleted } = require('../helpers/customerTier')
+const { settleInGroup } = require('./payLaterController')
 const Drawer = require('../models/Drawer')
 const Payment = require('../models/Payment')
 const Transaction = require('../models/Transaction')
@@ -37,6 +38,13 @@ exports.index = async (req, res) => {
     if (state) {
         query.state = state
     }
+
+    // Pay Later sales still owing (Operation › Payment › Pay Later)
+    if (req.query.payLater === 'owing') {
+        query.isPayLater = true
+        query['balance.USD'] = { $gt: 0.01 }
+        delete query.state
+    }
     
     // Add date filtering if fromDate and/or toDate are provided
     if (fromDate || toDate) {
@@ -64,6 +72,7 @@ exports.index = async (req, res) => {
         .skip(page * limit).limit(limit)
         .sort(filterObj)
         .populate('createdBy')
+        .populate('customer', 'displayName fullName companyName')
 }
 
 exports.detail = async (req, res) => {
@@ -127,8 +136,11 @@ exports.update = async (req, res) => {
 
     try {
         const id = req.params.id
+        // Checked before writing: a completed sale must not change
+        const current = await Payment.findById(id).select('status')
+        if (!current) return response.failure(404, { msg: 'Payment not found' }, res)
+        if (current.status) return response.failure(422, { msg: 'Payment has already completed' }, res)
         let data = await Payment.findByIdAndUpdate(id, body, { new: true })
-        if (data.status) return response.failure(422, { msg: 'Payment has already completed' }, res)
 
         const listTransactions = data?.transactions
         if (body.transaction) listTransactions.push(body.transaction.id)
@@ -139,7 +151,8 @@ exports.update = async (req, res) => {
         data.total = total
         data.subtotal = subtotal
         data.transactions = listTransactions
-        data.save()
+        // Saved before replying, so the next update reads this total
+        await data.save()
         data = await data.populate('customer')
         data = await data.populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
         data = await data.populate('createdBy', 'username')
@@ -228,6 +241,17 @@ exports.batch = async (req, res) => {
     }
 }
 
+// Owing Pay Later sales join a group payment for their balance
+const isOwingPayLater = (payment) => !!payment?.isPayLater && (payment.balance?.USD || 0) > 0.01
+
+// What a payment adds to a group total, in USD
+const amountDueUSD = (payment, groupRate) => {
+    if (isOwingPayLater(payment)) return payment.balance.USD
+    if (!payment.total) return 0
+    if (payment.total.currency === 'USD') return payment.total.value
+    return payment.total.value / (groupRate.sellRate || 4000)
+}
+
 exports.groupPayment = async (req, res) => {
     try {
         const { paymentIds } = req.body
@@ -246,9 +270,7 @@ exports.groupPayment = async (req, res) => {
             subtotalKHR += p.subtotal.KHR
             subtotalUSD += p.subtotal.USD
             subtotalBOTH += p.subtotal.BOTH
-            if (!p.total) continue
-            if (p.total.currency === 'USD') totalUSD += p.total.value
-            else totalUSD += p.total.value / (groupRate.sellRate || 4000)
+            totalUSD += amountDueUSD(p, groupRate)
         }
 
         const groupBody = {
@@ -278,8 +300,8 @@ exports.groupCheckout = async (req, res) => {
         // load payments
         const payments = await Payment.find({ _id: { $in: paymentIds } }).populate('drawer').populate({ path: 'transactions', match: { isDeleted: false }})
 
-        // ensure none already checked out
-        const already = payments.find(p => p.status)
+        // ensure none already checked out (owing Pay Later sales are settled here)
+        const already = payments.find(p => p.status && !isOwingPayLater(p))
         if (already) return response.failure(422, { msg: 'One or more payments have already checked out' }, res)
 
         // create group payment record
@@ -298,9 +320,7 @@ exports.groupCheckout = async (req, res) => {
             subtotalKHR += p.subtotal.KHR
             subtotalUSD += p.subtotal.USD
             subtotalBOTH += p.subtotal.BOTH
-            if (!p.total) continue
-            if (p.total.currency === 'USD') totalUSD += p.total.value
-            else totalUSD += p.total.value / (groupRate.sellRate || 4000)
+            totalUSD += amountDueUSD(p, groupRate)
         }
 
         const { cashes, returnCashes } = await calculateReturnCashes(req.user.drawer?.cashes || [], checkoutFields.remainTotal, groupRate)
@@ -327,6 +347,18 @@ exports.groupCheckout = async (req, res) => {
 
         for (const p of payments) {
             const id = p._id.toString()
+
+            // An owing Pay Later sale was already sold; settle its balance
+            if (isOwingPayLater(p)) {
+                // eslint-disable-next-line no-await-in-loop
+                await settleInGroup({ payment: p, groupPayment: group._id, paymentMethod: checkoutFields.paymentMethod, userId: req.user.id })
+                // eslint-disable-next-line no-await-in-loop
+                const settled = await Payment.findById(id)
+                    .populate({ path: 'transactions', match: { isDeleted: false }, populate: [{ path: 'product', select: 'profile name', populate: [{ path: 'profile', select: 'filename' }, { path: 'category', select: 'hasThermalPrinting' }] }, { path: 'options', populate: 'property' }] })
+                    .populate('customer').populate('createdBy', 'username')
+                updatedPayments.push(settled)
+                continue
+            }
 
             // calculate return cashes for this payment using group remainTotal and groupRate
             // eslint-disable-next-line no-await-in-loop

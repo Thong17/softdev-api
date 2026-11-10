@@ -8,6 +8,7 @@ const Payment = require('../models/Payment')
 const GroupPayment = require('../models/GroupPayment')
 const Store = require('../models/Store')
 const StoreSetting = require('../models/StoreSetting')
+const PaymentInstallment = require('../models/PaymentInstallment')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 
@@ -45,7 +46,11 @@ exports.sale = async (req, res) => {
         const payment = await loadSale(Payment.findById(req.params.id)).lean()
         if (!payment) return response.failure(404, { msg: 'Payment not found' }, res)
         const { store, setting } = await storeDetails()
-        return response.success(200, { data: { payment, store, setting } }, res)
+        // Pay Later: money received so far
+        const installments = payment.isPayLater
+            ? await PaymentInstallment.find({ payment: payment._id }).sort({ paidAt: 1 }).populate('createdBy', 'username').lean()
+            : []
+        return response.success(200, { data: { payment: { ...payment, installments }, store, setting } }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
