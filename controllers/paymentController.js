@@ -95,6 +95,11 @@ exports.create = async (req, res) => {
         const sellRate = req.user.drawer.sellRate
 
         const transactions = await Transaction.find({ _id: { '$in': body.transactions } })
+        // Items already sold (checked out, Pay Later or loan) can't go into a new
+        // payment; otherwise a repeated click sells the same cart twice
+        if (transactions.some((transaction) => transaction.status)) {
+            return response.failure(422, { msg: 'These items were already sold. Start a new sale.' }, res)
+        }
         const { total, subtotal, rate } = calculatePaymentTotal(transactions, body.services, body.vouchers, body.discounts, { buyRate, sellRate })
 
         const mappedBody = {

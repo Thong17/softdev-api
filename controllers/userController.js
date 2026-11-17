@@ -228,6 +228,8 @@ exports.profile = (req, res) => {
         favorites: req.user?.favorites,
         drawer: req.user?.drawer,
         isDefault: req.user?.isDefault,
+        // Holds the Super Admin role: can back up and reset data
+        isSuperAdmin: isSuperAdmin(req.user),
         expireAt: req.user?.expireAt
     }
     return response.success(200, { user }, res)

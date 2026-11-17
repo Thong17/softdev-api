@@ -9,64 +9,159 @@ const moment = require('moment')
 const { sendMessageTelegram } = require('../helpers/utils')
 const { currencyFormat } = require('../helpers/utils')
 const mongoose = require('mongoose')
-const { exec } = require('node:child_process')
-const path = require('node:path')
+const { spawn } = require('node:child_process')
 const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
 const { reverseProductStock } = require('../helpers/utils')
 const { failureMsg } = require('../constants/responseMsg')
+const { RESET_GROUPS, resolveGroups, backupDatabase, resetGroups, hardReset, listBackups, restoreDatabase } = require('../helpers/dataReset')
 
 exports.dumpMongoDB = async (req, res) => {
     try {
-        const backupRoot = process.env.MONGO_BACKUP_PATH
-        const mongoDumpPath = process.env.MONGO_DUMP_PATH
-
-        /* create backup folder if not exists */
-        if (!fs.existsSync(backupRoot)) {
-            fs.mkdirSync(backupRoot, { recursive: true })
-        }
-
-        /* timestamp folder */
-        const timestamp = new Date()
-            .toISOString()
-            .replace(/:/g, '-')
-
-        const backupPath = path.join(backupRoot, timestamp)
-
-        /* mongodb uri */
-        const mongoUri = process.env.DATABASE_URL
-
-        /* mongo_dump command */
-        const command = `${mongoDumpPath} --uri="${mongoUri}" --out="${backupPath}"`
-
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                console.error(error)
-
-                return response.failure(
-                    500,
-                    { msg: 'Mongo dump failed', error: error.message },
-                    res
-                )
-            }
-
-            response.success(
-                200,
-                {
-                    msg: 'MongoDB backup completed',
-                    backupPath
-                },
-                res
-            )
-        })
+        const backup = await backupDatabase('manual')
+        response.success(200, { msg: `Backup saved as ${backup.name}`, backup: backup.name }, res)
     } catch (err) {
-        console.error(err)
-
-        response.failure(
-            500,
-            { msg: err.message },
-            res
-        )
+        response.failure(500, { msg: err.message }, res, err)
     }
+}
+
+// Streams a compressed backup (mongodump --archive --gzip) to the browser, which
+// saves it wherever the user picks. Restore with:
+//   mongorestore --archive=<file> --gzip
+exports.downloadBackup = (req, res) => {
+    const mongoDumpPath = process.env.MONGO_DUMP_PATH
+    if (!mongoDumpPath) return response.failure(500, { msg: 'Backup is not set up (MONGO_DUMP_PATH)' }, res)
+
+    // Arguments are passed directly (no shell), so the URI is never parsed by one
+    const dump = spawn(mongoDumpPath, [`--uri=${process.env.DATABASE_URL}`, '--archive', '--gzip'])
+    let started = false
+    let log = ''
+    // mongodump reports progress on stderr; keep the tail for a failure message
+    dump.stderr.on('data', (chunk) => { log = (log + chunk).slice(-2000) })
+
+    // Headers go out with the first bytes, so a dump that fails at once can still answer with an error
+    dump.stdout.once('data', (chunk) => {
+        started = true
+        res.status(200)
+        res.setHeader('Content-Type', 'application/gzip')
+        res.setHeader('Content-Disposition', `attachment; filename="backup-${new Date().toISOString().replace(/:/g, '-')}.archive.gz"`)
+        res.write(chunk)
+        dump.stdout.pipe(res, { end: false })
+    })
+    // The error object carries the command line, URI and password included, so only its code is logged
+    let failedToStart = false
+    dump.on('error', (err) => {
+        failedToStart = true
+        console.error(`mongodump could not start (${err.code})`)
+        if (!started) return response.failure(500, { msg: 'Mongo dump failed' }, res)
+        res.destroy(new Error('Mongo dump failed'))
+    })
+    dump.on('close', (code) => {
+        if (code === 0 && started) return res.end()
+        if (!failedToStart) console.error(`mongodump exited with ${code}: ${log.replace(/mongodb(\+srv)?:\/\/\S+/g, '<uri>')}`)
+        // Cut the connection on a failure part way, so the browser never keeps a broken file
+        if (started) return res.destroy(new Error('Mongo dump failed'))
+        if (!res.headersSent) response.failure(500, { msg: 'Mongo dump failed' }, res)
+    })
+    // Stop dumping if the browser goes away (e.g. the save is cancelled)
+    res.on('close', () => { if (!res.writableFinished) dump.kill() })
+}
+
+// What a selective reset offers, for the Config page
+exports.resetOptions = async (req, res) => {
+    const groups = Object.entries(RESET_GROUPS).map(([key, group]) => ({ key, label: group.label, detail: group.detail, requires: group.requires }))
+    response.success(200, { data: groups }, res)
+}
+
+// One reset or restore at a time; another request while one runs is refused
+let dataBusy = false
+
+// Backs up the database, then clears it: everything (hard) or the chosen groups.
+// Nothing is deleted when the backup fails.
+exports.resetData = async (req, res) => {
+    const { mode, groups, confirm } = req.body || {}
+    if (confirm !== 'RESET') return response.failure(422, { msg: 'Type RESET to confirm' }, res)
+    if (!['hard', 'selective'].includes(mode)) return response.failure(422, { msg: 'Choose a hard or selective reset' }, res)
+    const keys = mode === 'selective' ? resolveGroups(Array.isArray(groups) ? groups : []) : []
+    if (mode === 'selective' && !keys.length) return response.failure(422, { msg: 'Choose what to reset' }, res)
+    if (dataBusy) return response.failure(422, { msg: 'A reset or restore is already running' }, res)
+
+    dataBusy = true
+    try {
+        let backup
+        try {
+            backup = await backupDatabase(mode === 'hard' ? 'before-hard-reset' : 'before-reset')
+        } catch (err) {
+            return response.failure(500, { msg: `Backup failed, so nothing was reset. ${err.message}` }, res, err)
+        }
+        const result = mode === 'hard' ? await hardReset() : await resetGroups(keys)
+        response.success(200, { msg: `Reset done. Backup saved as ${backup.name}`, backup: backup.name, ...result }, res)
+    } catch (err) {
+        response.failure(500, { msg: `Reset stopped part way: ${err.message}. Restore the backup taken just before it.` }, res, err)
+    } finally {
+        dataBusy = false
+    }
+}
+
+// Backups kept in the server's backup folder, newest first
+exports.backupList = (req, res) => {
+    try {
+        const data = listBackups().map(({ name, kind, size, createdAt }) => ({ name, kind, size, createdAt }))
+        response.success(200, { data }, res)
+    } catch (err) {
+        response.failure(500, { msg: 'Cannot read the backup folder' }, res, err)
+    }
+}
+
+const runRestore = async (res, source, cleanup) => {
+    if (dataBusy) {
+        cleanup?.()
+        return response.failure(422, { msg: 'A reset or restore is already running' }, res)
+    }
+    dataBusy = true
+    try {
+        const { safety } = await restoreDatabase(source)
+        response.success(200, { msg: `Restored. The data from before was saved as ${safety}`, safety }, res)
+    } catch (err) {
+        response.failure(500, { msg: err.message, safety: err.safety }, res)
+    } finally {
+        dataBusy = false
+        cleanup?.()
+    }
+}
+
+// Restores one of the backups in the server's backup folder
+exports.restoreFromServer = async (req, res) => {
+    const { backup, confirm } = req.body || {}
+    if (confirm !== 'RESTORE') return response.failure(422, { msg: 'Type RESTORE to confirm' }, res)
+    // Only a name from the listing is accepted, never a path
+    const source = listBackups().find((item) => item.name === backup)
+    if (!source) return response.failure(404, { msg: 'That backup was not found' }, res)
+    runRestore(res, source)
+}
+
+// Restores a backup file sent as the raw request body (application/octet-stream).
+// The file is saved to a temporary file first, then checked and restored.
+exports.restoreFromUpload = (req, res) => {
+    if (req.headers['x-confirm'] !== 'RESTORE') return response.failure(422, { msg: 'Type RESTORE to confirm' }, res)
+    if (dataBusy) return response.failure(422, { msg: 'A reset or restore is already running' }, res)
+    const file = path.join(os.tmpdir(), `softdev-restore-${Date.now()}.archive.gz`)
+    const cleanup = () => fs.rm(file, { force: true }, () => {})
+    const out = fs.createWriteStream(file)
+    req.pipe(out)
+    req.on('aborted', () => { out.destroy(); cleanup() })
+    out.on('error', (err) => {
+        cleanup()
+        if (!res.headersSent) response.failure(500, { msg: 'Cannot save the uploaded file' }, res, err)
+    })
+    out.on('finish', () => {
+        if (!out.bytesWritten) {
+            cleanup()
+            return response.failure(422, { msg: 'The file is empty' }, res)
+        }
+        runRestore(res, { kind: 'archive', path: file }, cleanup)
+    })
 }
 
 exports.sendTelegram = async (data) => {

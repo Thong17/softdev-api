@@ -5,6 +5,8 @@ const security = require('../../middleware/security')
 const invoice = require('../../controllers/invoiceController')
 const payLater = require('../../controllers/payLaterController')
 const { privilege } = require('../../constants/roleMap')
+// One checkout / collection per payment at a time (stops double clicks double charging)
+const paymentLock = require('../../middleware/paymentLock')
 
 router.get('/', security.role(privilege.payment.list), (req, res) => {
     index(req, res)
@@ -21,11 +23,11 @@ router.get('/invoice/:id', security.role(privilege.payment.detail), (req, res) =
 
 // Pay Later: check out with an optional deposit / due date / fee, then
 // collect the balance over time
-router.put('/checkout-later/:id', security.role(privilege.payment.update), security.audit(), (req, res) => {
+router.put('/checkout-later/:id', security.role(privilege.payment.update), paymentLock, security.audit(), (req, res) => {
     payLater.checkoutLater(req, res)
 })
 
-router.post('/collect/:id', security.role(privilege.payment.update), security.audit(), (req, res) => {
+router.post('/collect/:id', security.role(privilege.payment.update), paymentLock, security.audit(), (req, res) => {
     payLater.collect(req, res)
 })
 
@@ -45,7 +47,7 @@ router.put('/update/:id', security.role(privilege.payment.update), security.audi
     update(req, res)
 })
 
-router.put('/checkout/:id', security.role(privilege.payment.update), security.audit(), (req, res) => {
+router.put('/checkout/:id', security.role(privilege.payment.update), paymentLock, security.audit(), (req, res) => {
     checkout(req, res)
 })
 

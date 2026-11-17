@@ -24,6 +24,8 @@ exports.login = async (req, res) => {
                 favorites: data.user?.favorites,
                 drawer: data.user?.drawer,
                 isDefault: data.user?.isDefault,
+                // Holds the Super Admin role: can back up and reset data
+                isSuperAdmin: !!data.user?.role?.isDefault,
                 expireAt: data.user?.expireAt
             }
             response.success(200, { accessToken: data.token, user }, res)
