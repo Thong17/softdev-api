@@ -41,13 +41,27 @@ const toUSD = (value, currency, buyRate) => {
 const costOf = (transaction, buyRate) => (transaction?.stockCosts || [])
     .reduce((sum, stock) => sum + toUSD(stock.cost, stock.currency, buyRate), 0)
 
-const completedPayments = (filter, populate, { includeLoan = false } = {}) => Payment.find({
-    createdAt: filter,
-    status: true,
-    ...(!includeLoan && { paymentMethod: { $ne: 'loan' }, isPayLater: { $ne: true } }),
-})
-    .sort({ createdAt: 1 })
-    .populate(populate)
+const completedPayments = async (filter, populate, { includeLoan = false } = {}) => {
+    const payments = await Payment.find({
+        createdAt: filter,
+        status: true,
+        ...(!includeLoan && { paymentMethod: { $ne: 'loan' }, isPayLater: { $ne: true } }),
+    })
+        .sort({ createdAt: 1 })
+        .populate(populate)
+    // Each item once: older sales can list an item twice, which counted it
+    // twice in the item rows and product totals
+    payments.forEach((payment) => {
+        const seen = new Set()
+        payment.transactions = (payment.transactions || []).filter((transaction) => {
+            const key = String(transaction?._id || transaction)
+            if (seen.has(key)) return false
+            seen.add(key)
+            return true
+        })
+    })
+    return payments
+}
 
 const handle = (build) => async (req, res) => {
     try {

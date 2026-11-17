@@ -16,6 +16,17 @@ const moment = require('moment')
 const { telegramReceiptTemplate } = require('./utilityController')
 const GroupPayment = require('../models/GroupPayment')
 
+// Ids in their first-seen order, each once
+const uniqueIds = (ids = []) => {
+    const seen = new Set()
+    return ids.filter((item) => {
+        const key = String(item?._id || item)
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+    })
+}
+
 exports.index = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10
     const page = parseInt(req.query.page) || 0
@@ -104,6 +115,8 @@ exports.create = async (req, res) => {
 
         const mappedBody = {
             ...body,
+            // Each cart item once, whatever the request listed
+            transactions: uniqueIds(body.transactions),
             total,
             subtotal,
             rate,
@@ -145,17 +158,23 @@ exports.update = async (req, res) => {
         const current = await Payment.findById(id).select('status')
         if (!current) return response.failure(404, { msg: 'Payment not found' }, res)
         if (current.status) return response.failure(422, { msg: 'Payment has already completed' }, res)
-        let data = await Payment.findByIdAndUpdate(id, body, { new: true })
 
-        const listTransactions = data?.transactions
-        if (body.transaction) listTransactions.push(body.transaction.id)
-        
+        // An added cart item joins the list only if it isn't on it yet, and
+        // atomically: a repeated request used to list the same item twice
+        // (counted twice by the product reports), and two adds at once could
+        // drop one
+        const { transaction: added, ...changes } = body
+        if (added?.id) await Payment.updateOne({ _id: id }, { $addToSet: { transactions: added.id } })
+        let data = await Payment.findByIdAndUpdate(id, changes, { new: true })
+
+        // One entry per item (older sales may list one twice)
+        const listTransactions = uniqueIds(data?.transactions)
         const transactions = await Transaction.find({ _id: { '$in': listTransactions }, isDeleted: false })
         const { total, subtotal } = calculatePaymentTotal(transactions, data.services, data.vouchers, data.discounts, data.rate)
 
         data.total = total
         data.subtotal = subtotal
-        data.transactions = listTransactions
+        if (listTransactions.length !== (data.transactions || []).length) data.transactions = listTransactions
         // Saved before replying, so the next update reads this total
         await data.save()
         data = await data.populate('customer')

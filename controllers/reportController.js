@@ -6,6 +6,19 @@ const LoanPayment = require('../models/LoanPayment')
 const TransactionClearance = require('../models/TransactionClearance')
 const { installmentsBetween } = require('../helpers/payLaterRevenue')
 
+// A sale's items, each once and without removed cart lines. Older sales can
+// list an item twice, which counted it twice in the product figures.
+const soldItems = (payment) => {
+  const seen = new Set()
+  return (payment.transactions || []).filter((transaction) => {
+    if (!transaction || transaction.isDeleted) return false
+    const key = String(transaction._id)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 exports.listSale = async (req, res) => {
   const rawChart = req.query._chartData || 'hourly'
   const qFrom = req.query.fromDate
@@ -234,7 +247,7 @@ exports.topProduct = async (req, res) => {
     const listProduct = []
     payments.forEach(payment => {
       const { buyRate } = payment.rate
-      payment.transactions?.forEach(transaction => {
+      soldItems(payment).forEach(transaction => {
         if (!transaction.product) return
         const isInList = listProduct.some(item => item.id.equals(transaction.product._id))
         const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : transaction.total.value / buyRate
@@ -291,7 +304,7 @@ exports.listProduct = async (req, res) => {
     const listProductSale = []
     chartPayments.forEach(payment => {
       const { buyRate } = payment.rate
-      payment.transactions?.forEach(transaction => {
+      soldItems(payment).forEach(transaction => {
         if (!transaction.product) return
         const isInList = listProductSale.some(item => item.id.equals(transaction.product._id))
         const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : transaction.total.value / buyRate
@@ -330,7 +343,7 @@ exports.topStaff = async (req, res) => {
     const listTopStaff = []
     payments.forEach(payment => {
       const { buyRate } = payment.rate
-      payment.transactions?.forEach(transaction => {
+      soldItems(payment).forEach(transaction => {
         if (!transaction.createdBy) return
         const isInList = listTopStaff.some(item => item.id.equals(transaction.createdBy._id))
         const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : transaction.total.value / buyRate
@@ -387,7 +400,7 @@ exports.listStaff = async (req, res) => {
     const listStaff = []
     chartPayments.forEach(payment => {
       const { buyRate } = payment.rate
-      payment.transactions?.forEach(transaction => {
+      soldItems(payment).forEach(transaction => {
         if (!transaction.createdBy) return
         const isInList = listStaff.some(item => item.id.equals(transaction.createdBy._id))
         const transactionTotal = transaction.total.currency === 'USD' ? transaction.total.value : transaction.total.value / buyRate
