@@ -135,6 +135,11 @@ exports.privilege = {
             route: 'admin',
             action: 'user'
         },
+        // Admin › Migration: import products from Excel, bulk-match images
+        migration: {
+            route: 'admin',
+            action: 'migration'
+        },
     },
     function: {
         queue: {
