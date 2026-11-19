@@ -12,8 +12,10 @@ RUN apk add --no-cache mongodb-tools \
 
 COPY package.json .
 COPY package-lock.json .
+COPY .npmrc .
 
-RUN npm install
+# Exactly what the lock file records, without dev tools (nodemon)
+RUN npm ci --omit=dev
 
 COPY . .
 
