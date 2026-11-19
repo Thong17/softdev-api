@@ -8,6 +8,10 @@ const { encryptPassword } = require('../helpers/utils')
 const { syncRolePrivileges } = require('../helpers/rolePrivileges')
 const { startTierSchedule } = require('../helpers/customerTier')
 
+// Mongoose 6's behaviour (unknown filter fields are ignored), set explicitly:
+// it stays the same when upgrading, and the startup warning goes away
+mongoose.set('strictQuery', true)
+
 mongoose.connect(process.env.DATABASE_URL, {
     useNewUrlParser: true,
 })

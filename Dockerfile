@@ -1,4 +1,4 @@
-FROM node:14-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
@@ -6,10 +6,8 @@ WORKDIR /app
 ARG ENV_FILE=.env.stationary
 
 # MongoDB Database Tools (mongodump / mongorestore) for Config > Data backup,
-# restore and reset. node:14-alpine's own Alpine (3.17) only has the 4.2 tools,
-# too old for current MongoDB; Alpine 3.22's 100.12 tools support MongoDB up to
-# 8.0 and install here without changing the system libraries.
-RUN apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.22/community "mongodb-tools~100.12" \
+# restore and reset, from the image's own Alpine (100.14, current MongoDB)
+RUN apk add --no-cache mongodb-tools \
  && mongodump --version | head -1
 
 COPY package.json .
