@@ -158,7 +158,8 @@ const summarise = (rows) => {
 exports.productTemplate = async (req, res) => {
     try {
         const workbook = new Workbook()
-        addSheet(workbook, 'PRODUCTS', COLUMNS.map(({ header, key, width }) => ({ header, key, width })), [{
+        // BARCODE as a text column, so Excel keeps leading zeros (0123…)
+        addSheet(workbook, 'PRODUCTS', COLUMNS.map(({ header, key, width }) => ({ header, key, width, numFmt: key === 'barcode' ? '@' : undefined })), [{
             productNameEn: 'Ballpoint Pen Blue 0.5mm',
             productNameKh: 'ប៊ិចខៀវ 0.5mm',
             brandNameEn: 'Pilot',
@@ -215,13 +216,27 @@ exports.previewProducts = async (req, res) => {
     }
 }
 
+// One import at a time: two running together could both pass the name check
+// and create the same product (or brand / category) twice. The server runs as
+// one process, so a flag here covers every request.
+let importing = false
+
 // Creates the previewed rows. Refused while any row has an error.
 exports.importProducts = async (req, res) => {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows : []
+    if (!rows.length) return response.failure(422, { msg: 'Nothing to import' }, res)
+    if (rows.length > 5000) return response.failure(422, { msg: 'Import at most 5000 rows at a time' }, res)
+    if (importing) return response.failure(422, { msg: 'Another import is running; try again when it finishes' }, res)
+    importing = true
     try {
-        const rows = Array.isArray(req.body?.rows) ? req.body.rows : []
-        if (!rows.length) return response.failure(422, { msg: 'Nothing to import' }, res)
-        if (rows.length > 5000) return response.failure(422, { msg: 'Import at most 5000 rows at a time' }, res)
+        return await runImport(req, res, rows)
+    } finally {
+        importing = false
+    }
+}
 
+const runImport = async (req, res, rows) => {
+    try {
         const checked = await validateRows(rows)
         const failing = checked.filter((row) => row.errors.length)
         if (failing.length) {
@@ -249,18 +264,28 @@ exports.importProducts = async (req, res) => {
 
         let created = 0
         for (const row of checked) {
-            await createProductRecord({
-                name: { English: row.productNameEn, Khmer: row.productNameKh || '' },
-                price: row.price,
-                currency: row.currency,
-                isStock: row.isStock,
-                status: row.status,
-                code: row.barcode,
-                description: row.description,
-                brand: brandIds.get(nameKey(row.brandNameEn)),
-                category: categoryIds.get(nameKey(row.categoryNameEn)),
-            }, req.user?.id)
-            created++
+            try {
+                await createProductRecord({
+                    name: { English: row.productNameEn, Khmer: row.productNameKh || '' },
+                    price: row.price,
+                    currency: row.currency,
+                    isStock: row.isStock,
+                    status: row.status,
+                    code: row.barcode,
+                    description: row.description,
+                    brand: brandIds.get(nameKey(row.brandNameEn)),
+                    category: categoryIds.get(nameKey(row.categoryNameEn)),
+                }, req.user?.id)
+                created++
+            } catch (err) {
+                // Say how far it got: the products before this row exist now,
+                // so choosing the file again shows them as "already exists"
+                console.error(err)
+                return response.failure(500, {
+                    msg: `Stopped at row ${row.row} ("${row.productNameEn}") after creating ${created} product${created === 1 ? '' : 's'}. Choose the file again: the created ones will show as already existing; remove them and import the rest.`,
+                    created,
+                }, res)
+            }
         }
         const summary = summarise(checked)
         return response.success(200, {
@@ -357,20 +382,30 @@ exports.uploadImages = async (req, res) => {
                 continue
             }
             const objectName = `${Date.now()}${crypto.randomBytes(3).toString('hex')}${path.extname(file.originalname).toLowerCase()}`
-            await minioClient.putObject(process.env.MINIO_BUCKET, objectName, file.buffer, file.size, { mimetype: file.mimetype })
-            const picture = await Picture.create({ filename: objectName, isActive: true })
-            // Only where still empty: a picture set since the preview is kept
-            const update = target === 'product'
-                ? { $set: { [field]: picture._id }, $push: { images: picture._id } }
-                : { $set: { [field]: picture._id } }
-            const { modifiedCount } = await Model.updateOne({ _id: match.id, $or: [{ [field]: null }, { [field]: { $exists: false } }] }, update)
-            if (modifiedCount) {
-                results.push({ file: file.originalname, status: 'set', name: match.name })
-            } else {
-                // Lost the race: undo this picture
-                await Picture.deleteOne({ _id: picture._id }).catch(() => {})
+            let picture
+            // Each file on its own: one storage failure doesn't fail (or
+            // misreport) the others in the batch
+            try {
+                await minioClient.putObject(process.env.MINIO_BUCKET, objectName, file.buffer, file.size, { mimetype: file.mimetype })
+                picture = await Picture.create({ filename: objectName, isActive: true })
+                // Only where still empty: a picture set since the preview is kept
+                const update = target === 'product'
+                    ? { $set: { [field]: picture._id }, $push: { images: picture._id } }
+                    : { $set: { [field]: picture._id } }
+                const { modifiedCount } = await Model.updateOne({ _id: match.id, $or: [{ [field]: null }, { [field]: { $exists: false } }] }, update)
+                if (modifiedCount) {
+                    results.push({ file: file.originalname, status: 'set', name: match.name })
+                } else {
+                    // Lost the race: undo this picture
+                    await Picture.deleteOne({ _id: picture._id }).catch(() => {})
+                    await minioClient.removeObject(process.env.MINIO_BUCKET, objectName).catch(() => {})
+                    results.push({ file: file.originalname, status: 'has-picture', name: match.name })
+                }
+            } catch (err) {
+                console.error(err)
+                if (picture) await Picture.deleteOne({ _id: picture._id }).catch(() => {})
                 await minioClient.removeObject(process.env.MINIO_BUCKET, objectName).catch(() => {})
-                results.push({ file: file.originalname, status: 'has-picture', name: match.name })
+                results.push({ file: file.originalname, status: 'failed', name: match.name })
             }
         }
         const set = results.filter((result) => result.status === 'set').length

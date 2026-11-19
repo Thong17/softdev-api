@@ -9,6 +9,7 @@ const mongoose = require('mongoose')
 const Payment = require('../models/Payment')
 const PaymentInstallment = require('../models/PaymentInstallment')
 const Drawer = require('../models/Drawer')
+const Reservation = require('../models/Reservation')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, calculateReturnCashes, checkoutTransaction, calculateCustomerPoint } = require('../helpers/utils')
@@ -159,6 +160,9 @@ exports.checkoutLater = async (req, res) => {
             throw saveErr
         }
         await checkoutTransaction({ transactions: payment.transactions })
+        // A reservation sold on Pay Later is finished like a paid one, so its
+        // table isn't left occupied (same as the normal checkout)
+        if (payment.reservation) await Reservation.findByIdAndUpdate(payment.reservation, { isCompleted: true })
 
         const data = await loadPayment(payment._id)
         return response.success(200, { msg: 'Saved as Pay Later', data }, res)
