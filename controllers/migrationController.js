@@ -1,5 +1,6 @@
 // Admin › Migration: import products from Excel by name (brand and category
-// matched, or created, by English name) and attach images in bulk by file name.
+// matched, or created, by English name), attach images in bulk by file name,
+// and add stock batches from Excel (product matched by barcode or name).
 const path = require('path')
 const crypto = require('crypto')
 const xlsx = require('xlsx')
@@ -9,11 +10,14 @@ const Brand = require('../models/Brand')
 const Category = require('../models/Category')
 const Image = require('../models/Image')
 const Icon = require('../models/Icon')
+const ProductStock = require('../models/ProductStock')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { Workbook, addSheet, sendWorkbook } = require('../helpers/excel')
 const { minioClient } = require('../configs/multer')
 const { createProductRecord } = require('./productController')
+const { applyNewPrice, canChangePrice } = require('./stockController')
+const { withFallbackProfile } = require('../helpers/productImage')
 
 // The one rule for matching names: trim, single spaces, ignore case
 const nameKey = (value) => String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
@@ -36,7 +40,6 @@ const COLUMNS = [
     { header: 'DESCRIPTION', key: 'description', width: 40 },
 ]
 const headerKey = (header) => String(header ?? '').trim().toUpperCase().replace(/[\s-]+/g, '_')
-const keyByHeader = Object.fromEntries(COLUMNS.map((column) => [column.header, column.key]))
 
 // TRUE/FALSE, yes/no, y/n, 1/0 (any case); empty gives the default;
 // anything else is undefined (an error)
@@ -179,35 +182,44 @@ exports.productTemplate = async (req, res) => {
     }
 }
 
+// The uploaded Excel's first sheet as raw rows ({ row, <column key>: cell }),
+// or { error } to show. `required`: lists of headers, at least one of each
+// list must be present (e.g. [['BARCODE', 'PRODUCT_NAME_EN']])
+const readExcelRows = (file, columns, required) => {
+    if (!file?.buffer) return { error: 'Choose an Excel file' }
+    let sheet
+    try {
+        const workbook = xlsx.read(file.buffer, { type: 'buffer' })
+        sheet = workbook.Sheets[workbook.SheetNames[0]]
+    } catch (err) {
+        return { error: 'This file could not be read as Excel' }
+    }
+    const table = xlsx.utils.sheet_to_json(sheet || {}, { header: 1, defval: '', raw: true, blankrows: false })
+    if (!table.length) return { error: 'The sheet is empty' }
+
+    const headers = table[0].map(headerKey)
+    const missing = required.find((anyOf) => !anyOf.some((header) => headers.includes(header)))
+    if (missing) return { error: `Column ${missing.join(' or ')} not found. Use the template from "Download template".` }
+    const keyOf = Object.fromEntries(columns.flatMap((column) => [column.header, ...(column.aliases || [])].map((header) => [header, column.key])))
+    const rows = table.slice(1)
+        .map((cells, index) => {
+            const raw = { row: index + 2 }
+            headers.forEach((header, column) => {
+                if (keyOf[header]) raw[keyOf[header]] = cells[column]
+            })
+            return raw
+        })
+        // Fully empty lines aren't rows
+        .filter((raw) => columns.some(({ key }) => text(raw[key]) !== ''))
+    if (!rows.length) return { error: 'No rows found under the header' }
+    return { rows }
+}
+
 // Excel (first sheet) → rows checked against the database
 exports.previewProducts = async (req, res) => {
     try {
-        if (!req.file?.buffer) return response.failure(422, { msg: 'Choose an Excel file' }, res)
-        let sheet
-        try {
-            const workbook = xlsx.read(req.file.buffer, { type: 'buffer' })
-            sheet = workbook.Sheets[workbook.SheetNames[0]]
-        } catch (err) {
-            return response.failure(422, { msg: 'This file could not be read as Excel' }, res)
-        }
-        const table = xlsx.utils.sheet_to_json(sheet || {}, { header: 1, defval: '', raw: true, blankrows: false })
-        if (!table.length) return response.failure(422, { msg: 'The sheet is empty' }, res)
-
-        const headers = table[0].map(headerKey)
-        if (!headers.includes('PRODUCT_NAME_EN')) {
-            return response.failure(422, { msg: 'Column PRODUCT_NAME_EN not found. Use the template from "Download template".' }, res)
-        }
-        const rows = table.slice(1)
-            .map((cells, index) => {
-                const raw = { row: index + 2 }
-                headers.forEach((header, column) => {
-                    if (keyByHeader[header]) raw[keyByHeader[header]] = cells[column]
-                })
-                return raw
-            })
-            // Fully empty lines aren't rows
-            .filter((raw) => COLUMNS.some(({ key }) => text(raw[key]) !== ''))
-        if (!rows.length) return response.failure(422, { msg: 'No product rows found under the header' }, res)
+        const { rows, error } = readExcelRows(req.file, COLUMNS, [['PRODUCT_NAME_EN']])
+        if (error) return response.failure(422, { msg: error }, res)
 
         const checked = await validateRows(rows)
         return response.success(200, { data: checked, summary: summarise(checked) }, res)
@@ -292,6 +304,434 @@ const runImport = async (req, res, rows) => {
             msg: `Imported ${created} product${created === 1 ? '' : 's'}${summary.newBrands ? `, ${summary.newBrands} new brand${summary.newBrands === 1 ? '' : 's'}` : ''}${summary.newCategories ? `, ${summary.newCategories} new categor${summary.newCategories === 1 ? 'y' : 'ies'}` : ''}`,
             created,
             ...summary,
+        }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+// ---- Stock ----
+// Each row adds one stock batch to an existing product, as "Add stock" does.
+// The product is found by BARCODE (its code) when given, else by English name.
+
+const STOCK_COLUMNS = [
+    { header: 'BARCODE', key: 'barcode', width: 18, numFmt: '@' },
+    { header: 'PRODUCT_NAME_EN', key: 'productNameEn', width: 32 },
+    { header: 'COST', key: 'cost', width: 10 },
+    { header: 'CURRENCY', key: 'currency', width: 10 },
+    { header: 'QUANTITY', key: 'quantity', width: 10 },
+    // The batch's own barcode (e.g. a lot label); STOCK_CODE, its earlier
+    // name, is still read
+    { header: 'STOCK_BARCODE', key: 'code', width: 16, numFmt: '@', aliases: ['STOCK_CODE'] },
+    { header: 'EXPIRE_DATE', key: 'expireAt', width: 14, numFmt: 'yyyy-mm-dd' },
+    { header: 'ALERT_AT', key: 'alertAt', width: 10 },
+    { header: 'NEW_PRICE', key: 'newPrice', width: 11 },
+    { header: 'NEW_PRICE_CURRENCY', key: 'newPriceCurrency', width: 20 },
+]
+const CURRENCIES = ['USD', 'KHR']
+
+// '' when empty, the number, or NaN when it isn't one
+const numberCell = (value) => {
+    if (typeof value === 'number') return value
+    const cell = text(value)
+    return cell === '' ? '' : Number(cell)
+}
+
+// YYYY-MM-DD, or '' when empty, or undefined when it isn't a valid date.
+// Accepts an Excel date cell (a serial number) or text YYYY-MM-DD / YYYY/MM/DD.
+const dateCell = (value) => {
+    if (value === undefined || value === null || text(value) === '') return ''
+    const pad = (n) => String(n).padStart(2, '0')
+    if (typeof value === 'number') {
+        const parts = xlsx.SSF.parse_date_code(value)
+        return parts && parts.y > 1900 ? `${parts.y}-${pad(parts.m)}-${pad(parts.d)}` : undefined
+    }
+    const match = text(value).match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:T.*)?$/)
+    if (!match) return undefined
+    const [year, month, day] = match.slice(1).map(Number)
+    const date = new Date(Date.UTC(year, month - 1, day))
+    if (date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return undefined
+    return `${year}-${pad(month)}-${pad(day)}`
+}
+
+// Checks every row against the database and against earlier rows. Shared by
+// preview and import, so the server enforces exactly what the preview shows.
+const validateStockRows = async (rows, user) => {
+    const products = await Product.find({ isDeleted: { $ne: true } }).select('name code isStock price currency').lean()
+    const byName = indexByName(products)
+    const byCode = new Map()
+    products.forEach((product) => {
+        const code = text(product.code)
+        if (!code) return
+        byCode.set(code, [...(byCode.get(code) || []), product])
+    })
+    const mayChangePrice = canChangePrice(user)
+    const firstRowOf = new Map()
+
+    return rows.map((raw, index) => {
+        const errors = []
+        const warnings = []
+        const row = Number(raw.row) || index + 2
+        const barcode = text(raw.barcode)
+        const nameEn = text(raw.productNameEn)
+
+        // Which product
+        let product = null
+        let matchedBy = null
+        const codeMatches = barcode ? byCode.get(barcode) || [] : []
+        if (codeMatches.length > 1) {
+            errors.push(`${codeMatches.length} products share barcode ${barcode}`)
+        } else if (codeMatches.length === 1) {
+            product = codeMatches[0]
+            matchedBy = 'barcode'
+            if (nameEn && nameKey(nameEn) !== nameKey(product.name?.English)) warnings.push(`Barcode ${barcode} belongs to "${product.name?.English}", not "${nameEn}"`)
+        } else if (nameEn) {
+            const nameMatches = byName.get(nameKey(nameEn)) || []
+            if (nameMatches.length > 1) errors.push(`${nameMatches.length} products share the name "${nameEn}"`)
+            else if (nameMatches.length === 0) errors.push(barcode ? `No product with barcode ${barcode} or the name "${nameEn}"` : `No product named "${nameEn}"`)
+            else {
+                product = nameMatches[0]
+                matchedBy = 'name'
+                if (barcode) warnings.push(`Barcode ${barcode} not found; matched by name`)
+            }
+        } else {
+            errors.push(barcode ? `No product with barcode ${barcode}` : 'BARCODE or PRODUCT_NAME_EN is needed')
+        }
+
+        if (product) {
+            const id = String(product._id)
+            if (!product.isStock) warnings.push('This product does not track stock yet; importing turns it on')
+            if (firstRowOf.has(id)) warnings.push(`Same product as row ${firstRowOf.get(id)}: adds another batch`)
+            else firstRowOf.set(id, row)
+        }
+
+        // Batch values
+        const cost = numberCell(raw.cost)
+        if (cost === '') errors.push('Cost is missing')
+        else if (!Number.isFinite(cost) || cost < 0) errors.push(`Cost "${text(raw.cost)}" is not a number of 0 or more`)
+
+        const currency = text(raw.currency).toUpperCase() || 'USD'
+        if (!CURRENCIES.includes(currency)) errors.push(`Currency "${text(raw.currency)}" must be USD or KHR`)
+
+        const quantity = numberCell(raw.quantity)
+        if (quantity === '') errors.push('Quantity is missing')
+        else if (!Number.isFinite(quantity) || quantity <= 0) errors.push(`Quantity "${text(raw.quantity)}" is not a number above 0`)
+
+        const alertAt = numberCell(raw.alertAt)
+        if (alertAt !== '' && (!Number.isFinite(alertAt) || alertAt < 0)) errors.push(`Alert at "${text(raw.alertAt)}" is not a number of 0 or more`)
+
+        const expireAt = dateCell(raw.expireAt)
+        if (expireAt === undefined) errors.push(`Expire date "${text(raw.expireAt)}" is not a date (use YYYY-MM-DD)`)
+
+        // Optional new selling price, as on the Add stock form
+        const newPrice = numberCell(raw.newPrice)
+        let newPriceCurrency = text(raw.newPriceCurrency).toUpperCase()
+        let changesPrice = false
+        if (newPrice !== '') {
+            newPriceCurrency = newPriceCurrency || product?.currency || 'USD'
+            if (!Number.isFinite(newPrice) || newPrice < 0) errors.push(`New price "${text(raw.newPrice)}" is not a number of 0 or more`)
+            else if (!CURRENCIES.includes(newPriceCurrency)) errors.push(`New price currency "${text(raw.newPriceCurrency)}" must be USD or KHR`)
+            else if (!mayChangePrice) errors.push('You are not allowed to change prices: leave NEW_PRICE empty')
+            else if (product && product.price === newPrice && (product.currency || 'USD') === newPriceCurrency) warnings.push('New price is the current price: nothing changes')
+            else changesPrice = true
+        } else if (newPriceCurrency) {
+            warnings.push('New price currency given without a new price: ignored')
+            newPriceCurrency = ''
+        }
+
+        const keep = (value) => (Number.isFinite(value) ? value : text(value))
+        return {
+            row,
+            barcode,
+            productNameEn: nameEn,
+            cost: cost === '' ? '' : keep(cost),
+            currency,
+            quantity: quantity === '' ? '' : keep(quantity),
+            code: text(raw.code),
+            expireAt: expireAt === undefined ? text(raw.expireAt) : expireAt,
+            alertAt: alertAt === '' ? '' : keep(alertAt),
+            newPrice: newPrice === '' ? '' : keep(newPrice),
+            newPriceCurrency,
+            product: product ? { id: String(product._id), name: product.name?.English, matchedBy, isStock: !!product.isStock } : null,
+            changesPrice,
+            errors,
+            warnings,
+        }
+    })
+}
+
+const summariseStock = (rows) => {
+    const matched = rows.filter((row) => row.product)
+    return {
+        rows: rows.length,
+        errors: rows.filter((row) => row.errors.length).length,
+        warnings: rows.filter((row) => row.warnings.length).length,
+        products: new Set(matched.map((row) => row.product.id)).size,
+        quantity: rows.reduce((sum, row) => sum + (Number.isFinite(row.quantity) ? row.quantity : 0), 0),
+        stockTurnsOn: new Set(matched.filter((row) => !row.product.isStock).map((row) => row.product.id)).size,
+        priceChanges: rows.filter((row) => row.changesPrice).length,
+    }
+}
+
+// Columns a person fills; a row with none of them filled is a product left
+// out (e.g. from a prefilled template), not a row with errors
+const STOCK_VALUE_KEYS = ['cost', 'quantity', 'code', 'expireAt', 'alertAt', 'newPrice']
+// Read-only columns of a prefilled template, after the import columns. The
+// import doesn't read them (unknown headers are ignored).
+const STOCK_INFO_COLUMNS = [
+    { header: 'BRAND', key: 'brand', width: 18 },
+    { header: 'CATEGORY', key: 'category', width: 18 },
+    { header: 'CURRENT_PRICE', key: 'currentPrice', width: 15 },
+    { header: 'IN_STOCK', key: 'inStock', width: 10 },
+]
+const objectIds = (value) => (Array.isArray(value) ? value : []).filter((id) => mongoose.Types.ObjectId.isValid(id)).map((id) => new mongoose.Types.ObjectId(id))
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Brands and categories for the template dialog's filters
+exports.stockTemplateOptions = async (req, res) => {
+    try {
+        const [brands, categories] = await Promise.all([Brand, Category].map((Model) =>
+            Model.find({ isDeleted: { $ne: true } }).select('name').collation({ locale: 'en', numericOrdering: true }).sort({ 'name.English': 1 }).lean()))
+        const option = (record) => ({ id: String(record._id), name: record.name?.English || '--' })
+        return response.success(200, { data: { brands: brands.map(option), categories: categories.map(option) } }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+// The template dialog's product filters: search (spaces ignored, matched on
+// the product's tags, as the product lists search), one brand, one category
+// ('all' or empty = any), status ('all' / 'active' / 'inactive'), date added
+// from / to, and `only` (ids: show just these, e.g. the selected ones)
+const pickerQuery = (body) => {
+    const query = { isDeleted: { $ne: true } }
+    if (Array.isArray(body.only)) query._id = { $in: objectIds(body.only) }
+    const search = text(body.search).replace(/ /g, '')
+    if (search) query.tags = { $regex: new RegExp(escapeRegExp(search), 'i') }
+    if (body.brand && body.brand !== 'all') {
+        if (!mongoose.Types.ObjectId.isValid(body.brand)) return { error: 'Unknown brand' }
+        query.brand = new mongoose.Types.ObjectId(body.brand)
+    }
+    if (body.category && body.category !== 'all') {
+        if (!mongoose.Types.ObjectId.isValid(body.category)) return { error: 'Unknown category' }
+        query.category = new mongoose.Types.ObjectId(body.category)
+    }
+    if (body.status === 'active') query.status = true
+    else if (body.status === 'inactive') query.status = false
+    const from = body.from ? new Date(body.from) : null
+    const to = body.to ? new Date(body.to) : null
+    if ((from && isNaN(from)) || (to && isNaN(to))) return { error: 'A date is not valid' }
+    if (from && to && from > to) return { error: 'The "from" date is after the "to" date' }
+    if (from || to) query.createdAt = { ...(from && { $gte: from }), ...(to && { $lte: to }) }
+    return { query }
+}
+
+// The template dialog's product grid: one page of matching products (by name)
+// and the ids of every match, for "Select all" beyond the loaded pages
+exports.stockTemplateProducts = async (req, res) => {
+    try {
+        const body = req.body || {}
+        const { query, error } = pickerQuery(body)
+        if (error) return response.failure(422, { msg: error }, res)
+        const offset = Math.max(0, parseInt(body.offset, 10) || 0)
+        const limit = Math.min(200, Math.max(1, parseInt(body.limit, 10) || 60))
+        const byName = { locale: 'en', numericOrdering: true }
+        const [ids, page] = await Promise.all([
+            Product.find(query).select('_id').lean(),
+            Product.find(query)
+                .select('name price currency status profile')
+                .populate('profile', 'filename')
+                .collation(byName)
+                .sort({ 'name.English': 1, _id: 1 })
+                .skip(offset)
+                .limit(limit)
+                .lean(),
+        ])
+        const inStock = new Map((await ProductStock.aggregate([
+            { $match: { product: { $in: page.map((product) => product._id) } } },
+            { $group: { _id: '$product', quantity: { $sum: '$quantity' } } },
+        ])).map((item) => [String(item._id), item.quantity]))
+        const data = page.map(withFallbackProfile).map((product) => ({
+            id: String(product._id),
+            name: product.name?.English || '--',
+            picture: product.profile?.filename || '',
+            price: product.price ?? 0,
+            currency: product.currency || 'USD',
+            status: product.status !== false,
+            inStock: inStock.get(String(product._id)) || 0,
+        }))
+        return response.success(200, { data, ids: ids.map((product) => String(product._id)), total: ids.length }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+// GET: the empty template with one example row. POST { ids }: prefilled with
+// the chosen products (barcode, name, currency, plus read-only info columns)
+exports.stockTemplate = async (req, res) => {
+    try {
+        const workbook = new Workbook()
+        if (req.method === 'GET') {
+            // BARCODE and STOCK_BARCODE as text columns, so Excel keeps leading zeros
+            addSheet(workbook, 'STOCK', STOCK_COLUMNS, [{
+                barcode: '4902505000000',
+                productNameEn: 'Ballpoint Pen Blue 0.5mm',
+                cost: 0.3,
+                currency: 'USD',
+                quantity: 100,
+                code: '',
+                expireAt: '',
+                alertAt: 10,
+                newPrice: '',
+                newPriceCurrency: '',
+            }])
+            return sendWorkbook(res, workbook, 'STOCK_IMPORT_TEMPLATE.xlsx')
+        }
+
+        const ids = objectIds(req.body?.ids)
+        if (!ids.length) return response.failure(422, { msg: 'Choose at least one product' }, res)
+        if (ids.length > 5000) return response.failure(422, { msg: 'Choose at most 5000 products: an import takes at most 5000 rows' }, res)
+        const products = await Product.find({ _id: { $in: ids }, isDeleted: { $ne: true } })
+            .select('name code price currency brand category')
+            .populate('brand', 'name')
+            .populate('category', 'name')
+            .lean()
+        if (!products.length) return response.failure(422, { msg: 'None of the chosen products exist any more' }, res)
+
+        const inStock = new Map((await ProductStock.aggregate([
+            { $match: { product: { $in: products.map((product) => product._id) } } },
+            { $group: { _id: '$product', quantity: { $sum: '$quantity' } } },
+        ])).map((item) => [String(item._id), item.quantity]))
+
+        const byText = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true })
+        const rows = products
+            .map((product) => ({
+                barcode: text(product.code),
+                productNameEn: text(product.name?.English),
+                currency: product.currency || 'USD',
+                brand: text(product.brand?.name?.English),
+                category: text(product.category?.name?.English),
+                currentPrice: `${product.price ?? 0} ${product.currency || 'USD'}`,
+                inStock: inStock.get(String(product._id)) || 0,
+            }))
+            // By brand (products without one last), then name
+            .sort((a, b) => (!a.brand - !b.brand) || byText(a.brand, b.brand) || byText(a.productNameEn, b.productNameEn))
+        addSheet(workbook, 'STOCK', [...STOCK_COLUMNS, ...STOCK_INFO_COLUMNS], rows)
+        return sendWorkbook(res, workbook, `STOCK_IMPORT_${rows.length}_PRODUCTS.xlsx`)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+exports.previewStock = async (req, res) => {
+    try {
+        const { rows: read, error } = readExcelRows(req.file, STOCK_COLUMNS, [['BARCODE', 'PRODUCT_NAME_EN'], ['COST'], ['QUANTITY']])
+        if (error) return response.failure(422, { msg: error }, res)
+        const rows = read.filter((raw) => STOCK_VALUE_KEYS.some((key) => text(raw[key]) !== ''))
+        if (!rows.length) return response.failure(422, { msg: 'No row has a COST or QUANTITY yet: fill them for the products you are adding stock to' }, res)
+        const checked = await validateStockRows(rows, req.user)
+        return response.success(200, { data: checked, summary: summariseStock(checked) }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+// Adds the previewed rows as stock batches. Refused while any row has an error.
+// Shares the one-import-at-a-time flag with the product import.
+exports.importStock = async (req, res) => {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows : []
+    if (!rows.length) return response.failure(422, { msg: 'Nothing to import' }, res)
+    if (rows.length > 5000) return response.failure(422, { msg: 'Import at most 5000 rows at a time' }, res)
+    if (importing) return response.failure(422, { msg: 'Another import is running; try again when it finishes' }, res)
+    importing = true
+    try {
+        return await runStockImport(req, res, rows)
+    } finally {
+        importing = false
+    }
+}
+
+const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`
+
+const runStockImport = async (req, res, rows) => {
+    try {
+        const checked = await validateStockRows(rows, req.user)
+        const failing = checked.filter((row) => row.errors.length)
+        if (failing.length) {
+            return response.failure(422, { msg: `${plural(failing.length, 'row has', 'rows have')} errors; remove them and try again`, data: checked, summary: summariseStock(checked) }, res)
+        }
+
+        let added = 0
+        let pricesChanged = 0
+        const products = new Set()
+        const turnedOn = new Set()
+        for (const row of checked) {
+            // How far this row got: 'batch' (nothing saved yet), 'price' (batch added)
+            let stage = 'batch'
+            let stockId = null
+            try {
+                // Inserted directly and linked in one update, like a stock
+                // conversion: the ProductStock save hook re-saves the whole
+                // product without waiting, which loses links (or crashes) when
+                // many rows add to the same product in a row
+                const stock = new ProductStock({
+                    product: row.product.id,
+                    cost: row.cost,
+                    currency: row.currency,
+                    quantity: row.quantity,
+                    totalQuantity: row.quantity,
+                    code: row.code,
+                    expireAt: row.expireAt ? new Date(`${row.expireAt}T00:00:00Z`) : undefined,
+                    alertAt: row.alertAt === '' ? 0 : row.alertAt,
+                })
+                await stock.validate()
+                const now = new Date()
+                await ProductStock.collection.insertOne({ ...stock.toObject(), createdAt: now, updatedAt: now })
+                stockId = stock._id
+                await Product.updateOne({ _id: row.product.id }, { $addToSet: { stocks: stock._id }, $set: { isStock: true } })
+                stage = 'price'
+                added++
+                products.add(row.product.id)
+                if (!row.product.isStock) turnedOn.add(row.product.id)
+
+                if (row.changesPrice) {
+                    const changed = await applyNewPrice({
+                        productId: row.product.id,
+                        newPrice: row.newPrice,
+                        newCurrency: row.newPriceCurrency,
+                        cost: row.cost,
+                        costCurrency: row.currency,
+                        source: 'STOCK_IMPORT',
+                        stock: stock._id,
+                        userId: req.user?.id,
+                    })
+                    if (changed) pricesChanged++
+                }
+            } catch (err) {
+                console.error(err)
+                // A batch saved but not linked to its product would never show:
+                // remove it, so this row counts as not added
+                if (stage === 'batch' && stockId) await ProductStock.deleteOne({ _id: stockId }).catch(() => {})
+                // Batches can't be told apart from new ones, so importing the
+                // same file again would add them twice: say what to remove
+                const thisRowAdded = stage === 'price'
+                return response.failure(500, {
+                    msg: `Stopped at row ${row.row} ("${row.product.name}") after adding ${plural(added, 'stock batch', 'stock batches')}.`
+                        + (thisRowAdded ? ` Row ${row.row}'s batch was added, but its new price was not saved.` : '')
+                        + ` Before importing again, delete the rows above row ${row.row}${thisRowAdded ? ' and that row' : ''} from the file, or they will be added twice.`,
+                    added,
+                }, res)
+            }
+        }
+        return response.success(200, {
+            msg: `Added ${plural(added, 'stock batch', 'stock batches')} to ${plural(products.size, 'product', 'products')}`
+                + (turnedOn.size ? `; stock turned on for ${plural(turnedOn.size, 'product', 'products')}` : '')
+                + (pricesChanged ? `; ${plural(pricesChanged, 'price', 'prices')} changed` : ''),
+            added,
+            products: products.size,
+            stockTurnedOn: turnedOn.size,
+            pricesChanged,
         }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)

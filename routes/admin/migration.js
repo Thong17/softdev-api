@@ -3,9 +3,11 @@ const multer = require('multer')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 const response = require('../../helpers/response')
-const { productTemplate, previewProducts, importProducts, previewImages, uploadImages, onlineStatus, onlineProducts, onlineSearch, onlineSave } = require('../../controllers/migrationController')
+const { productTemplate, previewProducts, importProducts, stockTemplate, stockTemplateOptions, stockTemplateProducts, previewStock, importStock, previewImages, uploadImages, onlineStatus, onlineProducts, onlineSearch, onlineSave } = require('../../controllers/migrationController')
 
 const canMigrate = security.role(privilege.admin.migration)
+// Adding stock also needs the right to add stock elsewhere (/sale/stock/create)
+const canAddStock = security.role(privilege.product.create)
 
 // Kept in memory: the Excel is only read; images are only stored once matched
 const excelUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }).single('excel')
@@ -29,6 +31,12 @@ const withUpload = (upload, handler) => (req, res) => upload(req, res, (err) => 
 router.get('/product/template', canMigrate, productTemplate)
 router.post('/product/preview', canMigrate, withUpload(excelUpload, previewProducts))
 router.post('/product/import', canMigrate, security.audit(), importProducts)
+router.get('/stock/template', canMigrate, stockTemplate)
+router.get('/stock/template/options', canMigrate, stockTemplateOptions)
+router.post('/stock/template/products', canMigrate, stockTemplateProducts)
+router.post('/stock/template', canMigrate, stockTemplate)
+router.post('/stock/preview', canMigrate, withUpload(excelUpload, previewStock))
+router.post('/stock/import', canMigrate, canAddStock, security.audit(), importStock)
 router.post('/image/preview', canMigrate, previewImages)
 router.post('/image/upload', canMigrate, security.audit(), withUpload(imageUpload, uploadImages))
 

@@ -377,3 +377,7 @@ exports.listPriceHistory = async (req, res) => {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
     }
 }
+
+// Shared with Admin > Migration > Stock import
+exports.applyNewPrice = applyNewPrice
+exports.canChangePrice = canChangePrice
