@@ -7,6 +7,7 @@ const User = require('../models/User')
 const { encryptPassword } = require('../helpers/utils')
 const { syncRolePrivileges } = require('../helpers/rolePrivileges')
 const { startTierSchedule } = require('../helpers/customerTier')
+const { startPayLaterAlertSchedule } = require('../helpers/payLaterAlerts')
 
 // Mongoose 6's behaviour (unknown filter fields are ignored), set explicitly:
 // it stays the same when upgrading, and the startup warning goes away
@@ -16,6 +17,8 @@ mongoose.connect(process.env.DATABASE_URL, {
     useNewUrlParser: true,
 })
 .then(async () => {
+    // Pay Later overdue Telegram summary (does nothing until switched on in Config)
+    startPayLaterAlertSchedule()
     try {
         const totalUser = await User.count()
         if (totalUser > 0) {

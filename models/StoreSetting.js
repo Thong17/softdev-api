@@ -16,7 +16,18 @@ const schema = mongoose.Schema(
                 SENT_AFTER_PAYMENT: false,
                 SENT_AFTER_OPEN_DRAWER: false,
                 SENT_AFTER_CLOSE_DRAWER: false,
+                // Daily summary of overdue Pay Later sales (helpers/payLaterAlerts)
+                SENT_PAY_LATER_OVERDUE: false,
             }
+        },
+        // When to send that summary, shop time 'HH:mm'; and the day it was last
+        // sent ('YYYY-MM-DD'), so it goes out once a day
+        payLaterOverdueTime: {
+            type: String,
+            default: '08:00'
+        },
+        payLaterOverdueSentOn: {
+            type: String
         },
         thermalPrinterName: {
             type: String,

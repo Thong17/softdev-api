@@ -314,6 +314,7 @@ exports.getStoreSetting = async (req, res) => {
             telegramAPIKey: setting.telegramAPIKey, 
             telegramChatID: setting.telegramChatID, 
             telegramPrivilege: setting.telegramPrivilege, 
+            payLaterOverdueTime: setting.payLaterOverdueTime || '08:00',
             thermalPrinterName: setting.thermalPrinterName, 
             receiptPrinterName: setting.receiptPrinterName, 
             receiptPrinterCharPerLine: setting.receiptPrinterCharPerLine, 

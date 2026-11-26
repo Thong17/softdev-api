@@ -26,6 +26,9 @@ const updateTelegramSettingValidation = Joi.object({
     telegramAPIKey: Joi.string().optional().allow(''),
     telegramChatID: Joi.string().optional().allow(''),
     telegramPrivilege: Joi.object().optional(),
+    // Pay Later overdue summary send time, shop time
+    payLaterOverdueTime: Joi.string().pattern(/^([01]\d|2[0-3]):[0-5]\d$/).optional()
+        .messages({ 'string.pattern.base': 'Send time must be HH:mm' }),
     thermalPrinterName: Joi.string().optional().allow(''),
     receiptPrinterName: Joi.string().optional().allow(''),
     receiptPrinterCharPerLine: Joi.number().optional().allow(''),
