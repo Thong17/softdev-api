@@ -201,7 +201,12 @@ exports.privilege = {
         delete: {
             route: 'user',
             action: 'delete'
-        }
+        },
+        // Set a new password for another user (Edit user › Reset Password)
+        resetPassword: {
+            route: 'user',
+            action: 'resetPassword'
+        },
     },
     role: {
         list: {

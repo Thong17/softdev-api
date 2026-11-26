@@ -101,8 +101,13 @@ exports.create = async (req, res) => {
     try {
         if (await cannotAssignRole(req, body.role)) return response.failure(403, ASSIGN_DENIED, res)
 
+        // Checked here, on the plain password: the model's check only sees the hash
+        if (body.password.length < 7) return response.failure(422, { msg: 'Password must be at least 7 characters!' }, res)
+        if (!validatePassword(body.password)) return response.failure(422, { msg: 'Strong password is required!' }, res)
         const password = await encryptPassword(body.password)
         body.expireAt = body.expireAt || null
+        // Email is optional
+        body.email = body.email || ''
         User.create({...body, password, createdBy: req.user.id}, (err, user) => {
             if (err) {
                 switch (err.code) {
@@ -132,7 +137,10 @@ exports.update = async (req, res) => {
         if (!(await findVisibleUser(req))) return response.failure(404, { msg: 'User not found' }, res)
         if (await cannotAssignRole(req, body.role)) return response.failure(403, ASSIGN_DENIED, res)
 
-        if (body.password !== '') {
+        // A new password (Reset Password) needs its own permission; left out or
+        // empty, the password stays as it is
+        if (body.password) {
+            if (!req.user?.role?.privilege?.user?.resetPassword) return response.failure(403, { msg: 'You are not allowed to reset passwords' }, res)
             if (body.password.length < 7) return response.failure(422, { msg: 'Password must be at least 7 characters!' }, res)
             if (!validatePassword(body.password)) return response.failure(422, { msg: 'Strong password is required!' }, res)
             body.password = await encryptPassword(body.password)
@@ -140,6 +148,8 @@ exports.update = async (req, res) => {
             delete body.password
         }
         body.expireAt = body.expireAt || null
+        // Email is optional: a cleared one is stored empty; left out, it stays as it is
+        if ('email' in body) body.email = body.email || ''
 
         const existing = await User.findById(id)
         if (existing?.isDefault && body.expireAt) return response.failure(422, { msg: 'Default user cannot have an expiration date' }, res)

@@ -7,10 +7,11 @@ const createUserValidation = Joi.object({
         .max(30)
         .required(),
 
+    // Optional: users sign in with their username
     email: Joi.string()
         .email({ tlds: { allow: false } })
-        .required(),
-        
+        .allow('', null),
+
     role: Joi.string()
         .required(),
 
@@ -31,11 +32,12 @@ const updateUserValidation = Joi.object({
 
     email: Joi.string()
         .email({ tlds: { allow: false } })
-        .required(),
-        
+        .allow('', null),
+
     role: Joi.string()
         .required(),
 
+    // Empty or left out: the password stays as it is
     password: Joi.string()
         .pattern(new RegExp('^[a-zA-Z0-9]{3,30}$'))
         .allow(''),
