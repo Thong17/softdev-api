@@ -15,9 +15,11 @@ const schema = mongoose.Schema(
             type: mongoose.Schema.ObjectId,
             ref: 'Icon'
         },
+        // Label (thermal) printing: off unless switched on for the category.
+        // Existing categories keep what they have.
         hasThermalPrinting:{
             type: Boolean,
-            default: true
+            default: false
         },
         description: {
             type: String,
