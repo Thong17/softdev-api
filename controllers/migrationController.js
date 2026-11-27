@@ -900,8 +900,35 @@ exports.onlineSearch = async (req, res) => {
     }
 }
 
-// Downloads each picked photo and makes it the product's picture. The old
-// picture stays in the product's extra images.
+// Stores an image and makes it the product's picture; the old picture stays
+// in the product's extra images. Nothing is left in storage if it fails.
+const attachProductPicture = async (productId, buffer, mimetype, extension) => {
+    if (!mongoose.Types.ObjectId.isValid(productId)) throw Object.assign(new Error('Unknown product'), { userMessage: true })
+    const product = await Product.findOne({ _id: productId, isDeleted: { $ne: true } }).select('profile').lean()
+    if (!product) throw Object.assign(new Error('Product not found'), { userMessage: true })
+
+    const objectName = `${Date.now()}${crypto.randomBytes(3).toString('hex')}${extension}`
+    try {
+        await minioClient.putObject(process.env.MINIO_BUCKET, objectName, buffer, buffer.length, { mimetype })
+        const picture = await Image.create({ filename: objectName, isActive: true })
+
+        const keep = [picture._id, product.profile].filter(Boolean)
+        const { matchedCount } = await Product.updateOne(
+            { _id: productId, isDeleted: { $ne: true } },
+            { $set: { profile: picture._id }, $addToSet: { images: { $each: keep } } }
+        )
+        if (!matchedCount) {
+            await Image.deleteOne({ _id: picture._id }).catch(() => {})
+            throw Object.assign(new Error('Product was removed meanwhile'), { userMessage: true })
+        }
+        return { replaced: !!product.profile }
+    } catch (err) {
+        await minioClient.removeObject(process.env.MINIO_BUCKET, objectName).catch(() => {})
+        throw err
+    }
+}
+
+// Downloads each picked photo and makes it the product's picture
 exports.onlineSave = async (req, res) => {
     try {
         const items = Array.isArray(req.body?.items) ? req.body.items : []
@@ -912,32 +939,17 @@ exports.onlineSave = async (req, res) => {
         for (const item of items) {
             const productId = String(item?.productId || '')
             const result = { productId }
-            let objectName
             try {
                 if (!mongoose.Types.ObjectId.isValid(productId)) throw Object.assign(new Error('Unknown product'), { userMessage: true })
-                const product = await Product.findOne({ _id: productId, isDeleted: { $ne: true } }).select('profile').lean()
-                if (!product) throw Object.assign(new Error('Product not found'), { userMessage: true })
+                const exists = await Product.exists({ _id: productId, isDeleted: { $ne: true } })
+                if (!exists) throw Object.assign(new Error('Product not found'), { userMessage: true })
 
                 // The image address comes from Pexels itself, never from the request
                 const info = await pexels.photo(item.photoId)
                 const { buffer, mimetype } = await pexels.download(info?.src?.large || info?.src?.original)
-                objectName = `${Date.now()}${crypto.randomBytes(3).toString('hex')}.jpg`
-                await minioClient.putObject(process.env.MINIO_BUCKET, objectName, buffer, buffer.length, { mimetype })
-                const picture = await Image.create({ filename: objectName, isActive: true })
-
-                const keep = [picture._id, product.profile].filter(Boolean)
-                const { matchedCount } = await Product.updateOne(
-                    { _id: productId, isDeleted: { $ne: true } },
-                    { $set: { profile: picture._id }, $addToSet: { images: { $each: keep } } }
-                )
-                if (!matchedCount) {
-                    await Image.deleteOne({ _id: picture._id }).catch(() => {})
-                    throw Object.assign(new Error('Product was removed meanwhile'), { userMessage: true })
-                }
-                results.push({ ...result, status: 'set', replaced: !!product.profile })
+                const { replaced } = await attachProductPicture(productId, buffer, mimetype, '.jpg')
+                results.push({ ...result, status: 'set', replaced })
             } catch (err) {
-                // Nothing left behind for a photo that wasn't attached
-                if (objectName) await minioClient.removeObject(process.env.MINIO_BUCKET, objectName).catch(() => {})
                 if (!err.userMessage) console.error(err)
                 results.push({ ...result, status: 'failed', msg: failMessage(err) })
             }
@@ -946,6 +958,23 @@ exports.onlineSave = async (req, res) => {
         return response.success(200, { msg: `${set} picture${set === 1 ? '' : 's'} saved`, data: results, set }, res)
     } catch (err) {
         return response.failure(422, { msg: failureMsg.trouble }, res, err)
+    }
+}
+
+// A photo taken with the camera (Find online › Take photo) becomes the
+// product's picture, the same way as a picked Pexels photo
+const PHOTO_TYPES = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' }
+exports.onlinePhoto = async (req, res) => {
+    try {
+        const file = req.file
+        if (!file) return response.failure(422, { msg: 'No photo received' }, res)
+        const extension = PHOTO_TYPES[file.mimetype]
+        if (!extension) return response.failure(422, { msg: 'Send a JPEG, PNG or WebP photo' }, res)
+        const productId = String(req.body?.productId || '')
+        const { replaced } = await attachProductPicture(productId, file.buffer, file.mimetype, extension)
+        return response.success(200, { msg: 'Picture saved', data: { productId, status: 'set', replaced } }, res)
+    } catch (err) {
+        return response.failure(422, { msg: failMessage(err) }, res, err.userMessage ? undefined : err)
     }
 }
 

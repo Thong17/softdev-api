@@ -3,7 +3,7 @@ const multer = require('multer')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
 const response = require('../../helpers/response')
-const { productTemplate, previewProducts, importProducts, stockTemplate, stockTemplateOptions, stockTemplateProducts, previewStock, importStock, previewImages, uploadImages, onlineStatus, onlineProducts, onlineSearch, onlineSave } = require('../../controllers/migrationController')
+const { productTemplate, previewProducts, importProducts, stockTemplate, stockTemplateOptions, stockTemplateProducts, previewStock, importStock, previewImages, uploadImages, onlineStatus, onlineProducts, onlineSearch, onlineSave, onlinePhoto } = require('../../controllers/migrationController')
 
 const canMigrate = security.role(privilege.admin.migration)
 // Adding stock also needs the right to add stock elsewhere (/sale/stock/create)
@@ -16,6 +16,11 @@ const imageUpload = multer({
     limits: { fileSize: 5 * 1024 * 1024, files: 20 },
     fileFilter: (_req, file, cb) => cb(null, /^image\//.test(file.mimetype)),
 }).array('files', 20)
+const photoUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+    fileFilter: (_req, file, cb) => cb(null, /^image\//.test(file.mimetype)),
+}).single('file')
 
 // Upload errors (too big, too many) as a message instead of a crash
 const withUpload = (upload, handler) => (req, res) => upload(req, res, (err) => {
@@ -45,5 +50,6 @@ router.get('/online/status', canMigrate, onlineStatus)
 router.post('/online/products', canMigrate, onlineProducts)
 router.post('/online/search', canMigrate, onlineSearch)
 router.post('/online/save', canMigrate, security.audit(), onlineSave)
+router.post('/online/photo', canMigrate, security.audit(), withUpload(photoUpload, onlinePhoto))
 
 module.exports = router
