@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { listSale, totalSale, totalSaleBreakdown, totalSaleBreakdownRows, topProduct, topStaff, listProduct, listStaff } = require('../../controllers/reportController')
+const { listSale, totalSale, totalSaleBreakdown, totalSaleBreakdownRows, totalSaleBreakdownItems, topProduct, topStaff, listProduct, listStaff } = require('../../controllers/reportController')
 const reportExport = require('../../controllers/reportExportController')
 const security = require('../../middleware/security')
 const { privilege } = require('../../constants/roleMap')
@@ -21,6 +21,11 @@ router.get('/totalSale/breakdown', security.role(privilege.report.sale), (req, r
 // One page of the sales and payments (?source=all|sales|loan|clearance|payLater)
 router.get('/totalSale/breakdown/rows', security.role(privilege.report.sale), (req, res) => {
     totalSaleBreakdownRows(req, res)
+})
+
+// The items behind one row, with their costs (?source=...&id=<row id>)
+router.get('/totalSale/breakdown/items', security.role(privilege.report.sale), (req, res) => {
+    totalSaleBreakdownItems(req, res)
 })
 
 router.get('/topProduct', security.role(privilege.report.product), (req, res) => {

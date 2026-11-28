@@ -280,6 +280,76 @@ exports.totalSaleBreakdownRows = async (req, res) => {
   }
 }
 
+// The items of the sale behind one row of the breakdown, each with what it
+// cost, and how the row's cost comes from them. Costs are worked out here
+// (transactions never send their stock costs). Removed cart lines are
+// listed too: a sale's cost counts every line on it.
+const TRANSACTION_FIELDS = 'description quantity price currency total discount stockCosts isDeleted'
+exports.totalSaleBreakdownItems = async (req, res) => {
+  const { source, id } = req.query
+  if (!SOURCES.includes(source) || !id || !/^[0-9a-f]{24}$/i.test(String(id))) return response.failure(422, { msg: 'Nothing to show' }, res)
+
+  try {
+    let payment = null
+    let rowCost = 0
+    let installmentCount = null
+    let clearedId = null
+
+    if (source === 'sales') {
+      payment = await Payment.findById(id).select('invoice rate transactions').populate('transactions', TRANSACTION_FIELDS)
+      rowCost = itemsCost(payment?.transactions, payment?.rate?.buyRate)
+    } else if (source === 'loan') {
+      const loanPayment = await LoanPayment.findById(id).select('loan')
+        .populate({ path: 'loan', select: 'payment loanPayments', populate: { path: 'payment', select: 'invoice rate transactions', populate: { path: 'transactions', select: TRANSACTION_FIELDS } } })
+      payment = loanPayment?.loan?.payment
+      installmentCount = loanPayment?.loan?.loanPayments?.length || 1
+      rowCost = itemsCost(payment?.transactions, payment?.rate?.buyRate) / installmentCount
+    } else if (source === 'clearance') {
+      const clearance = await TransactionClearance.findById(id).select('transaction loan')
+        .populate('transaction', TRANSACTION_FIELDS)
+        .populate({ path: 'loan', select: 'payment', populate: { path: 'payment', select: 'invoice rate transactions', populate: { path: 'transactions', select: TRANSACTION_FIELDS } } })
+      payment = clearance?.loan?.payment
+      clearedId = clearance?.transaction?._id ? String(clearance.transaction._id) : null
+      rowCost = itemsCost([clearance?.transaction], payment?.rate?.buyRate)
+    } else {
+      const [installment] = await installmentsBetween({ $exists: true }, { _id: id })
+      if (installment?.payment?._id) {
+        payment = await Payment.findById(installment.payment._id).select('invoice rate transactions').populate('transactions', TRANSACTION_FIELDS)
+        rowCost = installment.cost
+      }
+    }
+
+    if (!payment) return response.failure(422, { msg: 'The sale behind this row was not found' }, res)
+
+    const buyRate = payment.rate?.buyRate
+    const items = (payment.transactions || []).filter(Boolean).map((transaction) => ({
+      id: transaction._id,
+      description: transaction.description,
+      quantity: transaction.quantity,
+      price: typeof transaction.price === 'number' ? { value: transaction.price, currency: transaction.currency || 'USD' } : null,
+      discount: transaction.discount,
+      total: transaction.total,
+      cost: itemsCost([transaction], buyRate),
+      isDeleted: !!transaction.isDeleted,
+      // The item a clearance paid off
+      isRowItem: clearedId ? String(transaction._id) === clearedId : undefined,
+    }))
+
+    return response.success(200, {
+      data: {
+        source,
+        invoice: payment.invoice,
+        items,
+        itemsCost: sumOf(items, 'cost'),
+        rowCost,
+        installmentCount,
+      },
+    }, res)
+  } catch (err) {
+    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+  }
+}
+
 exports.topProduct = async (req, res) => {
   const income = req.query._topProduct || 'month'
 
