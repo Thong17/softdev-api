@@ -25,8 +25,17 @@ const createCustomerValidation = Joi.object({
         lng: Joi.number().min(-180).max(180).required(),
         label: Joi.string().optional().allow(''),
     }).optional().allow(null),
+    clientId: Joi.string().guid().optional(),
+})
+
+// A customer added offline and sent by the sync: the device's id is required,
+// so the server can tell a retry from a new customer
+const offlineCustomerValidation = createCustomerValidation.keys({
+    clientId: Joi.string().guid().required(),
+    capturedAt: Joi.date().optional(),
 })
 
 module.exports = {
-    createCustomerValidation
+    createCustomerValidation,
+    offlineCustomerValidation
 }

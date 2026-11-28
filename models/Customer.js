@@ -85,6 +85,15 @@ const schema = mongoose.Schema(
         tags: {
             type: String,
         },
+        // Id made on the device that added the customer. It makes a create
+        // safe to retry: an offline sync or a timed-out request that is sent
+        // again finds this customer instead of adding a second one.
+        clientId: {
+            type: String,
+            index: { unique: true, sparse: true }
+        },
+        // When the customer was added offline, before the sync saved it
+        offlineCapturedAt: { type: Date },
     },
     {
         timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' }

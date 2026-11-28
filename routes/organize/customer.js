@@ -1,6 +1,6 @@
 const router = require('express').Router()
 const { memoryStorage } = require('../../configs/multer')
-const { index, create, update, detail, disable, _import, batch, rm, options } = require('../../controllers/customerController')
+const { index, create, update, detail, disable, _import, sync, rm, options } = require('../../controllers/customerController')
 const security = require('../../middleware/security')
 const customerTier = require('../../controllers/customerTierController')
 const priceHistory = require('../../controllers/priceHistoryController')
@@ -62,8 +62,9 @@ router.post('/excel/import', memoryStorage.single('excel'), (req, res) => {
     _import(req, res)
 })
 
-router.post('/batch', security.role(privilege.customer.create), security.audit(), (req, res) => {
-    batch(req, res)
+// Customers added offline, saved once the device is back online
+router.post('/sync', security.role(privilege.customer.create), security.audit(), (req, res) => {
+    sync(req, res)
 })
 
 module.exports = router

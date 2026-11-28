@@ -1,10 +1,9 @@
 const mongoose = require('mongoose')
 const Customer = require('../models/Customer')
-const Image = require('../models/Image')
 const response = require('../helpers/response')
 const { failureMsg } = require('../constants/responseMsg')
 const { extractJoiErrors, readExcel } = require('../helpers/utils')
-const { createCustomerValidation } = require('../middleware/validations/customerValidation')
+const { createCustomerValidation, offlineCustomerValidation } = require('../middleware/validations/customerValidation')
 const { applyTierChoice } = require('./customerTierController')
 const { evaluateCustomers, getMonths, spentSince, windowStart } = require('../helpers/customerTier')
 
@@ -63,7 +62,7 @@ exports.list = async (req, res) => {
 
 exports.detail = async (req, res) => {
     try {
-        const customer = await Customer.findById(req.params.id)
+        const customer = await Customer.findById(req.params.id).populate('picture', 'filename')
 
         return response.success(200, { data: customer }, res)
     } catch (err) {
@@ -71,37 +70,46 @@ exports.detail = async (req, res) => {
     }   
 }
 
+// Saves a new customer and gives it its first tier: the one chosen when
+// locked, otherwise the one its spending earns. Shared by create and sync.
+// A failure carries `code` 11000 with Mongo's `keyPattern` when a unique
+// field is taken.
+const createOne = async (input, userId) => {
+    const { rest: body, tier, tierLocked } = splitTier(input)
+    // Customer.create, not insertMany, so the pre-save hook fills `tags`
+    const customer = await Customer.create({ ...body, createdBy: userId })
+    let tierError = null
+    try {
+        if (tierLocked) await applyTierChoice({ customerId: customer._id, tierLocked, tier, previous: null, userId })
+        else await evaluateCustomers({ customerIds: [customer._id], mode: 'INITIAL', userId })
+    } catch (err) {
+        tierError = err
+    }
+    return { customer, tierError }
+}
+
 exports.create = async (req, res) => {
     const { error } = createCustomerValidation.validate(req.body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
-    const { rest: body, tier, tierLocked } = splitTier(req.body)
 
     try {
-        Customer.create({...body, createdBy: req.user.id}, async (err, customer) => {
-            if (err) {
-                switch (err.code) {
-                    case 11000:
-                        return response.failure(422, { msg: 'Customer already exists!' }, res, err)
-                    default:
-                        return response.failure(422, { msg: err.message }, res, err)
-                }
-            }
+        // A retry of a create that already went through returns that customer
+        if (req.body.clientId) {
+            const existing = await Customer.findOne({ clientId: req.body.clientId }).populate(tierPopulate)
+            if (existing) return response.success(200, { msg: 'Customer has created successfully', data: existing }, res)
+        }
 
-            if (!customer) return response.failure(422, { msg: 'No customer created!' }, res, err)
-
-            await Image.updateMany({ _id: { $in: customer.images } }, { $set: { isActive: true } }, { multi:true })
-            try {
-                // A new customer starts in the tier chosen, or the lowest one
-                if (tierLocked) await applyTierChoice({ customerId: customer._id, tierLocked, tier, previous: null, userId: req.user?.id })
-                else await evaluateCustomers({ customerIds: [customer._id], mode: 'INITIAL', userId: req.user?.id })
-            } catch (tierErr) {
-                return response.failure(tierErr.code || 422, { msg: tierErr.message }, res, tierErr)
-            }
-            const data = await Customer.findById(customer._id).populate(tierPopulate)
-            response.success(200, { msg: 'Customer has created successfully', data }, res)
-        })
+        const { customer, tierError } = await createOne(req.body, req.user.id)
+        if (tierError) return response.failure(tierError.code || 422, { msg: tierError.message }, res, tierError)
+        const data = await Customer.findById(customer._id).populate(tierPopulate)
+        response.success(200, { msg: 'Customer has created successfully', data }, res)
     } catch (err) {
-        return response.failure(422, { msg: failureMsg.trouble }, res, err)
+        if (err.code === 11000) {
+            const saved = req.body.clientId && await Customer.findOne({ clientId: req.body.clientId }).populate(tierPopulate)
+            if (saved) return response.success(200, { msg: 'Customer has created successfully', data: saved }, res)
+            return response.failure(422, { msg: 'Customer already exists!' }, res, err)
+        }
+        return response.failure(422, { msg: err.message || failureMsg.trouble }, res, err)
     }
 }
 
@@ -109,6 +117,8 @@ exports.update = async (req, res) => {
     const { error } = createCustomerValidation.validate(req.body, { abortEarly: false })
     if (error) return response.failure(422, extractJoiErrors(error), res)
     const { rest: body, tier, tierLocked } = splitTier(req.body)
+    // The device id is set once, when the customer is created
+    delete body.clientId
     try {
         if (body.discount === null) body.discount = 0
         const current = await Customer.findById(req.params.id)
@@ -165,24 +175,65 @@ exports._import = async (req, res) => {
     }
 }
 
-exports.batch = async (req, res) => {
-    const customers = req.body
+const SYNC_LIMIT = 50
 
-    customers.forEach(customer => {
-        customer.name = JSON.parse(customer.name)
-        customer.images = JSON.parse(customer.images || '[]')
-        customer.options = JSON.parse(customer.options || '[]')
-        customer.properties = JSON.parse(customer.properties || '[]')
-        customer.colors = JSON.parse(customer.colors || '[]')
-    })
+// Customers added offline, sent by the device once it is back online.
+// Each one is answered on its own, by its clientId:
+//   created   saved now
+//   exists    saved by an earlier sync whose answer was lost; also a success
+//   conflict  the display name belongs to another customer; nothing saved
+//   invalid   failed validation; nothing saved
+//   failed    anything else; the device keeps it and tries again
+exports.sync = async (req, res) => {
+    const customers = req.body?.customers
+    if (!Array.isArray(customers) || !customers.length) return response.failure(422, { msg: 'No customers to sync!' }, res)
+    if (customers.length > SYNC_LIMIT) return response.failure(422, { msg: `Sync at most ${SYNC_LIMIT} customers at a time` }, res)
 
-    Customer.insertMany(customers)
-        .then(data => {
-            response.success(200, { msg: `${data.length} ${data.length > 1 ? 'customers' : 'customer'} has been inserted` }, res)
-        })
-        .catch(err => {
-            return response.failure(422, { msg: err.message }, res)
-        })
+    const results = []
+    for (const input of customers) {
+        const clientId = input?.clientId
+        const { error } = offlineCustomerValidation.validate(input, { abortEarly: false })
+        if (error) {
+            results.push({ clientId, status: 'invalid', errors: extractJoiErrors(error) })
+            continue
+        }
+
+        try {
+            const existing = await Customer.findOne({ clientId }).select('_id displayName')
+            if (existing) {
+                results.push({ clientId, status: 'exists', id: existing._id })
+                continue
+            }
+
+            const { capturedAt, ...body } = input
+            const { customer, tierError } = await createOne({ ...body, offlineCapturedAt: capturedAt || null }, req.user.id)
+            // The customer is saved either way; a tier can be set again later
+            results.push({ clientId, status: 'created', id: customer._id, ...(tierError && { warning: tierError.message }) })
+        } catch (err) {
+            // Sent twice at the same moment, the other request saved it. Both
+            // unique fields collide then and Mongo may name either, so look
+            // up the clientId before calling it a name conflict.
+            const saved = err.code === 11000 && await Customer.findOne({ clientId }).select('_id')
+            if (saved) {
+                results.push({ clientId, status: 'exists', id: saved._id })
+            } else if (err.code === 11000) {
+                const taken = await Customer.findOne({ displayName: input.displayName }).select('_id displayName fullName contact isDeleted')
+                results.push({
+                    clientId,
+                    status: 'conflict',
+                    msg: taken?.isDeleted
+                        ? `"${input.displayName}" belongs to a deleted customer`
+                        : `"${input.displayName}" is already a customer`,
+                    existing: taken && { id: taken._id, displayName: taken.displayName, fullName: taken.fullName, contact: taken.contact, isDeleted: taken.isDeleted },
+                })
+            } else {
+                results.push({ clientId, status: 'failed', msg: err.message || failureMsg.trouble })
+            }
+        }
+    }
+
+    const saved = results.filter(r => r.status === 'created' || r.status === 'exists').length
+    response.success(200, { msg: `${saved} of ${results.length} ${results.length > 1 ? 'customers' : 'customer'} synced`, data: results }, res)
 }
 
 // Groups and sources already used, for the customer list filters and form
