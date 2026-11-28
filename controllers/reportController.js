@@ -120,112 +120,161 @@ exports.listSale = async (req, res) => {
   }
 }
 
+// Report periods: today, this week, this month or this year
+const PERIODS = ['day', 'week', 'month', 'year']
+const periodRange = (period) => {
+  const unit = PERIODS.includes(period) ? period : 'day'
+  return { $gte: moment().startOf(unit).toDate(), $lt: moment().endOf(unit).toDate() }
+}
+
+const toUSD = (value, currency, buyRate) => (currency && currency !== 'USD' ? value / (buyRate || 1) : value)
+
+// What the sold items cost, from the stock each one was taken from
+const itemsCost = (transactions, buyRate) => (transactions || []).reduce((total, transaction) => {
+  return total + (transaction?.stockCosts || []).reduce((sum, stock) => sum + toUSD(stock.cost, stock.currency, buyRate), 0)
+}, 0)
+
+const sumOf = (rows, key) => rows.reduce((total, row) => total + (row[key] || 0), 0)
+
+// Money received in a date range, by where it came from, with what the sold
+// items cost. The Income and Profit cards and their "how it's calculated"
+// dialogs all come from here, so they always agree. Each source gives one
+// row per sale or payment:
+//   sales       paid sales (not installment or Pay Later sales): total − items' cost
+//   loan        installment payments received: amount − items' cost ÷ number of installments
+//   clearance   installment items paid off early: amount − that item's cost
+//   payLater    Pay Later money received: amount − its share of the items' cost
+const sourceRows = {
+  sales: async (range) => {
+    const payments = await Payment.find({ createdAt: range, paymentMethod: { $ne: 'loan' }, isPayLater: { $ne: true }, status: true })
+      .select('invoice total rate transactions createdAt')
+      .populate('transactions', 'stockCosts')
+    return payments.map((payment) => {
+      const buyRate = payment.rate?.buyRate
+      const income = toUSD(payment.total?.value || 0, payment.total?.currency, buyRate)
+      const cost = itemsCost(payment.transactions, buyRate)
+      return { id: payment._id, invoice: payment.invoice, date: payment.createdAt, income, cost, profit: income - cost }
+    })
+  },
+  loan: async (range) => {
+    const loanPayments = await LoanPayment.find({ paymentDate: range, isPaid: true })
+      .select('totalAmount isPaid loan paymentDate')
+      .populate({ path: 'loan', populate: { path: 'payment', select: 'invoice rate transactions', populate: { path: 'transactions', select: 'stockCosts' } } })
+    return loanPayments.map((loanPayment) => {
+      const buyRate = loanPayment.loan?.payment?.rate?.buyRate
+      const income = toUSD(loanPayment.totalAmount?.value || 0, loanPayment.totalAmount?.currency, buyRate)
+      const installmentCount = loanPayment.loan?.loanPayments?.length || 1
+      const fullCost = itemsCost(loanPayment.loan?.payment?.transactions, buyRate)
+      const cost = fullCost / installmentCount
+      return { id: loanPayment._id, invoice: loanPayment.loan?.payment?.invoice, date: loanPayment.paymentDate, income, cost, profit: income - cost, fullCost, installmentCount }
+    })
+  },
+  clearance: async (range) => {
+    const clearances = await TransactionClearance.find({ createdAt: range })
+      .select('transaction amount currency type createdAt')
+      .populate('transaction', 'stockCosts')
+      .populate({ path: 'loan', select: 'payment', populate: { path: 'payment', select: 'invoice rate' } })
+    return clearances.map((item) => {
+      const buyRate = item.loan?.payment?.rate?.buyRate
+      const income = toUSD(item.amount || 0, item.currency, buyRate)
+      const cost = itemsCost([item.transaction], buyRate)
+      return { id: item._id, invoice: item.loan?.payment?.invoice, date: item.createdAt, income, cost, profit: income - cost }
+    })
+  },
+  payLater: async (range) => {
+    const installments = await installmentsBetween(range)
+    return installments.map((installment) => ({
+      id: installment._id,
+      invoice: installment.payment?.invoice,
+      date: installment.paidAt,
+      income: installment.income,
+      cost: installment.cost,
+      profit: installment.profit,
+    }))
+  },
+}
+const SOURCES = Object.keys(sourceRows)
+
+// Each source's totals for a date range, and the totals of them all
+const saleBreakdown = async (range) => {
+  const rowsBySource = await Promise.all(SOURCES.map((key) => sourceRows[key](range)))
+  const sources = SOURCES.map((key, index) => {
+    const rows = rowsBySource[index]
+    return { key, count: rows.length, income: sumOf(rows, 'income'), cost: sumOf(rows, 'cost'), profit: sumOf(rows, 'profit') }
+  })
+  return {
+    from: range.$gte,
+    to: range.$lt || range.$lte,
+    sources,
+    income: sumOf(sources, 'income'),
+    cost: sumOf(sources, 'cost'),
+    profit: sumOf(sources, 'profit'),
+  }
+}
+
 exports.totalSale = async (req, res) => {
-  const income = req.query._totalIncome || 'day'
-  const profit = req.query._totalProfit || 'day'
+  const income = PERIODS.includes(req.query._totalIncome) ? req.query._totalIncome : 'day'
+  const profit = PERIODS.includes(req.query._totalProfit) ? req.query._totalProfit : 'day'
 
   try {
-    // Total Income
-    const incomePayment = await Payment.find({
-      createdAt: {
-        $gte: moment().startOf(income).toDate(),
-        $lt: moment().endOf(income).toDate(),
-      },
-      paymentMethod: { $ne: 'loan' },
-      isPayLater: { $ne: true },
-      status: true,
-    }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
-    let totalIncome = 0
-    incomePayment.forEach(payment => {
-        const { buyRate } = payment.rate
-        let paymentTotal = payment.total.value
-        if (payment.total.currency !== 'USD') paymentTotal /= buyRate
-        totalIncome += paymentTotal
-    }) 
+    // Each card counts its own period
+    const incomeBreakdown = await saleBreakdown(periodRange(income))
+    const profitBreakdown = profit === income ? incomeBreakdown : await saleBreakdown(periodRange(profit))
+    return response.success(200, { data: { totalIncome: incomeBreakdown.income, totalProfit: profitBreakdown.profit } }, res)
+  } catch (err) {
+    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+  }
+}
 
-    // Total Profit
-    const profitPayment = await Payment.find({
-      createdAt: {
-        $gte: moment().startOf(profit).toDate(),
-        $lt: moment().endOf(profit).toDate(),
-      },
-      paymentMethod: { $ne: 'loan' },
-      isPayLater: { $ne: true },
-      status: true,
-    }).select('total rate transactions createdAt').populate('transactions', 'stockCosts')
-    let totalProfit = 0
-    profitPayment.forEach(payment => {
-        const { buyRate } = payment.rate
-        let paymentTotal = payment.total.value
-        if (payment.total.currency !== 'USD') paymentTotal /= buyRate
+// The dialog's range: fromDate and toDate (date-times) when given, otherwise
+// the card's period (?type=income|profit with _totalIncome / _totalProfit)
+const breakdownRange = (query) => {
+  if (query.fromDate || query.toDate) {
+    // ISO date-times only (the dialog sends toISOString())
+    const from = query.fromDate ? moment(query.fromDate, moment.ISO_8601, true) : null
+    const to = query.toDate ? moment(query.toDate, moment.ISO_8601, true) : null
+    if ((from && !from.isValid()) || (to && !to.isValid())) return { error: 'The date is not valid' }
+    if (from && to && from.isAfter(to)) return { error: 'The start must be before the end' }
+    return { range: { ...(from && { $gte: from.toDate() }), ...(to && { $lte: to.toDate() }) } }
+  }
+  const period = query.type === 'profit' ? query._totalProfit : query._totalIncome
+  return { range: periodRange(period) }
+}
 
-        let costTotal = 0
-        payment.transactions.forEach(transaction => {
-            transaction.stockCosts.forEach(stock => {
-                costTotal += stock.currency !== 'USD' ? stock.cost / buyRate : stock.cost
-            })
-        })
-        totalProfit += paymentTotal - costTotal
-    })
+// How the Income or Profit card is worked out: the range and each source's
+// totals. The sales and payments behind a source come from the rows endpoint.
+exports.totalSaleBreakdown = async (req, res) => {
+  const { range, error } = breakdownRange(req.query)
+  if (error) return response.failure(422, { msg: error }, res)
+  try {
+    const breakdown = await saleBreakdown(range)
+    return response.success(200, { data: breakdown }, res)
+  } catch (err) {
+    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+  }
+}
 
-    const incomeLoanPayment = await LoanPayment.find({
-      paymentDate: {
-        $gte: moment().startOf(income).toDate(),
-        $lt: moment().endOf(income).toDate(),
-      },
-      isPaid: true
-    }).select('totalAmount isPaid loan')
-      .populate({ 
-        path: 'loan', 
-        populate: { 
-          path: 'payment', 
-          select: 'rate transactions',
-          populate: {
-            path: 'transactions',
-            select: 'stockCosts'
-          }
-        } 
-      })
-    incomeLoanPayment.forEach(loanPayment => {
-        const buyRate = loanPayment.loan.payment?.rate?.buyRate
-        let loanPaymentTotal = loanPayment.totalAmount.value
-        if (loanPayment.totalAmount.currency !== 'USD') loanPaymentTotal /= buyRate
-        totalIncome += loanPaymentTotal
-
-        let loanCostTotal = loanPayment.loan.payment.transactions.reduce((acc, transaction) => {
-          const transactionCost = transaction.stockCosts.reduce((stockAcc, stock) => {
-            return stockAcc + (stock.currency !== 'USD' ? stock.cost / buyRate : stock.cost)
-          }, 0)
-          return acc + transactionCost
-        }, 0)
-        totalProfit += loanPaymentTotal - loanCostTotal / loanPayment.loan.loanPayments.length
-    })
-
-    const transactionClearance = await TransactionClearance.find({
-      createdAt: {
-        $gte: moment().startOf(income).toDate(),
-        $lt: moment().endOf(income).toDate(),
-      },
-    }).select('transaction amount currency type').populate('transaction', 'stockCosts').populate({ path: 'loan', select: 'payment', populate: { path: 'payment', select: 'rate' } })
-
-    transactionClearance.forEach(clearance => {
-      const buyRate = clearance.loan?.payment?.rate?.buyRate
-      let clearanceAmount = clearance.amount
-      if (clearance.currency !== 'USD') clearanceAmount /= buyRate
-      const totalTransactionCost = clearance.transaction.stockCosts.reduce((acc, stock) => {
-        return acc + (stock.currency !== 'USD' ? stock.cost / buyRate : stock.cost)
-      }, 0)
-      totalIncome += clearanceAmount
-      totalProfit += clearanceAmount - totalTransactionCost
-    })
-
-    // Pay Later: money received in each window, with its share of the cost
-    const payLaterIncome = await installmentsBetween({ $gte: moment().startOf(income).toDate(), $lt: moment().endOf(income).toDate() })
-    payLaterIncome.forEach(installment => { totalIncome += installment.income })
-    const payLaterProfit = await installmentsBetween({ $gte: moment().startOf(profit).toDate(), $lt: moment().endOf(profit).toDate() })
-    payLaterProfit.forEach(installment => { totalProfit += installment.profit })
-
-    return response.success(200, { data: { totalIncome, totalProfit } }, res)
+// One page of the sales and payments in the range: of one source, or of
+// all of them ('all', each row naming its source). `search` matches the
+// invoice; `sort` is by date, 'desc' (newest first, default) or 'asc'.
+// `total` adds up every row that matched, not only this page.
+exports.totalSaleBreakdownRows = async (req, res) => {
+  const source = SOURCES.includes(req.query.source) ? req.query.source : 'all'
+  const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 100)
+  const page = Math.max(parseInt(req.query.page) || 0, 0)
+  const { range, error } = breakdownRange(req.query)
+  if (error) return response.failure(422, { msg: error }, res)
+  try {
+    const keys = source === 'all' ? SOURCES : [source]
+    const bySource = await Promise.all(keys.map((key) => sourceRows[key](range)))
+    const search = String(req.query.search || '').trim().toLowerCase()
+    const direction = req.query.sort === 'asc' ? 1 : -1
+    const rows = bySource
+      .flatMap((items, index) => items.map((row) => ({ ...row, source: keys[index] })))
+      .filter((row) => !search || String(row.invoice || '').toLowerCase().includes(search))
+      .sort((a, b) => direction * (new Date(a.date) - new Date(b.date)))
+    const total = { income: sumOf(rows, 'income'), cost: sumOf(rows, 'cost'), profit: sumOf(rows, 'profit') }
+    return response.success(200, { data: rows.slice(page * limit, page * limit + limit), length: rows.length, total, page, limit, source }, res)
   } catch (err) {
     return response.failure(422, { msg: failureMsg.trouble }, res, err)
   }
