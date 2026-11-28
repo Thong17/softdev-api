@@ -12,6 +12,10 @@ const Transaction = require('../models/Transaction')
 const Reservation = require('../models/Reservation')
 const Promotion = require('../models/Promotion')
 const { compareDate } = require('../helpers/utils')
+const Customer = require('../models/Customer')
+const CustomerTier = require('../models/CustomerTier')
+const Announcement = require('../models/Announcement')
+const Payment = require('../models/Payment')
 
 exports.admin = async (req, res) => {
   try {
@@ -330,6 +334,95 @@ exports.operation = async (req, res) => {
       },
       res
     )
+  } catch (err) {
+    return response.failure(422, { msg: failureMsg.trouble }, res, err)
+  }
+}
+
+// Function dashboard: customers, promotions, banners and Pay Later. Each part
+// is only included for users allowed to see it.
+exports.function = async (req, res) => {
+  try {
+    const privilege = req.user?.role?.privilege || {}
+    const now = new Date()
+    const data = {}
+
+    if (privilege.function?.customer) {
+      const live = { isDeleted: { $ne: true } }
+      const [totalCustomer, byTier, byType, tiers] = await Promise.all([
+        Customer.countDocuments(live),
+        Customer.aggregate([{ $match: live }, { $group: { _id: '$tier', value: { $sum: 1 } } }]),
+        Customer.aggregate([{ $match: live }, { $group: { _id: '$type', value: { $sum: 1 } } }]),
+        CustomerTier.find({ isDeleted: { $ne: true } }).select('name color minSpent').sort({ minSpent: 1 }).lean(),
+      ])
+      const count = new Map(byTier.map((item) => [String(item._id), item.value]))
+      // In tier order, then customers without a tier (or a deleted one)
+      const tierData = tiers.map((tier) => ({ id: String(tier._id), name: tier.name, color: tier.color, value: count.get(String(tier._id)) || 0 }))
+      const noTier = totalCustomer - tierData.reduce((sum, tier) => sum + tier.value, 0)
+      if (noTier > 0) tierData.push({ id: 'none', name: null, value: noTier })
+      data.totalCustomer = totalCustomer
+      data.customerTiers = tierData.filter((tier) => tier.value > 0)
+      const business = byType.find((item) => item._id === 'BUSINESS')?.value || 0
+      data.customerTypes = [
+        { id: 'INDIVIDUAL', value: totalCustomer - business },
+        { id: 'BUSINESS', value: business },
+      ].filter((item) => item.value > 0)
+    }
+
+    if (privilege.function?.promotion) {
+      const live = { isDeleted: { $ne: true } }
+      const [active, scheduled, expired] = await Promise.all([
+        Promotion.countDocuments({ ...live, startAt: { $lte: now }, expireAt: { $gt: now } }),
+        Promotion.countDocuments({ ...live, startAt: { $gt: now } }),
+        Promotion.countDocuments({ ...live, expireAt: { $lte: now } }),
+      ])
+      data.activePromotion = active
+      data.promotions = [
+        { id: 'ACTIVE', value: active },
+        { id: 'SCHEDULED', value: scheduled },
+        { id: 'EXPIRED', value: expired },
+      ].filter((item) => item.value > 0)
+    }
+
+    if (privilege.function?.banner) {
+      // Showing: switched on, started (or no start set) and not ended
+      data.activeBanner = await Announcement.countDocuments({
+        isDeleted: { $ne: true },
+        status: true,
+        $or: [{ startAt: { $lte: now } }, { startAt: null }],
+        expireAt: { $gt: now },
+      })
+    }
+
+    if (privilege.operation?.payment) {
+      const owing = await Payment.find({ isPayLater: true, 'balance.USD': { $gt: 0.01 } })
+        .select('balance.USD payLater.dueDate customer')
+        .lean()
+      const sum = (list) => Math.round(list.reduce((total, payment) => total + (payment.balance?.USD || 0), 0) * 100) / 100
+      const overdue = owing.filter((payment) => payment.payLater?.dueDate && new Date(payment.payLater.dueDate) < now)
+      const notDue = owing.filter((payment) => !overdue.includes(payment))
+      data.payLaterOwing = sum(owing)
+      data.payLater = [
+        { id: 'NOT_DUE', value: notDue.length, amount: sum(notDue) },
+        { id: 'OVERDUE', value: overdue.length, amount: sum(overdue) },
+      ].filter((item) => item.value > 0)
+    }
+
+    // Customers with a Pay Later balance (the card opens the customer list
+    // filtered to them), and how many of them are overdue
+    if (privilege.operation?.payment && privilege.function?.customer) {
+      const owing = await Payment.find({ isPayLater: true, status: true, 'balance.USD': { $gt: 0.01 }, customer: { $ne: null } })
+        .select('customer payLater.dueDate')
+        .populate({ path: 'customer', select: 'isDeleted' })
+        .lean()
+      const live = owing.filter((payment) => payment.customer && !payment.customer.isDeleted)
+      data.dueCustomers = new Set(live.map((payment) => String(payment.customer._id))).size
+      data.overdueCustomers = new Set(live
+        .filter((payment) => payment.payLater?.dueDate && new Date(payment.payLater.dueDate) < now)
+        .map((payment) => String(payment.customer._id))).size
+    }
+
+    return response.success(200, { data }, res)
   } catch (err) {
     return response.failure(422, { msg: failureMsg.trouble }, res, err)
   }
